@@ -8,21 +8,21 @@ version = "0.1.0"
 description = "Mantle AI backend: a developer workspace for working with multiple LLMs."
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "pydantic-settings",
-    "sqlalchemy[asyncio]",
-    "asyncpg",
-    "alembic",
-    "cryptography",
+    "fastapi>=0.163.1,<0.164",
+    "uvicorn[standard]>=0.54.0,<0.55",
+    "pydantic-settings>=2.16.3,<3",
+    "sqlalchemy[asyncio]>=2.1.9,<3",
+    "asyncpg>=0.32.0,<0.33",
+    "alembic>=1.20.1,<2",
+    "cryptography>=50.0.2,<51",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "pytest-asyncio",
-    "httpx",
-    "ruff",
+    "pytest>=9.2.0,<10",
+    "pytest-asyncio>=1.5.0,<2",
+    "httpx>=0.28.1,<0.29",
+    "ruff>=0.17.5,<0.18",
 ]
 
 # Only package the "app" folder (not tests/ or anything else).
