@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets: never commit real env files, but keep the example
+.env
+!.env.example
+
+# Node / frontend
+node_modules/
+dist/
+
+# Editors
+.idea/

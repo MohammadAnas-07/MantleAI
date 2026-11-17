@@ -1,0 +1,154 @@
+# Mantle AI
+
+Mantle AI is a developer workspace for working with multiple LLMs.
+
+This is **chunk 0**: the project skeleton only. There is one endpoint, `GET /health`, which tells you
+whether the API is running and whether it can reach the database.
+
+## Project layout
+
+```
+backend/    Python API (FastAPI). All Python commands are run from this folder.
+frontend/   Placeholder. React + Vite + TypeScript + Tailwind come in a later chunk.
+docs/       Project documents.
+.vscode/    Editor settings and a debug configuration.
+docker-compose.yml   Starts a local PostgreSQL database (with pgvector) in Docker.
+```
+
+## What you need installed
+
+- Python 3.12 or newer (3.14 is fine)
+- Docker Desktop (open it and wait until it says "Engine running")
+- Git and VS Code
+
+## First-time setup (Windows PowerShell)
+
+Open PowerShell in the project folder (the folder that contains this README). In VS Code:
+**Terminal → New Terminal**.
+
+### 1. Go into the backend folder
+
+```powershell
+cd backend
+```
+
+All Python commands below run from `backend`.
+
+### 2. Create a virtual environment
+
+```powershell
+python -m venv .venv
+```
+
+A virtual environment is a private folder (`backend\.venv`) that holds this project's Python
+packages, so they don't mix with other projects. You only do this once.
+
+### 3. Activate the virtual environment
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+When it works, your prompt starts with `(.venv)`. You must activate it every time you open a new
+terminal.
+
+If you get an error like *"running scripts is disabled on this system"*, run this once, then try
+again:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+This allows locally created scripts (like `Activate.ps1`) to run, for your user only.
+
+### 4. Upgrade pip
+
+```powershell
+python -m pip install --upgrade pip
+```
+
+`pip` is Python's package installer. A recent version avoids install problems.
+
+### 5. Install the project and its dev tools
+
+```powershell
+pip install -e ".[dev]"
+```
+
+- `-e` installs the project in "editable" mode: your code changes take effect without reinstalling.
+- `.[dev]` also installs the developer tools: pytest (tests), httpx (HTTP client for tests) and ruff
+  (linter and formatter).
+
+### 6. Start the database
+
+```powershell
+cd ..
+docker compose up -d
+```
+
+This starts PostgreSQL in the background (`-d`), using `docker-compose.yml`. The data is kept in a
+Docker volume called `pgdata`, so it survives restarts. To stop it later: `docker compose down`.
+
+### 7. Start the API server
+
+```powershell
+cd backend
+uvicorn app.main:app --reload
+```
+
+`--reload` restarts the server automatically when you save a file. Stop it with `Ctrl+C`.
+
+### 8. Check it in your browser
+
+- <http://127.0.0.1:8000/health> should show `{"status":"ok","database":"up"}`.
+  If the database is not running you will see `"database":"down"`; the API still works.
+- <http://127.0.0.1:8000/docs> shows interactive API documentation.
+
+### 9. Run the tests and the linter
+
+Open a second terminal (keep the server running in the first), then:
+
+```powershell
+cd backend
+.venv\Scripts\Activate.ps1
+pytest
+ruff check .
+```
+
+The tests pass even if the database is down. `ruff format .` reformats the code.
+
+## Configuration
+
+Settings are read from `backend\.env`. This file is for your machine only and is **not** committed to
+Git. `backend\.env.example` lists the same keys with safe example values and **is** committed. If you
+ever lose `.env`, copy the example:
+
+```powershell
+Copy-Item backend\.env.example backend\.env
+```
+
+| Key | Meaning |
+| --- | --- |
+| `APP_ENV` | `development` for local work |
+| `LOG_LEVEL` | How much logging to show (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `DATABASE_URL` | How to connect to PostgreSQL |
+| `MASTER_ENCRYPTION_KEY` | Empty for now; generated in a later chunk |
+
+## VS Code
+
+- Install the extensions **Python** (Microsoft) and **Ruff** (Astral Software).
+- `.vscode/settings.json` points VS Code at `backend\.venv\Scripts\python.exe`, formats Python with
+  ruff on save, and enables pytest in the Testing panel (flask icon).
+- To debug the API: **Run and Debug** panel → **Backend: FastAPI (uvicorn --reload)** → green play
+  button. Breakpoints in your code will be hit.
+
+## Common errors
+
+| Problem | What it means | Fix |
+| --- | --- | --- |
+| `python : The term 'python' is not recognized` | Python is not on your PATH | Try `py` instead of `python`, or reinstall Python with **"Add python.exe to PATH"** ticked, then open a new terminal |
+| VS Code shows import errors / uses the wrong Python | VS Code picked another interpreter | `Ctrl+Shift+P` → **Python: Select Interpreter** → choose `backend\.venv\Scripts\python.exe`. Make sure you ran steps 2 and 5 first |
+| `docker compose` fails with *"cannot connect to the Docker daemon"* / pipe error | Docker Desktop is not running | Start Docker Desktop, wait for "Engine running", then run `docker compose up -d` again |
+| `/health` says `"database":"down"` | The database container is not running or not ready | Run `docker compose ps` from the project folder; if `db` is missing, run `docker compose up -d` |
+| Port already in use (8000 or 5432) | Another program is using that port | For the API: `uvicorn app.main:app --reload --port 8001`. For 5432: stop the other PostgreSQL (e.g. a locally installed one) or change the port mapping in `docker-compose.yml` and `DATABASE_URL` |
+| `ModuleNotFoundError: No module named 'app'` | Command run from the wrong folder or venv not active | `cd backend`, activate the venv (step 3), and run step 5 if you haven't |
