@@ -12,7 +12,7 @@ Our rule: we never import `langchain*`; only `langgraph`.
 ## Decision
 
 > **Note:** if Planner and Reviewer can be built as plain Python (a small state machine over our
-> own tables), skip LangGraph. Decide this at the start of `feat/workflow-and-project-memory`,
+> own tables), skip LangGraph. Decide this at the start of `feat/workflow-and-agents`,
 > and only add LangGraph if the plain version gets messy.
 
 - LangGraph is used **only inside `modules/workflow`**, to run the agent steps of one stage
