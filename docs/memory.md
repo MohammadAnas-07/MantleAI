@@ -12,9 +12,10 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 Phase 1 has not started coding yet. The backend is a scaffold: FastAPI with `GET /health`, async
 SQLAlchemy session, settings from `backend/.env`, and one test. PostgreSQL + pgvector runs in
-Docker on `127.0.0.1:5433`. Product, architecture and process docs are written (`docs/`). Next is
-`chore/pin-dependencies`, then `feat/database-models`. First demo (model switching) target:
-2026-12-17. Last updated 2026-11-17.
+Docker on `127.0.0.1:5433`. Product, architecture and process docs are written (`docs/`).
+Dependencies have version ranges and a lock file (`chore/pin-dependencies`, committed, not yet
+merged). Next is `feat/database-models`. First demo (model switching) target: 2026-12-17.
+Last updated 2026-11-17.
 
 ## Done
 
@@ -23,7 +24,8 @@ Docker on `127.0.0.1:5433`. Product, architecture and process docs are written (
 - 2026-11-17: Docker Postgres moved to host port 5433 (`74d4c68`).
 - 2026-11-17: `docs/project-documentation` merged as PR #1: architecture, requirements, scope, data model, API, security, roadmap, ADRs 0001–0005, decisions D1–D10.
 - 2026-11-17: `fix/bind-database-to-localhost` merged as PR #2: Postgres published only on 127.0.0.1; `127.0.0.1` in `DATABASE_URL`.
-- 2026-11-17: `docs/product-and-process-docs`: idea, PRD, rules, phases, this memory file; CLAUDE.md shortened; product decisions recorded (committed, not yet pushed or merged).
+- 2026-11-17: `docs/product-and-process-docs` merged as PR #3: idea, PRD, rules, phases, this memory file; CLAUDE.md shortened; product decisions recorded.
+- 2026-11-17: `chore/pin-dependencies`: compatible version ranges for every dependency in `backend/pyproject.toml`, exact versions in `backend/requirements.lock`, "Reproducible install" section in README (committed, not yet pushed or merged).
 
 ## In progress
 
@@ -31,11 +33,11 @@ Docker on `127.0.0.1:5433`. Product, architecture and process docs are written (
 
 ## Next
 
-1. `chore/pin-dependencies`: version ranges in `pyproject.toml` and `backend/requirements.lock`. Must come before `feat/database-models`.
-2. `feat/database-models`: Alembic setup, v0.1 tables, default local user.
-3. `feat/llm-gateway`: encrypted keys, LiteLLM calls, usage records, fake provider.
+1. `feat/database-models`: Alembic setup, v0.1 tables, default local user.
+2. `feat/llm-gateway`: encrypted keys, LiteLLM calls, usage records, fake provider.
+3. `feat/model-switching`: conversations, streaming, rolling summary, switch. Ends Phase 1.
 
-After that, `feat/model-switching` ends Phase 1, and `feat/project-memory` is Phase 2.
+After that, `feat/project-memory` is Phase 2.
 
 ## Decisions
 
@@ -69,7 +71,7 @@ Full decision text: `docs/architecture.md` → Decisions.
 - **The first DB connection after a container (re)start can take over 2 s**, so `/health` may say `"down"` for a few seconds. Refresh after a short wait.
 - **Docker Desktop is sometimes very slow or hangs** (`docker exec`, `docker compose up` timed out once). Retry with a longer wait.
 - **Python/pytest startup is slow on this machine** (6–16 s for one test). It isn't a test problem.
-- **Dependencies in `backend/pyproject.toml` have no version ranges and there is no lock file**, which breaks rule 63 in `docs/rules.md`. Fix in `chore/pin-dependencies`, **before** `feat/database-models`.
+- **`backend/requirements.lock` was made on Windows with Python 3.14.** A few platform-only packages (for example `colorama`) can differ elsewhere. When you add or change a dependency, regenerate the lock file with `python -m pip freeze --exclude-editable > requirements.lock`.
 - **There is no LICENSE file yet**, although the project is open source.
 - **`gh` (GitHub CLI) isn't installed, and the built-in browser isn't signed in to GitHub.** The developer opens and merges PRs by hand.
 - Git prints "LF will be replaced by CRLF" warnings on commit; they are harmless.

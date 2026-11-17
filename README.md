@@ -79,6 +79,36 @@ pip install -e ".[dev]"
 - `.[dev]` also installs the developer tools: pytest (tests), httpx (HTTP client for tests) and ruff
   (linter and formatter).
 
+#### Reproducible install
+
+`pyproject.toml` allows a *range* of versions for each package, so `pip install -e ".[dev]"` may
+pick newer versions on different days. `backend\requirements.lock` records the **exact** versions
+that are known to work. To get exactly those, run this from `backend` with the venv active,
+instead of step 5:
+
+```powershell
+pip install -r requirements.lock
+pip install -e . --no-deps
+```
+
+The first command installs every package at its locked version (dev tools included). The second
+installs Mantle itself in editable mode without letting pip change any versions.
+
+Which one to use:
+
+- **Normal development:** `pip install -e ".[dev]"` (step 5).
+- **Something broke after an install, a fresh machine, or CI:** the two commands above.
+
+When you change dependencies in `pyproject.toml`, install them, run the tests, and regenerate the
+lock file:
+
+```powershell
+python -m pip freeze --exclude-editable > requirements.lock
+```
+
+The lock file was made on Windows with Python 3.14. On other systems a few platform-only packages
+can differ (for example `colorama` is Windows-only).
+
 ### 6. Start the database
 
 ```powershell
