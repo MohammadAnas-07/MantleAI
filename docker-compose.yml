@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: mantle
       POSTGRES_DB: mantle
     ports:
-      - "5432:5432"
+      - "5433:5432"  # host port 5433, so it does not clash with a PostgreSQL installed on Windows (5432)
     volumes:
       - pgdata:/var/lib/postgresql/data
 
