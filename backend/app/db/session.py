@@ -11,11 +11,15 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Seconds to wait for Postgres before giving up. Kept short so /health
+# reports "down" quickly when the database is not running.
+DB_CONNECT_TIMEOUT = 2.0
+
 # Creating the engine does not connect yet; it connects on first use.
 engine = create_async_engine(
     settings.database_url,
     pool_pre_ping=True,
-    connect_args={"timeout": 3},  # asyncpg connect timeout in seconds
+    connect_args={"timeout": DB_CONNECT_TIMEOUT},  # asyncpg connect timeout
 )
 
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
@@ -27,8 +31,11 @@ async def get_session() -> AsyncIterator[AsyncSession]:
         yield session
 
 
-async def check_database(timeout: float = 3.0) -> bool:
-    """Return True if the database answers `SELECT 1`, False otherwise. Never raises."""
+async def check_database(timeout: float = DB_CONNECT_TIMEOUT) -> bool:
+    """Return True if the database answers `SELECT 1`, False otherwise. Never raises.
+
+    The whole check (connect + query) is capped at `timeout` seconds.
+    """
     try:
         async with asyncio.timeout(timeout):
             async with engine.connect() as conn:
