@@ -28,5 +28,7 @@ cosine distance, always filtered by `project_id`.
 
 - One database to back up, and chunks can be joined directly with documents and projects.
 - Users need Docker Desktop running (already in `README.md`).
-- A pgvector column has a fixed dimension, so changing the embedding model means re-indexing.
+- A pgvector column has a fixed dimension. Every chunk stores its `embedding_model` and
+  `embedding_dimensions`. Changing the embedding model means re-indexing the project, and a
+  different dimension also needs a migration.
 - Hybrid search (PostgreSQL full-text + vector) can be added later without a new system.

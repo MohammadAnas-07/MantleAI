@@ -16,6 +16,11 @@ Use the **LiteLLM Python SDK** (not the LiteLLM proxy server), imported **only**
 `ContextTooLong`, `AuthFailed`, `ProviderUnavailable`). It decrypts keys just before each call and
 writes a UsageRecord for every call. Tests use a fake provider or LiteLLM's `mock_response`.
 
+Embeddings also go through this gateway. The default is a small OpenAI or Voyage embedding model,
+so the user needs an embeddings-capable key. There's no local embedding model in v0.1. A
+**utility model** setting (default: the conversation's active model) handles background work
+such as rolling conversation summaries.
+
 ## Alternatives considered
 
 - **Each provider's own SDK:** full control, but we'd have to write and maintain every adapter

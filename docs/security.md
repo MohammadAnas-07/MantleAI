@@ -64,11 +64,12 @@ A basic threat model for v0.1: one user, running locally, using their own API ke
 | | |
 | --- | --- |
 | Risk | There's no login in v0.1. Any web page in the browser could call `http://127.0.0.1:8000`, and other devices on the Wi-Fi could reach the API or the database. |
-| MVP | uvicorn binds to `127.0.0.1` only. CORS allows only the frontend's dev origin. A Host-header check (localhost / 127.0.0.1 only) blocks DNS-rebinding. Write requests must be JSON (which forces a CORS preflight). No GET request changes state. **To do:** `docker-compose.yml` currently publishes the database on all interfaces; change it to `127.0.0.1:5433:5432` (see Open questions in `docs/architecture.md`). |
-| Later | `feat/authentication`: real login, sessions and per-user isolation, before Mantle is ever run on a server. |
+| MVP | uvicorn binds to `127.0.0.1` only. CORS allows only the frontend's dev origin. A Host-header check (localhost / 127.0.0.1 only) blocks DNS-rebinding. Write requests must be JSON (which forces a CORS preflight). No GET request changes state. **Follow-up (decision D6):** `docker-compose.yml` currently publishes the database on all interfaces. Branch `fix/bind-database-to-localhost` changes it to `127.0.0.1:5433:5432`. |
+| Later | `feat/authentication`: real login and sessions, before Mantle is ever run on a server. Because every user-data table already has `user_id` and every query filters by it, auth only has to replace the "current user" dependency. |
 
 ## Checklist for every PR
 
 - No secret in code, tests, fixtures or logs.
 - No new way for an LLM output to trigger an action without human approval.
 - No new file access outside `rag`, and no writes.
+- Every new query on user data filters by `user_id`.

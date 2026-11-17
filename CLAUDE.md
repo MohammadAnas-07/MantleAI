@@ -23,7 +23,7 @@ not an LLM.
 backend/
   app/
     main.py            FastAPI app, mounts each module's router
-    core/              config, logging, security helpers (shared, no business logic)
+    core/              config, logging, security helpers, User + current-user dependency, audit log
     db/                engine, session, Alembic base
     api/               API-wide pieces (error handlers, dependencies)
     modules/
@@ -52,7 +52,8 @@ Each module uses the same files as it grows:
 - Type hints on every function. `async def` for anything that does I/O.
 - Modules talk to each other only through `service.py` functions. Never import another module's
   `models.py` or `router.py`, and never query another module's tables directly.
-- Only `modules/llm` imports `litellm`. Only `modules/workflow` imports `langgraph`.
+- Only `modules/llm` imports `litellm`. Only `modules/workflow` imports `langgraph`. Nothing
+  imports `langchain*`.
 - Configuration comes from `app.core.config.settings`. Never read `os.environ` elsewhere.
 - Use `logging.getLogger(__name__)`. Never `print`.
 - Validate all external input with Pydantic at the API edge.
@@ -81,8 +82,12 @@ ruff format --check .
 ## Rules
 
 - **Modular monolith.** One FastAPI app and one database. No microservices.
-- **No LangChain in core code.** Do not import `langchain` or `langchain_*` anywhere. LangGraph is
-  allowed only inside `modules/workflow` (see `docs/adr/0004-langgraph-selective.md`).
+- **We never import `langchain*`; only `langgraph`.** No `import langchain`, `langchain_core`,
+  `langchain_community` or any other `langchain*` package, anywhere. `langgraph` is the only one
+  allowed, and only inside `modules/workflow`. (`langchain-core` being installed as a dependency
+  of LangGraph is fine.) See `docs/adr/0004-langgraph-selective.md`.
+- **Every user-data table has `user_id`, and every query filters by it.** Get the user from the
+  `get_current_user` dependency. In v0.1 that is always the default local user.
 - **No secrets in code or logs.** API keys live encrypted in the database. Never log prompts,
   keys, `Authorization` headers or file contents at INFO or above.
 - **Tests must not need real API keys or network access.** Use the gateway's fake provider or

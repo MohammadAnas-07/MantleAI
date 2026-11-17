@@ -6,16 +6,16 @@ v0.1 is a local tool for **one developer on their own machine**, using **their o
 
 | Feature | What exactly |
 | --- | --- |
-| Single local user | No login. The API binds to 127.0.0.1 only. |
-| Bring your own API keys | OpenAI, Anthropic and Google keys, stored encrypted in PostgreSQL. A "test key" button. |
+| Single local user | No login. One default local user, and all data carries its `user_id`. The API binds to 127.0.0.1 only. |
+| Bring your own API keys | OpenAI, Anthropic, Google and Voyage keys, stored encrypted in PostgreSQL. A "test key" button. **Indexing needs an embeddings-capable key (OpenAI or Voyage).** |
 | Projects and conversations in PostgreSQL | A project has many conversations, and a conversation has many messages. |
 | Chat with streaming | Server-sent events, a cancel button, and errors shown clearly. |
-| Model switching with context handoff | Preview what carries over. The target model summarises older history if it doesn't fit. Every message is tagged with its model. |
-| Project indexing with retrieval | Index a local folder, embed into pgvector, cite top-k sources as `path:lines`. Only changed files are re-indexed. |
+| Model switching with context handoff | A rolling summary is built in the background by the utility model (default: the active model). A switch carries the summary plus the recent messages that fit, after a preview, and never calls the old model. Every message is tagged with its model. |
+| Project indexing with retrieval | Index a local folder, embed with a small OpenAI or Voyage model into pgvector, cite top-k sources as `path:lines`. Only changed files are re-indexed. Changing the embedding model means re-indexing. |
 | Project memory | Requirements, decisions and tasks. Items proposed by AI need approval. |
-| Workflow stages with human approval | Fixed stages. Each one is approved, sent back for changes, or skipped by the user. |
+| Workflow stages with human approval | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. Each one is approved, sent back for changes, or skipped by the user. |
 | Two agents | **Planner** (drafts) and **Reviewer** (critiques). No tools, text output only. |
-| Teaching notes | "What, why, how" notes for a concept, a message or a stage, using project context. |
+| Teaching notes | "What, why, how" notes, created only when the user asks, using project context. Plus a passive "concepts for this project" list. No pop-ups or interruptions. |
 | Simple React UI | Projects, chat with a model picker, memory, workflow, teaching notes, settings. |
 
 ## Not in v0.1
@@ -26,7 +26,8 @@ v0.1 is a local tool for **one developer on their own machine**, using **their o
 | GitHub integration | Local folders cover indexing for now. |
 | Monaco editor | The UI is chat and panels first. Editing happens in the user's own IDE. |
 | Redis and queues | In-process background tasks and PostgreSQL are enough for one user. |
-| Multi-user auth | One local user. Auth is its own roadmap item. |
+| Multi-user auth | One local user (with `user_id` already on all data). Auth is its own roadmap item. |
+| Local embedding model | A small OpenAI or Voyage model through the gateway first. |
 | CI/CD integration | Comes after execution and GitHub. |
 | Reranker | Plain vector top-k first. Add one once we can measure retrieval quality. |
 | More than two agents | Prove Planner + Reviewer + human approval first. |

@@ -1,15 +1,19 @@
 # ADR 0004: Use LangGraph selectively
 
-Status: Accepted (see Open question 7 in `docs/architecture.md`)
+Status: Accepted (decision D7 in `docs/architecture.md`, 2026-11-17)
 
 ## Context
 
 v0.1 has two agents, Planner and Reviewer, working inside workflow stages that need human
 approval. `vision.md` suggests LangGraph for stateful agent workflows, but says Mantle must own its
 core architecture and must not create agents "for the sake of calling something an AI agent."
-Our rule: no LangChain in core code.
+Our rule: we never import `langchain*`; only `langgraph`.
 
 ## Decision
+
+> **Note:** if Planner and Reviewer can be built as plain Python (a small state machine over our
+> own tables), skip LangGraph. Decide this at the start of `feat/workflow-and-project-memory`,
+> and only add LangGraph if the plain version gets messy.
 
 - LangGraph is used **only inside `modules/workflow`**, to run the agent steps of one stage
   (Planner drafts → Reviewer critiques → Planner revises once → stop).
@@ -32,6 +36,6 @@ Our rule: no LangChain in core code.
 ## Consequences
 
 - The use of LangGraph is contained, so it can be removed by rewriting one module.
-- `langgraph` installs `langchain-core` as a dependency. Our code must never import it
-  (enforced by review and later a lint rule).
+- `langgraph` installs `langchain-core` as a dependency. That's accepted, but our code must never
+  import any `langchain*` package (enforced by review, and later by a lint rule).
 - Adding agents later means adding nodes to the graph, not changing other modules.

@@ -3,29 +3,49 @@
 Everything lives in one PostgreSQL database. Each table is owned by exactly one module (see
 `docs/architecture.md`). There is no SQL here; the tables are created in `feat/database-models`.
 
-Conventions: every table has `id` (UUID), `created_at` and `updated_at` (UTC). "FK" means
-foreign key. Enums are stored as short strings.
+Conventions:
+
+- Every table has `id` (UUID), `created_at` and `updated_at` (UTC).
+- **Every user-data table has `user_id` → User** (not null, indexed). That is every table below
+  except User and ModelConfig. Child tables (Message, Chunk, StageState, …) carry `user_id` too,
+  so every query can filter by user directly.
+- "FK" means foreign key. Enums are stored as short strings.
 
 ## Structured vs vector
 
 | Kind | What | Where |
 | --- | --- | --- |
 | **Vector** | Embeddings of project file chunks | `chunks.embedding` (pgvector, HNSW index, cosine) |
-| **Structured** | Everything else: projects, memory, messages, keys, usage, workflow, notes, audit | Normal tables, normal queries |
+| **Structured** | Everything else: users, projects, memory, messages, summaries, keys, usage, workflow, notes, audit | Normal tables, normal queries |
 
 Memory items, tasks and decisions are **not** embedded in v0.1. They are fetched with normal
 queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 
+## Shared (`app/core`)
+
+**User**
+- `display_name`
+- `is_local_default` (bool)
+- v0.1 has exactly one row, the default local user, created by the first migration with a fixed
+  id. Auth later adds login fields; it doesn't change other tables.
+
+**AuditEvent**: security-relevant actions only.
+- `user_id` → User
+- `event_type` (for example `credential.added`, `index.started`, `stage.approved`)
+- `entity_type`, `entity_id`
+- `details` (JSON, never secrets or file contents)
+
 ## projects module
 
 **Project**
+- `user_id` → User
 - `name`, `description`
 - `root_path`: the local folder to index (nullable)
 - `default_model_id` → ModelConfig (nullable)
 - `archived_at` (nullable)
 
 **MemoryItem**: requirements, decisions and tasks in one table.
-- `project_id` → Project
+- `user_id` → User, `project_id` → Project
 - `kind`: `requirement` | `decision` | `task`
 - `title`, `body` (markdown)
 - `status`: `proposed` | `active` | `done` | `rejected` | `superseded`
@@ -37,50 +57,65 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 ## conversations module
 
 **Conversation**
-- `project_id` → Project
+- `user_id` → User, `project_id` → Project
 - `title`
 - `current_model_id` → ModelConfig
 
 **Message**
-- `conversation_id` → Conversation
+- `user_id` → User, `conversation_id` → Conversation
 - `role`: `user` | `assistant` | `system`
 - `content` (text)
 - `model_id` → ModelConfig (nullable for user messages)
 - `status`: `complete` | `streaming` | `error` | `cancelled`
 - `error_code` (nullable), `token_count`
 
+**ConversationSummary**: the rolling summary, built in the background. A new row is added each
+time it's updated; the newest row is the current one.
+- `user_id` → User, `conversation_id` → Conversation
+- `summary` (text): goals, decisions, code state, open issues
+- `up_to_message_id` → Message: the last message this summary covers
+- `model_id` → ModelConfig: the model that wrote it (the utility model at that time)
+- `token_count`
+
 **ContextHandoff**: one row per model switch.
-- `conversation_id` → Conversation
+- `user_id` → User, `conversation_id` → Conversation
 - `from_model_id`, `to_model_id` → ModelConfig
 - `reason`: `user_choice` | `rate_limit` | `context_limit` | `provider_error`
-- `summary` (text, nullable: empty if the full history fit)
-- `summary_up_to_message_id` → Message (nullable)
+- `conversation_summary_id` → ConversationSummary (nullable: none for short conversations)
+- `first_raw_message_id` → Message: the oldest message carried over as-is
 - `tokens_before`, `tokens_after`
 
 **MessageContext**: what was used to answer one message.
-- `message_id` → Message
-- `source_type`: `chunk` | `memory_item` | `handoff`
-- `source_id` (UUID of the Chunk, MemoryItem or ContextHandoff)
+- `user_id` → User, `message_id` → Message
+- `source_type`: `chunk` | `memory_item` | `summary`
+- `source_id` (UUID of the Chunk, MemoryItem or ConversationSummary)
 - `score` (nullable), `rank`
 
 ## llm module (LLM gateway)
 
 **ProviderCredential**
-- `provider`: `openai` | `anthropic` | `google` | …
+- `user_id` → User
+- `provider`: `openai` | `anthropic` | `google` | `voyage` | …
 - `label`
 - `encrypted_key` (bytes, Fernet), `key_hint` (last 4 characters)
 - `last_tested_at`, `last_test_ok`
 
-**ModelConfig**
-- `provider`, `litellm_model` (for example `anthropic/claude-...`), `display_name`
+**ModelConfig**: shared catalog, not user data (no `user_id`).
+- `provider`, `litellm_model` (for example `openai/text-embedding-3-small`), `display_name`
 - `kind`: `chat` | `embedding`
 - `context_window`, `max_output_tokens`, `embedding_dimensions` (embedding models only)
 - `input_cost_per_mtok`, `output_cost_per_mtok` (nullable)
 - `enabled`
 
+**UserModelSettings**: one row per user.
+- `user_id` → User (unique)
+- `utility_model_id` → ModelConfig (nullable: **null means "use the conversation's active model"**)
+- `embedding_model_id` → ModelConfig (default: a small OpenAI or Voyage model)
+
 **UsageRecord**
+- `user_id` → User
 - `model_id` → ModelConfig
-- `purpose`: `chat` | `handoff_summary` | `embedding` | `agent` | `teaching`
+- `purpose`: `chat` | `rolling_summary` | `embedding` | `agent` | `teaching`
 - `project_id`, `conversation_id`, `message_id`, `agent_run_id` (all nullable)
 - `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`
 - `status`, `error_code`
@@ -88,38 +123,46 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 ## rag module
 
 **IndexRun**
-- `project_id` → Project
+- `user_id` → User, `project_id` → Project
 - `status`: `running` | `done` | `failed` | `cancelled`
 - `files_seen`, `files_indexed`, `files_skipped`, `chunks_created`
 - `error` (nullable), `finished_at`
 - `embedding_model_id` → ModelConfig
 
 **Document**: one indexed file.
-- `project_id` → Project
+- `user_id` → User, `project_id` → Project
 - `path` (relative to `root_path`), `content_hash`, `size_bytes`, `language`
 - `last_index_run_id` → IndexRun
 
 **Chunk**
-- `document_id` → Document, `project_id` → Project (copied here for fast filtering)
+- `user_id` → User, `document_id` → Document, `project_id` → Project (copied here for fast filtering)
 - `ordinal`, `text`, `start_line`, `end_line`, `token_count`
-- `embedding` (vector; the dimension is fixed by the chosen embedding model)
+- `embedding` (vector)
+- `embedding_model` (the LiteLLM model name), `embedding_dimensions`
+
+**Changing the embedding model:** the `embedding` column has one fixed dimension, set by migration
+from the default embedding model. Vectors from different models can't be compared, so changing
+the model means re-indexing the project. Retrieval only uses chunks whose `embedding_model`
+matches the query's model. A model with a different dimension also needs a migration to change
+the column.
 
 ## workflow module
 
 **WorkflowRun**
-- `project_id` → Project
+- `user_id` → User, `project_id` → Project
 - `status`: `active` | `completed` | `abandoned`
 - `current_stage_key`
 
-**StageState**: one row per stage per run. The stage list itself is fixed in code.
-- `workflow_run_id` → WorkflowRun
-- `stage_key` (for example `requirements`), `position`
+**StageState**: one row per stage per run. The stage list is fixed in code: `requirements`,
+`architecture`, `technical_decisions`, `task_breakdown`, `implementation_plan`.
+- `user_id` → User, `workflow_run_id` → WorkflowRun
+- `stage_key`, `position`
 - `status`: `not_started` | `drafting` | `awaiting_approval` | `approved` | `changes_requested` | `skipped`
 - `output` (markdown, the current draft)
 - `decision_note` (the user's comment), `decided_at`
 
 **AgentRun**
-- `stage_state_id` → StageState
+- `user_id` → User, `stage_state_id` → StageState
 - `agent`: `planner` | `reviewer`
 - `model_id` → ModelConfig
 - `input_summary`, `output` (markdown)
@@ -128,41 +171,45 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 
 ## teaching module
 
-**TeachingNote**
-- `project_id` → Project
+**TeachingNote**: only created when the user asks.
+- `user_id` → User, `project_id` → Project
 - `concept` (for example "database indexing")
 - `what`, `why_here`, `how` (markdown sections)
 - `source_message_id` → Message (nullable), `stage_key` (nullable)
 - `model_id` → ModelConfig
 
+**ConceptSuggestion**: the passive "concepts for this project" list.
+- `user_id` → User, `project_id` → Project
+- `concept`, `reason` (why it matters for this project)
+- `status`: `new` | `dismissed` | `noted`
+- `teaching_note_id` → TeachingNote (nullable: set once the user asks for a note)
+
 ## execution module (Later, not created in v0.1)
 
 **ExecutionRun**
-- `project_id` → Project, `requested_by_agent_run_id` → AgentRun (nullable)
+- `user_id` → User, `project_id` → Project, `requested_by_agent_run_id` → AgentRun (nullable)
 - `command`, `sandbox_image`
 - `status`: `pending_approval` | `approved` | `running` | `done` | `failed` | `rejected`
 - `exit_code`, `stdout`, `stderr` (truncated), `started_at`, `finished_at`
 
-## Shared
-
-**AuditEvent**: security-relevant actions only.
-- `event_type` (for example `credential.added`, `index.started`, `stage.approved`)
-- `entity_type`, `entity_id`
-- `details` (JSON, never secrets or file contents)
-
 ## Relationships
 
 ```
-Project 1─* Conversation 1─* Message 1─* MessageContext
-        │               └─* ContextHandoff
-        ├─* MemoryItem
-        ├─* IndexRun
-        ├─* Document 1─* Chunk
-        ├─* WorkflowRun 1─* StageState 1─* AgentRun
-        ├─* TeachingNote
-        └─* ExecutionRun            (later)
-ModelConfig 1─* Message / UsageRecord / AgentRun / ContextHandoff
-ProviderCredential: one or more per provider, used by ModelConfig rows of that provider
+User 1─* (every user-data table, via user_id)
+     1─1 UserModelSettings
+     1─* ProviderCredential, AuditEvent, UsageRecord
+     1─* Project 1─* Conversation 1─* Message 1─* MessageContext
+                 │               ├─* ConversationSummary
+                 │               └─* ContextHandoff
+                 ├─* MemoryItem
+                 ├─* IndexRun
+                 ├─* Document 1─* Chunk
+                 ├─* WorkflowRun 1─* StageState 1─* AgentRun
+                 ├─* TeachingNote
+                 ├─* ConceptSuggestion
+                 └─* ExecutionRun            (later)
+ModelConfig 1─* Message / ConversationSummary / UsageRecord / AgentRun / ContextHandoff
 ```
 
-Deleting a project deletes all its rows (cascade). Credentials, models and audit events are global.
+Deleting a project deletes all its rows (cascade). Credentials, settings and audit events belong
+to the user, not to a project.
