@@ -10,12 +10,13 @@ v0.1 is a local tool for **one developer on their own machine**, using **their o
 | Bring your own API keys | OpenAI, Anthropic, Google and Voyage keys, stored encrypted in PostgreSQL. A "test key" button. **Indexing needs an embeddings-capable key (OpenAI or Voyage).** |
 | Projects and conversations in PostgreSQL | A project has many conversations, and a conversation has many messages. |
 | Chat with streaming | Server-sent events, a cancel button, and errors shown clearly. |
-| Model switching with context handoff | A rolling summary is built in the background by the utility model (default: the active model). A switch carries the summary plus the recent messages that fit, after a preview, and never calls the old model. Every message is tagged with its model. |
+| Model switching with context handoff | A rolling summary is built in the background by the utility model (default: the active model). Every one of these calls is logged and shown in the usage view, and background summaries can be turned off; then the summary is built at switch time. A switch carries the summary plus the recent messages that fit, after a preview, and never calls the old model. Every message is tagged with its model. |
 | Project indexing with retrieval | Index a local folder, embed with a small OpenAI or Voyage model into pgvector, cite top-k sources as `path:lines`. Only changed files are re-indexed. Changing the embedding model means re-indexing. |
 | Project memory | Requirements, decisions and tasks. Items proposed by AI need approval. |
 | Workflow stages with human approval | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. Each one is approved, sent back for changes, or skipped by the user. |
 | Two agents | **Planner** (drafts) and **Reviewer** (critiques). No tools, text output only. |
-| Teaching notes | "What, why, how" notes, created only when the user asks, using project context. Plus a passive "concepts for this project" list. No pop-ups or interruptions. |
+| Teaching notes | "What, why, how" notes, created only when the user asks, using project context (this is the only teaching LLM call). Plus a passive "concepts for this project" list, built by YAML rules and the project profile with no LLM call. No pop-ups or interruptions. |
+| Visible background calls | Any LLM call the user did not directly ask for is logged, shown as its own line in the usage view, and can be turned off. In v0.1 the only one is the rolling summary. |
 | Simple React UI | Projects, chat with a model picker, memory, workflow, teaching notes, settings. |
 
 ## Not in v0.1

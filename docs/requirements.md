@@ -19,6 +19,7 @@ Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are i
 | F-10 | Add, test and delete API keys for OpenAI, Anthropic, Google and Voyage. Keys are stored encrypted. | MVP |
 | F-11 | List the available models with their context window, and enable or disable them. | MVP |
 | F-16 | Choose a **utility model** for background work such as rolling summaries. The default is the conversation's active model. | MVP |
+| F-18 | Any LLM call the user did not directly ask for is logged (UsageRecord with `trigger = background`), shown as its own line in the usage view, and can be turned off in settings. | MVP |
 | F-17 | Choose an embedding model. The default is a small OpenAI or Voyage model. This needs an embeddings-capable key. | MVP |
 | F-12 | Record token usage and estimated cost for every LLM call. | MVP |
 | F-13 | Map provider failures to clear error types (rate limit, context too long, auth, unavailable). | MVP |
@@ -32,7 +33,7 @@ Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are i
 | F-21 | Stream assistant replies token by token (SSE). | MVP |
 | F-22 | Every message records which model produced it. | MVP |
 | F-23 | Switch the model in the middle of a conversation. Before confirming, the user sees what context will carry over. | MVP |
-| F-24 | A rolling summary is built in the background as the conversation grows (using the utility model). A switch carries the summary plus the recent messages that fit, and never calls the old model. | MVP |
+| F-24 | A rolling summary is built in the background as the conversation grows (using the utility model). A switch carries the summary plus the recent messages that fit, and never calls the old model. Background summaries can be turned off; then the summary is built at switch time, and the preview shows the estimated tokens first. | MVP |
 | F-25 | On a rate-limit or context-limit error, suggest switching models. Mantle never switches on its own. | MVP |
 | F-26 | Show which sources and memory items were used for each answer. | MVP |
 | F-27 | Automatic fallback model rules. | Later |
@@ -63,7 +64,8 @@ Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are i
 | --- | --- | --- |
 | F-50 | Generate a teaching note (what it is, why it matters here, how to do it) for a concept, a message or a stage, **only when the user asks**. | MVP |
 | F-51 | Notes use the project's context, not generic text. | MVP |
-| F-52 | A passive "concepts for this project" list in the teaching panel. It never interrupts the user (no pop-ups, nothing added to chat). | MVP |
+| F-52 | A passive "concepts for this project" list in the teaching panel, built by rules only (YAML "relevant when" rules matched against the project profile), with **no LLM call**. It never interrupts the user (no pop-ups, nothing added to chat). | MVP |
+| F-53 | Build a project profile (languages, dependencies, markers such as Dockerfile or migrations) at the end of each index run, without an LLM. | MVP |
 
 ### Execution and integrations
 | ID | Requirement | Scope |
