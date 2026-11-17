@@ -34,7 +34,7 @@ Recorded 2026-11-17.
 | D3 | Handoff summary | A configurable **utility model** setting, which defaults to the conversation's active model. A **rolling summary** is built in the background as the conversation grows, so switching models never needs a call to the old model. |
 | D4 | Workflow stages (v0.1) | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. The Reviewer checks each stage, and the user approves it. |
 | D5 | Teaching notes | Created only when the user asks, plus a passive "concepts for this project" list in the teaching panel. No automatic pop-ups or interruptions. |
-| D6 | Database exposure | Bind PostgreSQL to `127.0.0.1:5433:5432`. **Not changed on this branch.** Follow-up branch: `fix/bind-database-to-localhost`. |
+| D6 | Database exposure | Bind PostgreSQL to `127.0.0.1:5433:5432`. **Done** in `fix/bind-database-to-localhost`. |
 | D7 | LangChain / LangGraph | We never import `langchain*`. We import only `langgraph`, and only inside `modules/workflow`. `langchain-core` arriving as a dependency of LangGraph is fine. If Planner and Reviewer can be plain Python, skip LangGraph (ADR 0004). |
 | D8 | Users | Every user-data table gets `user_id` now. One default local user is created by the first migration, and every v0.1 request runs as that user. Auth comes later (`feat/authentication`). |
 | D9 | Roadmap | The roadmap and the v0.1 label stay as they are. A later task will split the roadmap into phases. |

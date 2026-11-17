@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     log_level: str = "INFO"
-    database_url: str = "postgresql+asyncpg://mantle:mantle@localhost:5433/mantle"
+    database_url: str = "postgresql+asyncpg://mantle:mantle@127.0.0.1:5433/mantle"
     master_encryption_key: str = ""
 
 
