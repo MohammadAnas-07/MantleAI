@@ -9,7 +9,29 @@ Conventions:
 - **Every user-data table has `user_id` → User** (not null, indexed). That is every table below
   except User and ModelConfig. Child tables (Message, Chunk, StageState, …) carry `user_id` too,
   so every query can filter by user directly.
-- "FK" means foreign key. Enums are stored as short strings.
+- "FK" means foreign key. Enums are stored as short strings (`VARCHAR(32)`, no PostgreSQL enum
+  types and no CHECK constraints), so adding a value needs no migration.
+- Every foreign key column is indexed. Constraint and index names follow one convention, set on
+  the SQLAlchemy metadata in `app/db/base.py` (`pk_<table>`, `fk_<table>_<column>`,
+  `uq_<table>_<columns>`, `ix_<table>_<column>`).
+- Each module's tables are in `app/modules/<module>/models.py` (shared ones in
+  `app/core/models.py`), with one repository per table in `repository.py`. A user-data repository
+  is bound to one `user_id` and filters every query by it.
+
+## Deletes (ON DELETE)
+
+| Rule | Where | Why |
+| --- | --- | --- |
+| CASCADE | every `user_id` → users | Deleting a user deletes all their data. |
+| CASCADE | `project_id` on memory items, conversations, index runs, documents, chunks, project profile, workflow runs, teaching notes, concept suggestions | A project owns these rows. |
+| CASCADE | conversation → messages, summaries, handoffs; message → message contexts and the summaries/handoffs that point at it; document → chunks; workflow run → stage states → agent runs | Child rows mean nothing without their parent. |
+| SET NULL | `usage_records.project_id`, `conversation_id`, `message_id`, `agent_run_id` | Cost history must survive deletes. |
+| SET NULL | optional links: `projects.default_model_id`, `memory_items.source_message_id` / `source_agent_run_id`, `teaching_notes.source_message_id`, `concept_suggestions.teaching_note_id`, `context_handoffs.conversation_summary_id`, `user_model_settings.*_model_id` | The row stays useful without the link. |
+| NO ACTION | every required `→ ModelConfig`, `documents.last_index_run_id`, `project_profiles.index_run_id` | A model in use can't be deleted (disable it with `enabled`). Index runs are deleted only with their project. |
+
+SET NULL foreign keys are `DEFERRABLE INITIALLY DEFERRED`. One project delete cascades through
+several tables, and a row whose link is cleared may still point at another row the same cascade
+is deleting. The deferred check runs at commit, when the cascade is complete.
 
 ## Structured vs vector
 
@@ -26,8 +48,10 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 **User**
 - `display_name`
 - `is_local_default` (bool)
-- v0.1 has exactly one row, the default local user, created by the first migration with a fixed
-  id. Auth later adds login fields; it doesn't change other tables.
+- v0.1 has exactly one row, the default local user, with the fixed id
+  `00000000-0000-0000-0000-000000000001`. It is created by the seed script
+  (`python -m app.db.seed`, safe to run twice), not by a migration. Auth later adds login fields;
+  it doesn't change other tables.
 
 **AuditEvent**: security-relevant actions only.
 - `user_id` → User
@@ -63,11 +87,17 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 
 **Message**
 - `user_id` → User, `conversation_id` → Conversation
-- `role`: `user` | `assistant` | `system`
-- `content` (text)
-- `model_id` → ModelConfig (nullable for user messages)
+- `role`: `user` | `assistant` | `system` | `tool`
+- `content` (JSON): a provider-neutral list of parts, validated by
+  `app/modules/conversations/schemas.py`:
+  `{"type": "text", "text"}`, `{"type": "tool_call", "id", "name", "arguments"}`,
+  `{"type": "tool_result", "tool_call_id", "content", "is_error"}`. v0.1 agents have no tools, so
+  only text parts are written for now; the format is ready for tools later.
+- `model_id` → ModelConfig: the model that produced it (nullable for user messages)
 - `status`: `complete` | `streaming` | `error` | `cancelled`
-- `error_code` (nullable), `token_count`
+- `error_code` (nullable)
+- `token_count`: tokens of this message's own content (for fitting history into a window)
+- `input_tokens`, `output_tokens` (nullable): provider-reported usage of the call that produced it
 
 **ConversationSummary**: the rolling summary, built in the background, or at switch time when
 background summaries are off. A new row is added each time it's updated; the newest row is the
@@ -112,7 +142,8 @@ current one.
 **UserModelSettings**: one row per user.
 - `user_id` → User (unique)
 - `utility_model_id` → ModelConfig (nullable: **null means "use the conversation's active model"**)
-- `embedding_model_id` → ModelConfig (default: a small OpenAI or Voyage model)
+- `embedding_model_id` → ModelConfig (nullable until the user picks one; the intended default is a
+  small OpenAI or Voyage model)
 - `background_summary_enabled` (bool, default true): when false, no rolling-summary calls run in
   the background, and the summary is built at switch time instead (D10)
 
@@ -124,7 +155,7 @@ current one.
   each `background` purpose as its own line. **Every LLM call writes a row; no exceptions.**
 - `project_id`, `conversation_id`, `message_id`, `agent_run_id` (all nullable)
 - `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`
-- `status`, `error_code`
+- `status`: `success` | `error` | `cancelled`, `error_code`
 
 ## rag module
 
@@ -154,8 +185,11 @@ run. One row per project.
 - `markers` (JSON, for example `dockerfile`, `compose`, `migrations`, `ci_workflows`, `tests`)
 - `index_run_id` → IndexRun (the run that built it)
 
-**Changing the embedding model:** the `embedding` column has one fixed dimension, set by migration
-from the default embedding model. Vectors from different models can't be compared, so changing
+**Changing the embedding model:** the `embedding` column has one fixed dimension, the setting
+`EMBEDDING_DIMENSIONS` in `app/core/config.py` (default 1536; HNSW allows at most 2000).
+Migration `0001` froze it at 1536. **Changing the setting needs a new migration** that alters the
+column and rebuilds the HNSW index (`ix_chunks_embedding_hnsw`, cosine), and every project must
+be re-indexed. `tests/test_migrations.py` fails if the database and the setting disagree. Vectors from different models can't be compared, so changing
 the model means re-indexing the project. Retrieval only uses chunks whose `embedding_model`
 matches the query's model. A model with a different dimension also needs a migration to change
 the column.
@@ -216,7 +250,7 @@ The rules are a YAML file in the `teaching` module (not a table). Each rule look
 The selector checks `relevant_when` against the ProjectProfile, the project's memory items and
 its approved workflow stages.
 
-## execution module (Later, not created in v0.1)
+## execution module (Later, not created in v0.1; no table exists yet)
 
 **ExecutionRun**
 - `user_id` → User, `project_id` → Project, `requested_by_agent_run_id` → AgentRun (nullable)

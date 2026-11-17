@@ -14,8 +14,9 @@ tool" to a multi-user platform.
 v0.1 runs entirely on the user's machine for one user:
 
 - The backend runs natively and binds to `127.0.0.1`. PostgreSQL runs in Docker on localhost.
-- There's no login, but there **is** a `users` table with one default local user, created by the
-  first migration with a fixed id. **Every user-data table has `user_id`** (decision D8,
+- There's no login, but there **is** a `users` table with one default local user, created with a
+  fixed id (amended 2026-11-17 in `feat/database-models`: by the seed script
+  `python -m app.db.seed`, not by the first migration, so migrations hold only schema). **Every user-data table has `user_id`** (decision D8,
   2026-11-17). A single `get_current_user` dependency returns the local user for every request.
 - Users bring their own provider keys, stored encrypted with a master key from `backend/.env`.
 - Projects are local folders that the backend reads directly.

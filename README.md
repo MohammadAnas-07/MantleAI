@@ -123,22 +123,35 @@ The database is reachable only from your own computer, at **127.0.0.1, port 5433
 5432). Other devices on your network cannot connect to it. Port 5433 avoids a clash if PostgreSQL
 is also installed directly on Windows, which uses 5432.
 
-### 7. Start the API server
+### 7. Create the tables and the local user
+
+Put a `MASTER_ENCRYPTION_KEY` in `backend\.env` first (see [Configuration](#configuration)). Then:
 
 ```powershell
 cd backend
+alembic upgrade head
+python -m app.db.seed
+```
+
+`alembic upgrade head` creates every table and enables pgvector. `python -m app.db.seed` creates
+the default local user; running it again does nothing. To remove all tables:
+`alembic downgrade base`.
+
+### 8. Start the API server
+
+```powershell
 uvicorn app.main:app --reload
 ```
 
 `--reload` restarts the server automatically when you save a file. Stop it with `Ctrl+C`.
 
-### 8. Check it in your browser
+### 9. Check it in your browser
 
 - <http://127.0.0.1:8000/health> should show `{"status":"ok","database":"up"}`.
   If the database is not running you will see `"database":"down"`; the API still works.
 - <http://127.0.0.1:8000/docs> shows interactive API documentation.
 
-### 9. Run the tests and the linter
+### 10. Run the tests and the linter
 
 Open a second terminal (keep the server running in the first), then:
 
@@ -149,7 +162,9 @@ pytest
 ruff check .
 ```
 
-The tests pass even if the database is down. `ruff format .` reformats the code.
+Database tests use a separate database, `mantle_test`, which they create if it's missing; they
+never touch `mantle`. If PostgreSQL is down, those tests are skipped and the rest still pass.
+`ruff format .` reformats the code.
 
 ## Configuration
 
@@ -166,7 +181,8 @@ Copy-Item backend\.env.example backend\.env
 | `APP_ENV` | `development` for local work |
 | `LOG_LEVEL` | How much logging to show (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `DATABASE_URL` | How to connect to PostgreSQL |
-| `MASTER_ENCRYPTION_KEY` | Empty for now; generated in a later chunk |
+| `MASTER_ENCRYPTION_KEY` | **Required.** Fernet key that encrypts your provider API keys; the API won't start without it. Generate it with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. If you lose or change it, saved provider keys can't be read |
+| `EMBEDDING_DIMENSIONS` | Dimension of the vector column (default 1536). Changing it needs a new migration and re-indexing |
 
 ## VS Code
 
