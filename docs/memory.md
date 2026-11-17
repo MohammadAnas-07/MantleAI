@@ -10,9 +10,11 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phase 1 coding has started. The database layer is done on `feat/database-models` (committed, not
-pushed or merged): 22 tables, async Alembic, repositories, Fernet key encryption, seed script,
-61 tests. PostgreSQL + pgvector runs in Docker on `127.0.0.1:5433`. Next is `feat/llm-gateway`.
+Phase 1 coding has started. The database layer is merged to `main` (PR #5, `758e897`): 22 tables,
+async Alembic, repositories, Fernet key encryption, seed script, 61 tests. The dev database
+`mantle` is migrated to `0001` and seeded with the default local user, and the API starts with a
+valid `MASTER_ENCRYPTION_KEY`. PostgreSQL + pgvector runs in Docker on `127.0.0.1:5433`. Next is
+`feat/llm-gateway`.
 First demo (model switching) target: 2026-12-17.
 Last updated 2026-11-17.
 
@@ -24,13 +26,13 @@ Last updated 2026-11-17.
 - 2026-11-17: `docs/project-documentation` merged as PR #1: architecture, requirements, scope, data model, API, security, roadmap, ADRs 0001–0005, decisions D1–D10.
 - 2026-11-17: `fix/bind-database-to-localhost` merged as PR #2: Postgres published only on 127.0.0.1; `127.0.0.1` in `DATABASE_URL`.
 - 2026-11-17: `docs/product-and-process-docs` merged as PR #3: idea, PRD, rules, phases, this memory file; CLAUDE.md shortened; product decisions recorded.
-- 2026-11-17: `chore/pin-dependencies`: compatible version ranges for every dependency in `backend/pyproject.toml`, exact versions in `backend/requirements.lock`, "Reproducible install" section in README (committed, not yet pushed or merged).
-- 2026-11-17: `feat/database-models`: models for every v0.1 table in each module's `models.py`
+- 2026-11-17: `chore/pin-dependencies` merged as PR #4: compatible version ranges for every dependency in `backend/pyproject.toml`, exact versions in `backend/requirements.lock`, "Reproducible install" section in README.
+- 2026-11-17: `feat/database-models` merged as PR #5 (`758e897`): models for every v0.1 table in each module's `models.py`
   (`users`, `audit_events` in `app/core/models.py`), shared base + naming convention in
   `app/db/base.py`, async Alembic (`backend/alembic`, migration `0001`), generic repositories
   (`app/db/repository.py`) plus one per table in `modules/<m>/repository.py`, Fernet helper
   `modules/llm/crypto.py`, seed `python -m app.db.seed`, tests on `mantle_test`. ExecutionRun not
-  created (Later). Committed, not pushed.
+  created (Later). `pgvector` added as a dependency.
 
 ## In progress
 
@@ -83,13 +85,16 @@ Full decision text: `docs/architecture.md` → Decisions.
 - **A PostgreSQL 17 Windows service (`postgresql-x64-17`) listens on 5432.** Using 5432 for Docker reaches the wrong database (`role "mantle" does not exist`). Keep 5433.
 - **The first DB connection after a container (re)start can take over 2 s**, so `/health` may say `"down"` for a few seconds. Refresh after a short wait.
 - **Docker Desktop is sometimes very slow or hangs** (`docker exec`, `docker compose up` timed out once). Retry with a longer wait.
+- **The database container can stop by itself** (`Exited (255)`, seen once after Docker Desktop slept or restarted). Then `alembic` fails with `WinError 1225 ... refused the network connection`. Check `docker compose ps` and run `docker compose up -d` from the project folder.
+- **A Fernet key is 44 characters and ends with `=`.** Copying it without the last `=` gives "not a valid Fernet key" at startup.
+- **Commands for PowerShell don't work in Git Bash** (`.venv\Scripts\Activate.ps1`). In Git Bash use `source .venv/Scripts/activate`.
 - **Python/pytest startup is slow on this machine** (6–16 s for one test). It isn't a test problem.
 - **`backend/requirements.lock` was made on Windows with Python 3.14.** A few platform-only packages (for example `colorama`) can differ elsewhere. When you add or change a dependency, regenerate the lock file with `python -m pip freeze --exclude-editable > requirements.lock`.
 - **There is no LICENSE file yet**, although the project is open source.
 - **`gh` (GitHub CLI) isn't installed, and the built-in browser isn't signed in to GitHub.** The developer opens and merges PRs by hand.
 - Git prints "LF will be replaced by CRLF" warnings on commit; they are harmless.
 - The first commit on `main` is named "chunk 0: project scaffold", from before the naming rule. It's left as-is because rewriting pushed history isn't worth it.
-- Merged branches `docs/project-documentation` and `fix/bind-database-to-localhost` still exist locally and on GitHub.
+- Merged branches `docs/project-documentation`, `fix/bind-database-to-localhost`, `docs/product-and-process-docs`, `chore/pin-dependencies` and `feat/database-models` still exist locally and on GitHub.
 
 - **Changing `EMBEDDING_DIMENSIONS` needs a new migration** (migration `0001` froze 1536) and a
   re-index. `tests/test_migrations.py::test_embedding_column_matches_setting` catches a mismatch.
