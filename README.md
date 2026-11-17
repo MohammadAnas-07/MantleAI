@@ -89,8 +89,9 @@ docker compose up -d
 This starts PostgreSQL in the background (`-d`), using `docker-compose.yml`. The data is kept in a
 Docker volume called `pgdata`, so it survives restarts. To stop it later: `docker compose down`.
 
-The database is reachable on your computer at **port 5433** (not the usual 5432). This avoids a
-clash if PostgreSQL is also installed directly on Windows, which uses 5432.
+The database is reachable only from your own computer, at **127.0.0.1, port 5433** (not the usual
+5432). Other devices on your network cannot connect to it. Port 5433 avoids a clash if PostgreSQL
+is also installed directly on Windows, which uses 5432.
 
 ### 7. Start the API server
 
@@ -153,6 +154,6 @@ Copy-Item backend\.env.example backend\.env
 | VS Code shows import errors / uses the wrong Python | VS Code picked another interpreter | `Ctrl+Shift+P` → **Python: Select Interpreter** → choose `backend\.venv\Scripts\python.exe`. Make sure you ran steps 2 and 5 first |
 | `docker compose` fails with *"cannot connect to the Docker daemon"* / pipe error | Docker Desktop is not running | Start Docker Desktop, wait for "Engine running", then run `docker compose up -d` again |
 | `/health` says `"database":"down"` | The database container is not running or not ready | Run `docker compose ps` from the project folder; if `db` is missing, run `docker compose up -d` |
-| Port already in use (8000 or 5433) | Another program is using that port | For the API: `uvicorn app.main:app --reload --port 8001`. For the database: pick another free port and change it in both `docker-compose.yml` (`"5433:5432"`) and `DATABASE_URL` in `backend\.env` |
+| Port already in use (8000 or 5433) | Another program is using that port | For the API: `uvicorn app.main:app --reload --port 8001`. For the database: pick another free port and change it in both `docker-compose.yml` (`"127.0.0.1:5433:5432"`) and `DATABASE_URL` in `backend\.env` |
 | `/health` says `"database":"down"` and the log shows `role "mantle" does not exist` | The app reached a different PostgreSQL (e.g. one installed on Windows), not the Docker one | Check that `DATABASE_URL` uses the same port as `docker-compose.yml` (5433) |
 | `ModuleNotFoundError: No module named 'app'` | Command run from the wrong folder or venv not active | `cd backend`, activate the venv (step 3), and run step 5 if you haven't |
