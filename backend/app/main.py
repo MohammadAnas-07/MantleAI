@@ -8,11 +8,14 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.session import check_database, engine
+from app.modules.llm.service import validate_master_key
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(settings.log_level)
+    # Fail fast: without a valid master key, stored provider keys can't be used.
+    validate_master_key()
     yield
     await engine.dispose()
 

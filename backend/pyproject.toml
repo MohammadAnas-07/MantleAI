@@ -15,6 +15,7 @@ dependencies = [
     "asyncpg>=0.32.0,<0.33",
     "alembic>=1.20.1,<2",
     "cryptography>=50.0.2,<51",
+    "pgvector>=0.4.2,<0.5",
 ]
 
 [project.optional-dependencies]
@@ -40,5 +41,6 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["db: needs PostgreSQL (uses the mantle_test database; skipped when it is down)"]
 
 asyncio_default_fixture_loop_scope = "function"

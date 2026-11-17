@@ -46,7 +46,7 @@ and the new model continues with the earlier context.
 
 **Exit criteria:**
 - [ ] Dependencies have version ranges, and `backend/requirements.lock` exists.
-- [ ] Alembic migrations create all v0.1 tables and the default local user, and downgrade cleanly.
+- [x] Alembic migrations create all v0.1 tables and downgrade cleanly; the seed script creates the default local user.
 - [ ] Keys are stored encrypted; the API shows only the last 4 characters.
 - [ ] Streaming chat works with at least two providers.
 - [ ] Every message records its model, and every LLM call writes a usage record with `trigger`.

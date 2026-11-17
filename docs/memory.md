@@ -10,11 +10,10 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phase 1 has not started coding yet. The backend is a scaffold: FastAPI with `GET /health`, async
-SQLAlchemy session, settings from `backend/.env`, and one test. PostgreSQL + pgvector runs in
-Docker on `127.0.0.1:5433`. Product, architecture and process docs are written (`docs/`).
-Dependencies have version ranges and a lock file (`chore/pin-dependencies`, committed, not yet
-merged). Next is `feat/database-models`. First demo (model switching) target: 2026-12-17.
+Phase 1 coding has started. The database layer is done on `feat/database-models` (committed, not
+pushed or merged): 22 tables, async Alembic, repositories, Fernet key encryption, seed script,
+61 tests. PostgreSQL + pgvector runs in Docker on `127.0.0.1:5433`. Next is `feat/llm-gateway`.
+First demo (model switching) target: 2026-12-17.
 Last updated 2026-11-17.
 
 ## Done
@@ -26,6 +25,12 @@ Last updated 2026-11-17.
 - 2026-11-17: `fix/bind-database-to-localhost` merged as PR #2: Postgres published only on 127.0.0.1; `127.0.0.1` in `DATABASE_URL`.
 - 2026-11-17: `docs/product-and-process-docs` merged as PR #3: idea, PRD, rules, phases, this memory file; CLAUDE.md shortened; product decisions recorded.
 - 2026-11-17: `chore/pin-dependencies`: compatible version ranges for every dependency in `backend/pyproject.toml`, exact versions in `backend/requirements.lock`, "Reproducible install" section in README (committed, not yet pushed or merged).
+- 2026-11-17: `feat/database-models`: models for every v0.1 table in each module's `models.py`
+  (`users`, `audit_events` in `app/core/models.py`), shared base + naming convention in
+  `app/db/base.py`, async Alembic (`backend/alembic`, migration `0001`), generic repositories
+  (`app/db/repository.py`) plus one per table in `modules/<m>/repository.py`, Fernet helper
+  `modules/llm/crypto.py`, seed `python -m app.db.seed`, tests on `mantle_test`. ExecutionRun not
+  created (Later). Committed, not pushed.
 
 ## In progress
 
@@ -33,9 +38,9 @@ Last updated 2026-11-17.
 
 ## Next
 
-1. `feat/database-models`: Alembic setup, v0.1 tables, default local user.
-2. `feat/llm-gateway`: encrypted keys, LiteLLM calls, usage records, fake provider.
-3. `feat/model-switching`: conversations, streaming, rolling summary, switch. Ends Phase 1.
+1. `feat/llm-gateway`: model catalog seed, LiteLLM calls, usage records, fake provider, key test.
+   Reuse `modules/llm/crypto.py` and `ProviderCredentialRepository.add_key`.
+2. `feat/model-switching`: conversations, streaming, rolling summary, switch. Ends Phase 1.
 
 After that, `feat/project-memory` is Phase 2.
 
@@ -62,6 +67,14 @@ After that, `feat/project-memory` is Phase 2.
 | 2026-11-17 | Success = 10 switches in 2 weeks, each < 1 min, no re-explaining, and ≥ 4 of 5 decision questions correct | Makes the metric testable | `docs/prd.md` |
 | 2026-11-17 | Version ranges in `pyproject.toml` + exact versions in `requirements.lock` | Reproducible installs without over-pinning | `docs/rules.md` #63 |
 | 2026-11-17 | 3 evenings per week | Basis for all phase dates | `docs/phases.md` |
+| 2026-11-17 | Messages store provider-neutral content parts (JSON: text, tool_call, tool_result) + `input_tokens`/`output_tokens` | Ready for tools and any provider | `docs/data-model.md` |
+| 2026-11-17 | Default local user (fixed id `...0001`) is created by the seed script, not a migration | Migrations hold schema only | ADR 0005 (amended) |
+| 2026-11-17 | Table names from `docs/data-model.md` (`provider_credentials`; usage `purpose` + `trigger`) | data-model.md is the source of truth | — |
+| 2026-11-17 | Fernet helper built in `feat/database-models`, not `feat/llm-gateway` | Credentials table needs it now | `docs/roadmap.md` |
+| 2026-11-17 | Enums are VARCHAR(32), no PG enum types or CHECK constraints | Adding a value needs no migration | `docs/data-model.md` |
+| 2026-11-17 | SET NULL FKs are DEFERRABLE INITIALLY DEFERRED | Project delete cascades must not trip FK checks mid-cascade | `docs/data-model.md` |
+| 2026-11-17 | Usage records keep rows on project/conversation delete (SET NULL) | Cost history stays complete | `docs/data-model.md` |
+| 2026-11-17 | The API refuses to start without a valid `MASTER_ENCRYPTION_KEY` | Fail fast instead of failing on first key use | `docs/security.md` |
 
 Full decision text: `docs/architecture.md` → Decisions.
 
@@ -77,6 +90,16 @@ Full decision text: `docs/architecture.md` → Decisions.
 - Git prints "LF will be replaced by CRLF" warnings on commit; they are harmless.
 - The first commit on `main` is named "chunk 0: project scaffold", from before the naming rule. It's left as-is because rewriting pushed history isn't worth it.
 - Merged branches `docs/project-documentation` and `fix/bind-database-to-localhost` still exist locally and on GitHub.
+
+- **Changing `EMBEDDING_DIMENSIONS` needs a new migration** (migration `0001` froze 1536) and a
+  re-index. `tests/test_migrations.py::test_embedding_column_matches_setting` catches a mismatch.
+- **The API won't start until `MASTER_ENCRYPTION_KEY` is set in `backend/.env`.** Generate with
+  `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+- **Repositories don't check that a parent row belongs to the same user** (for example a message
+  pointing at another user's conversation). Only one user exists in v0.1; fix before auth, with
+  composite FKs `(parent_id, user_id)` or service-level checks.
+- Tests run Alembic in a separate thread, because `alembic/env.py` calls `asyncio.run()`.
+- `pgvector` returns embeddings as numpy arrays, not lists (numpy comes in with `pgvector`).
 
 ## Environment notes
 
