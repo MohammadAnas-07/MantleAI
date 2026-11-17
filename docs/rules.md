@@ -91,7 +91,7 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 
 ## Dependency policy
 
-63. Every dependency in `pyproject.toml` is pinned to an exact version (`==`).
+63. `pyproject.toml` uses compatible version ranges (for example `fastapi>=0.115,<1`), and exact versions are recorded in a lock file (`backend/requirements.lock`, made with `pip freeze --exclude-editable`).
 64. A new dependency is added only with a one-line reason in the PR description.
 65. `litellm` upgrades are a separate PR that names the version and links its changelog.
 66. No dependency is added for something the standard library or an existing dependency already does.

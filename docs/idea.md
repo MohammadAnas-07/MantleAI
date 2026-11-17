@@ -35,13 +35,27 @@ developer learns instead of just copying output.
 structured, approved records, and Mantle can explain the reasons behind them. They belong to the
 project, not to a model or a provider.
 
-## Non-goals (what Mantle will never be)
+## Non-goals
+
+Mantle will never be:
 
 - An LLM, or a model host.
 - A code editor or IDE replacement. Editing happens in your own editor.
 - An autonomous agent that changes code or runs commands without human approval.
-- A hosted SaaS that holds users' code or API keys on someone else's server (v0.1 is local-only).
-- A paid product. Mantle is open source and unpaid; users pay only their own provider costs.
+- A paid product. Mantle is open source (MIT) and unpaid; users pay only their own provider costs.
+
+Not for now:
+
+- Not a hosted service in v0.1. Revisit after the first demo. (`user_id` on all data and clean
+  module boundaries keep hosting possible later; nothing is built for it now.)
+
+## Decisions
+
+| Date | Decision |
+| --- | --- |
+| 2026-11-17 | **License: MIT.** No LICENSE file until the repository is public. |
+| 2026-11-17 | Not a hosted service in v0.1; revisit after the first demo. |
+| 2026-11-17 | Project memory is built right after model switching (Phase 2), because it's the differentiator. |
 
 ## Main risks
 
@@ -51,16 +65,14 @@ project, not to a model or a provider.
 | Existing tools add the same feature | Cursor and others could add cross-model memory. Mantle's edge must be the depth of project memory and the teaching, not only switching. |
 | Too much scope for one part-time developer | `vision.md` is very wide; v0.1 must stay small (`docs/mvp-scope.md`). |
 | Background LLM calls cost the user money | Handled by decision D10: logged, visible and possible to turn off. |
-| The differentiator arrives late | Phase 1 delivers switching with a conversation summary; structured project memory comes in Phase 3 (`docs/phases.md`). |
+| The differentiator arrives late | Reduced: project memory now comes in Phase 2, right after model switching (`docs/phases.md`). |
+| Someone sells a hosted copy | MIT allows it. Accepted for an open-source, unpaid project. |
 
 ## Weak points
 
-- **No success number (Q5: "nahi pata").** `docs/prd.md` proposes one based on the 10-minute
-  baseline above. It needs your confirmation.
-- **Time budget is incomplete (Q4).** You gave 2–4 evenings per branch but not evenings per week.
-  The demo date in `docs/phases.md` assumes 3 evenings a week.
+- **The success metric is self-measured.** It now has a testable part (at least 4 of 5 decision
+  questions correct after each switch), but the author writes the questions and grades the answers.
 - **Differentiator vs Cursor/Cline is a claim, not tested yet.** Nobody has compared them side by
-  side. Do one comparison before Phase 3 ends.
+  side. Do one comparison before Phase 2 ends.
 - **Only one user so far (you).** It's not yet known whether other developers share this exact
   pain.
-- **Open source, but no license chosen yet.**

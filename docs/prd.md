@@ -10,14 +10,20 @@ the project's decisions, tasks and reasons still there.
 
 ## Success metric
 
-**Proposed, needs your confirmation** (you answered "nahi pata"):
+**Accepted 2026-11-17:**
 
-> Over 2 weeks of using Mantle on a real project, at least **10 model switches**, each continuing
-> productive work within **1 minute** with **no manual re-explaining**. Today's baseline is about
-> 10 minutes per switch.
+> Over 2 weeks of using Mantle on a real project, at least **10 successful model switches**. A
+> switch counts as successful only if work continues within **1 minute** with **no manual
+> re-explaining**, **and** the new model answers **at least 4 of 5** decision questions
+> correctly. Today's baseline is about 10 minutes per switch.
 
-How to measure: after each switch, note the time until the new model's first useful answer, and
-whether you had to re-explain anything (yes/no). Usage records give the switch count.
+**Decision-question check (after every switch):** ask the new model 5 questions whose answers
+depend on decisions made earlier in the same conversation (for example "Which database did we
+choose, and why?"). Write the 5 questions and their expected answers down **before** the switch.
+Mark each answer correct or wrong. Below 4 of 5, the switch is a failure, whatever the time.
+
+How to measure: for each switch, log the time to the first useful answer, whether you
+re-explained anything (yes/no), and the score out of 5. Usage records give the switch count.
 
 ## Target user
 
@@ -54,6 +60,8 @@ Acceptance criteria:
 - Memory items are never sent through vector search; they come from normal queries.
 
 Needs: F-01, F-02, F-03, F-26, F-63.
+Delivery: CRUD and pinned items in Phase 2 (`feat/project-memory`); approval of AI-proposed items
+in Phase 4 (`feat/workflow-and-agents`).
 
 ### US-3: Ask about my code with real sources
 As a developer, I want to ask questions about my own project and get answers that cite files and
@@ -98,7 +106,8 @@ Needs: F-03, F-40, F-41, F-42, F-43.
 | Metric | Target | Source |
 | --- | --- | --- |
 | Time to continue after a switch | < 1 minute (baseline about 10) | Manual log during the 2-week trial |
-| Switches without re-explaining | ≥ 10 in 2 weeks | Manual log + ContextHandoff rows |
+| Decision questions answered correctly after a switch | ≥ 4 of 5 per switch | Manual log (questions written before the switch) |
+| Successful switches | ≥ 10 in 2 weeks | Manual log + ContextHandoff rows |
 | Answers citing a real file | ≥ 90% of code questions | Spot check of MessageContext |
 | Background LLM cost | Visible on its own line; can be turned off | UsageRecord with `trigger = background` |
 
@@ -109,9 +118,14 @@ See `docs/idea.md` → Main risks. Product-specific additions:
 - The 2-week trial is run by the author alone, so the result may not hold for other developers.
 - Phase 1 has no UI. The first demo runs through the API, which is harder to show to others.
 
+## Answered (2026-11-17)
+
+- Success metric: accepted, with the 5-question check (at least 4 of 5 correct).
+- Time: 3 evenings per week. Dates are in `docs/phases.md`.
+- License: MIT (no LICENSE file until the repo is public).
+- Project memory: moved to Phase 2 (`feat/project-memory`), right after model switching.
+
 ## Open questions
 
-1. Do you accept the proposed success metric (10 switches, < 1 minute each, no re-explaining)?
-2. How many evenings per week can you work? The demo date in `docs/phases.md` assumes 3.
-3. Which open-source license: MIT or Apache-2.0?
-4. Should project memory (US-2) move earlier than Phase 3, since it is the differentiator?
+1. F-03 says *chat* can also propose memory items. The workflow branch builds approval for agent
+   proposals. Should proposals from ordinary chat replies be in v0.1, and in which branch?
