@@ -37,7 +37,7 @@ Recorded 2026-11-17.
 | D6 | Database exposure | Bind PostgreSQL to `127.0.0.1:5433:5432`. **Done** in `fix/bind-database-to-localhost`. |
 | D7 | LangChain / LangGraph | We never import `langchain*`. We import only `langgraph`, and only inside `modules/workflow`. `langchain-core` arriving as a dependency of LangGraph is fine. If Planner and Reviewer can be plain Python, skip LangGraph (ADR 0004). |
 | D8 | Users | Every user-data table gets `user_id` now. One default local user is created by the first migration, and every v0.1 request runs as that user. Auth comes later (`feat/authentication`). |
-| D9 | Roadmap | The roadmap and the v0.1 label stay as they are. A later task will split the roadmap into phases. |
+| D9 | Roadmap | The roadmap has been split into phases; see [`docs/phases.md`](phases.md) and [`docs/roadmap.md`](roadmap.md). v0.1 is complete at the end of the Workspace UI phase. |
 | D10 | Background LLM calls (amends D3 and D5) | Background calls cost the user money. **Rule: any LLM call the user did not directly ask for must be logged, visible, and possible to turn off.** (1) The concepts list (ConceptSuggestion) is built only by a rule-based selector: YAML "relevant when" rules matched against the project profile. It makes no LLM call; an LLM is called only when the user asks for an explanation (a TeachingNote). (2) The rolling summary stays a background job, but every call is written to `usage_records` with `trigger = background`, shown as its own line in the usage view, and can be switched off in UserModelSettings. When it's off, the summary is built at switch time instead. Recorded 2026-11-17. |
 
 ## Assumptions

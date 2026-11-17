@@ -11,8 +11,8 @@ v0.1 is a local tool for **one developer on their own machine**, using **their o
 | Projects and conversations in PostgreSQL | A project has many conversations, and a conversation has many messages. |
 | Chat with streaming | Server-sent events, a cancel button, and errors shown clearly. |
 | Model switching with context handoff | A rolling summary is built in the background by the utility model (default: the active model). Every one of these calls is logged and shown in the usage view, and background summaries can be turned off; then the summary is built at switch time. A switch carries the summary plus the recent messages that fit, after a preview, and never calls the old model. Every message is tagged with its model. |
+| Project memory | Requirements, decisions and tasks (CRUD), fed into every prompt as pinned items. Built right after model switching (`feat/project-memory`). Items proposed by AI need approval, added with the workflow (`feat/workflow-and-agents`). |
 | Project indexing with retrieval | Index a local folder, embed with a small OpenAI or Voyage model into pgvector, cite top-k sources as `path:lines`. Only changed files are re-indexed. Changing the embedding model means re-indexing. |
-| Project memory | Requirements, decisions and tasks. Items proposed by AI need approval. |
 | Workflow stages with human approval | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. Each one is approved, sent back for changes, or skipped by the user. |
 | Two agents | **Planner** (drafts) and **Reviewer** (critiques). No tools, text output only. |
 | Teaching notes | "What, why, how" notes, created only when the user asks, using project context (this is the only teaching LLM call). Plus a passive "concepts for this project" list, built by YAML rules and the project profile with no LLM call. No pop-ups or interruptions. |
@@ -28,6 +28,7 @@ v0.1 is a local tool for **one developer on their own machine**, using **their o
 | Monaco editor | The UI is chat and panels first. Editing happens in the user's own IDE. |
 | Redis and queues | In-process background tasks and PostgreSQL are enough for one user. |
 | Multi-user auth | One local user (with `user_id` already on all data). Auth is its own roadmap item. |
+| Hosted service | Not in v0.1. Revisit after the first demo; `user_id` and module boundaries keep it possible. |
 | Local embedding model | A small OpenAI or Voyage model through the gateway first. |
 | CI/CD integration | Comes after execution and GitHub. |
 | Reranker | Plain vector top-k first. Add one once we can measure retrieval quality. |
@@ -36,9 +37,10 @@ v0.1 is a local tool for **one developer on their own machine**, using **their o
 ## v0.1 is finished when
 
 1. A new user can follow `README.md`, add a key, create a project and chat with streaming.
-2. They can switch from model A to model B in the middle of a conversation, and B answers using
-   the earlier context.
-3. They can index a local folder and get answers that cite real `path:lines`.
-4. They can run the workflow through each stage with Planner and Reviewer, approving each one.
-5. They can create a teaching note from any message.
-6. All tests pass without API keys.
+2. They can switch from model A to model B in the middle of a conversation, and B answers at least
+   4 of 5 questions about earlier decisions correctly (see `docs/prd.md`).
+3. Decisions and tasks saved as project memory reach every model, even in a new conversation.
+4. They can index a local folder and get answers that cite real `path:lines`.
+5. They can run the workflow through each stage with Planner and Reviewer, approving each one.
+6. They can create a teaching note from any message.
+7. All tests pass without API keys.

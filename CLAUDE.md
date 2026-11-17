@@ -1,137 +1,79 @@
 # CLAUDE.md
 
-Working rules for any AI tool (or person) that edits this repo. Read this first, then
-`docs/architecture.md` and `docs/mvp-scope.md`.
+Rules for any AI tool (or person) that edits this repo.
 
-Mantle AI is a **software product**, a developer workspace for working with multiple LLMs. It is
-not an LLM.
+**Read `docs/rules.md` and `docs/memory.md` before starting any task.**
+**At the end of every task, update `docs/memory.md`.**
 
-## Tech stack
+Mantle AI is a **software product**, a local, open-source workspace for working with multiple
+LLMs. It is not an LLM. Background: `docs/idea.md`, `docs/architecture.md`, `docs/phases.md`.
 
-| Layer | Choice |
-| --- | --- |
-| Backend | Python 3.12+ (developed on 3.14), FastAPI, Pydantic v2, pydantic-settings, AsyncIO |
-| Database | PostgreSQL 16 + pgvector (Docker image `pgvector/pgvector:pg16`), SQLAlchemy 2 async + asyncpg, Alembic |
-| LLM access | LiteLLM Python SDK, called **only** from the `llm` module |
-| Agents | LangGraph, **only** inside the `workflow` module |
-| Frontend | React + Vite + TypeScript + Tailwind (not added yet) |
-| Tooling | ruff (lint + format, line length 100), pytest + pytest-asyncio, httpx |
+## Stack
 
-## Folder structure
+- Backend: Python 3.12+ (developed on 3.14), FastAPI, Pydantic v2, SQLAlchemy 2 async + asyncpg, Alembic
+- Database: PostgreSQL 16 + pgvector in Docker, on `127.0.0.1:5433`
+- LLMs: LiteLLM, only inside `modules/llm`. Agents: LangGraph, only inside `modules/workflow`
+- Frontend (later): React + Vite + TypeScript + Tailwind
+- Tooling: ruff (line length 100), pytest + pytest-asyncio, httpx
+
+## Layout
 
 ```
-backend/
-  app/
-    main.py            FastAPI app, mounts each module's router
-    core/              config, logging, security helpers, User + current-user dependency, audit log
-    db/                engine, session, Alembic base
-    api/               API-wide pieces (error handlers, dependencies)
-    modules/
-      projects/        projects + project memory (requirements, decisions, tasks)
-      conversations/   conversations, messages, context building, model switching
-      llm/             LLM gateway: provider keys, model catalog, LiteLLM calls, usage
-      rag/             file indexing, chunks, embeddings, retrieval
-      workflow/        workflow stages, approvals, Planner and Reviewer agents
-      teaching/        teaching notes
-      execution/       sandboxed execution (Later; empty in v0.1)
-  tests/
-frontend/              React app (later)
-docs/                  architecture, requirements, ADRs (docs/adr/)
-docker-compose.yml     local PostgreSQL only
+backend/app/
+  main.py      core/  db/  api/
+  modules/     projects  conversations  llm  rag  workflow  teaching  execution
+               each: router.py  schemas.py  models.py  service.py (public interface)
+backend/tests/
+docs/          architecture, rules, memory, phases, ADRs (docs/adr/)
 ```
 
-Each module uses the same files as it grows:
-
-- `router.py`: FastAPI routes, thin. Parses input, calls the service, returns schemas.
-- `schemas.py`: Pydantic request and response models.
-- `models.py`: SQLAlchemy tables owned by this module.
-- `service.py`: the module's **public interface**. Other modules may import only from here.
-
-## Coding standards
-
-- Type hints on every function. `async def` for anything that does I/O.
-- Modules talk to each other only through `service.py` functions. Never import another module's
-  `models.py` or `router.py`, and never query another module's tables directly.
-- Only `modules/llm` imports `litellm`. Only `modules/workflow` imports `langgraph`. Nothing
-  imports `langchain*`.
-- Configuration comes from `app.core.config.settings`. Never read `os.environ` elsewhere.
-- Use `logging.getLogger(__name__)`. Never `print`.
-- Validate all external input with Pydantic at the API edge.
-- Keep functions small. Prefer plain functions over classes unless there is state to hold.
-- Every change ships with tests. Run `ruff format .` before committing.
-
-## How to run (PowerShell, from the repo root)
-
-First-time setup is in `README.md`. Daily commands:
+## Run (PowerShell)
 
 ```powershell
-docker compose up -d                 # start PostgreSQL (host port 5433)
+docker compose up -d                 # PostgreSQL on 127.0.0.1:5433
 cd backend
 .venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload        # API on http://127.0.0.1:8000, docs at /docs
-```
-
-Tests and lint, from `backend` with the venv active:
-
-```powershell
+uvicorn app.main:app --reload        # http://127.0.0.1:8000, docs at /docs
 pytest
 ruff check .
 ruff format --check .
 ```
 
-## Rules
+First-time setup is in `README.md`.
 
-- **Modular monolith.** One FastAPI app and one database. No microservices.
-- **We never import `langchain*`; only `langgraph`.** No `import langchain`, `langchain_core`,
-  `langchain_community` or any other `langchain*` package, anywhere. `langgraph` is the only one
-  allowed, and only inside `modules/workflow`. (`langchain-core` being installed as a dependency
-  of LangGraph is fine.) See `docs/adr/0004-langgraph-selective.md`.
-- **Any LLM call the user did not directly ask for must be logged, visible, and possible to turn
-  off.** Every LLM call writes a `usage_records` row. Background calls use `trigger = background`,
-  show as their own line in the usage view, and have an off switch in UserModelSettings. If a
-  feature can be done without an LLM (rules, queries), do it without one.
-- **Every user-data table has `user_id`, and every query filters by it.** Get the user from the
-  `get_current_user` dependency. In v0.1 that is always the default local user.
-- **No secrets in code or logs.** API keys live encrypted in the database. Never log prompts,
-  keys, `Authorization` headers or file contents at INFO or above.
-- **Tests must not need real API keys or network access.** Use the gateway's fake provider or
-  LiteLLM's `mock_response`. A test that needs PostgreSQL must be marked `@pytest.mark.db` and
-  skip cleanly when the database is not running.
-- **One piece of work at a time.** Each task maps to one roadmap item and one branch. Do not mix
-  in unrelated fixes; note them for a separate branch.
+## Core rules (full list in docs/rules.md)
 
-## What not to do
+- **Modular monolith.** One FastAPI app, one database, no microservices.
+- **We never import `langchain*`; only `langgraph`,** and only in `modules/workflow`.
+- Modules call each other only through `service.py`. Only `llm` imports `litellm`; only `rag` reads project files.
+- **No secrets in code or logs.** Keys are encrypted in the database and never returned or logged.
+- **Tests never need real API keys** or network access.
+- **Any LLM call the user did not directly ask for must be logged, visible, and possible to turn off.**
+- Every user-data table has `user_id`, and every query filters by it.
+- No LLM output changes state without a human action. No shell execution in v0.1.
+- **One piece of work at a time:** one roadmap item per branch.
 
-- Do not add anything listed as "Out" in `docs/mvp-scope.md` (Redis, queues, auth, Monaco, GitHub
-  integration, code execution, reranker, extra agents) unless the task says so.
-- Do not let any LLM or agent run shell commands, write files, or call tools that change state
-  without explicit human approval.
-- Do not send whole projects to an LLM. Use retrieval and the context budget.
-- Do not add a dependency without saying why in the PR description.
-- Do not apply `docs/design-landing.md` to the app UI. It is for the marketing landing page only.
-- Do not edit `.env`, and do not change generated migrations after they have been merged.
+## Don't
+
+- Don't build anything listed as "Out" in `docs/mvp-scope.md`.
+- Don't apply `docs/design-landing.md` to the app UI (it's for the landing page only).
+- Don't add a dependency without a reason in the PR.
+- Don't edit `.env` or a merged migration.
+- Don't change `docs/architecture.md`, `docs/mvp-scope.md` or an ADR silently; list the conflict instead.
 
 ## Definition of done
 
-A task is done when all of these are true:
-
 1. It does what its roadmap item says, and nothing more.
-2. `pytest`, `ruff check .` and `ruff format --check .` pass in `backend`.
-3. New behaviour has tests. The tests run without API keys or network access.
-4. Database changes come with an Alembic migration that upgrades and downgrades.
-5. Docs are updated if behaviour, API or data model changed (`docs/api-outline.md`,
-   `docs/data-model.md`, `README.md`).
-6. No secrets in the diff, and `git status` shows no `.env`.
-7. The work is committed on its own branch with a conventional message.
+2. `pytest`, `ruff check .` and `ruff format --check .` pass.
+3. New behaviour has tests that run without API keys.
+4. Schema changes have a migration that upgrades and downgrades.
+5. Affected docs and `docs/memory.md` are updated.
+6. `git status` shows no `.env`, and the work is committed on its own branch.
 
 ## Git conventions
 
-- **Branch names:** `type/short-topic`, for example `feat/llm-gateway` or `fix/health-timeout`.
-  Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
-- **Commit messages:** `type: short lowercase message`, for example
-  `feat: add provider key storage`.
-- One topic per branch. One roadmap item per branch.
-- Nobody commits directly to `main`. All changes go through a pull request.
-- Never commit `.env`. Only `backend/.env.example` is tracked.
-- Never use the word "chunk" in branch names, commit messages or PR titles. (Inside code and docs
-  it is fine when it means a RAG text chunk.)
+- Branches: `type/short-topic` (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`).
+- Commits: `type: short lowercase message`.
+- One topic per branch. Nobody commits directly to `main`.
+- Never commit `.env`.
+- Never use the word "chunk" in branch names, commit messages or PR titles.
