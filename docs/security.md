@@ -67,9 +67,18 @@ A basic threat model for v0.1: one user, running locally, using their own API ke
 | MVP | uvicorn binds to `127.0.0.1` only. CORS allows only the frontend's dev origin. A Host-header check (localhost / 127.0.0.1 only) blocks DNS-rebinding. Write requests must be JSON (which forces a CORS preflight). No GET request changes state. **Follow-up (decision D6):** `docker-compose.yml` currently publishes the database on all interfaces. Branch `fix/bind-database-to-localhost` changes it to `127.0.0.1:5433:5432`. |
 | Later | `feat/authentication`: real login and sessions, before Mantle is ever run on a server. Because every user-data table already has `user_id` and every query filters by it, auth only has to replace the "current user" dependency. |
 
+### 8. Unrequested LLM calls (cost and data)
+| | |
+| --- | --- |
+| Risk | Mantle quietly calls a paid model in the background. That spends the user's money and sends their content to a provider they didn't expect. |
+| Rule | **Any LLM call the user did not directly ask for must be logged, visible, and possible to turn off.** |
+| MVP | Every LLM call writes a UsageRecord with a `trigger` (`user` or `background`). The usage view shows each background purpose as its own line. The only background call in v0.1 is the rolling conversation summary, and it can be turned off (`background_summary_enabled`); when it's off, the summary is built at switch time, which the user asked for. The concepts list uses rules only, with no LLM. |
+| Later | Spending caps for background calls, and a per-project switch. |
+
 ## Checklist for every PR
 
 - No secret in code, tests, fixtures or logs.
 - No new way for an LLM output to trigger an action without human approval.
 - No new file access outside `rag`, and no writes.
 - Every new query on user data filters by `user_id`.
+- No new LLM call the user didn't directly ask for, unless it's logged, visible and can be turned off.

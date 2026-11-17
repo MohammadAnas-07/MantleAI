@@ -69,12 +69,14 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 - `status`: `complete` | `streaming` | `error` | `cancelled`
 - `error_code` (nullable), `token_count`
 
-**ConversationSummary**: the rolling summary, built in the background. A new row is added each
-time it's updated; the newest row is the current one.
+**ConversationSummary**: the rolling summary, built in the background, or at switch time when
+background summaries are off. A new row is added each time it's updated; the newest row is the
+current one.
 - `user_id` → User, `conversation_id` → Conversation
 - `summary` (text): goals, decisions, code state, open issues
 - `up_to_message_id` → Message: the last message this summary covers
-- `model_id` → ModelConfig: the model that wrote it (the utility model at that time)
+- `model_id` → ModelConfig: the model that wrote it
+- `built_at`: `background` | `switch`
 - `token_count`
 
 **ContextHandoff**: one row per model switch.
@@ -111,11 +113,15 @@ time it's updated; the newest row is the current one.
 - `user_id` → User (unique)
 - `utility_model_id` → ModelConfig (nullable: **null means "use the conversation's active model"**)
 - `embedding_model_id` → ModelConfig (default: a small OpenAI or Voyage model)
+- `background_summary_enabled` (bool, default true): when false, no rolling-summary calls run in
+  the background, and the summary is built at switch time instead (D10)
 
 **UsageRecord**
 - `user_id` → User
 - `model_id` → ModelConfig
-- `purpose`: `chat` | `rolling_summary` | `embedding` | `agent` | `teaching`
+- `purpose`: `chat` | `rolling_summary` | `switch_summary` | `embedding` | `agent` | `teaching`
+- `trigger`: `user` (the user directly asked) | `background` (they didn't). The usage view shows
+  each `background` purpose as its own line. **Every LLM call writes a row; no exceptions.**
 - `project_id`, `conversation_id`, `message_id`, `agent_run_id` (all nullable)
 - `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`
 - `status`, `error_code`
@@ -139,6 +145,14 @@ time it's updated; the newest row is the current one.
 - `ordinal`, `text`, `start_line`, `end_line`, `token_count`
 - `embedding` (vector)
 - `embedding_model` (the LiteLLM model name), `embedding_dimensions`
+
+**ProjectProfile**: facts about the project, built **without an LLM** at the end of each index
+run. One row per project.
+- `user_id` → User, `project_id` → Project (unique)
+- `languages` (JSON, for example `{"python": 42, "typescript": 10}`, the file counts)
+- `dependencies` (JSON, names read from `pyproject.toml`, `requirements.txt`, `package.json`)
+- `markers` (JSON, for example `dockerfile`, `compose`, `migrations`, `ci_workflows`, `tests`)
+- `index_run_id` → IndexRun (the run that built it)
 
 **Changing the embedding model:** the `embedding` column has one fixed dimension, set by migration
 from the default embedding model. Vectors from different models can't be compared, so changing
@@ -178,11 +192,29 @@ the column.
 - `source_message_id` → Message (nullable), `stage_key` (nullable)
 - `model_id` → ModelConfig
 
-**ConceptSuggestion**: the passive "concepts for this project" list.
+**ConceptSuggestion**: the passive "concepts for this project" list. It's built by the
+rule-based selector only, with **no LLM call**. An LLM is called only when the user asks for an
+explanation, which creates a TeachingNote.
 - `user_id` → User, `project_id` → Project
-- `concept`, `reason` (why it matters for this project)
+- `rule_id`, `concept`
+- `reason`: the rule's own "why" text, plus the facts that matched (for example "dependency: sqlalchemy")
 - `status`: `new` | `dismissed` | `noted`
 - `teaching_note_id` → TeachingNote (nullable: set once the user asks for a note)
+
+The rules are a YAML file in the `teaching` module (not a table). Each rule looks like this:
+
+```yaml
+- id: database-indexing
+  concept: Database indexing
+  relevant_when:
+    any:
+      - dependency: sqlalchemy
+      - marker: migrations
+  why: Your project stores data in a database. Indexes decide how fast its queries are.
+```
+
+The selector checks `relevant_when` against the ProjectProfile, the project's memory items and
+its approved workflow stages.
 
 ## execution module (Later, not created in v0.1)
 
@@ -204,6 +236,7 @@ User 1─* (every user-data table, via user_id)
                  ├─* MemoryItem
                  ├─* IndexRun
                  ├─* Document 1─* Chunk
+                 ├─1 ProjectProfile
                  ├─* WorkflowRun 1─* StageState 1─* AgentRun
                  ├─* TeachingNote
                  ├─* ConceptSuggestion

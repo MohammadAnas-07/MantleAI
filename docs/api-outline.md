@@ -26,9 +26,9 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 | DELETE | `/api/v1/credentials/{id}` | Delete a key |
 | GET | `/api/v1/models` | List models (`kind`, context window, enabled) |
 | PATCH | `/api/v1/models/{id}` | Enable or disable a model, override its context window |
-| GET | `/api/v1/settings/models` | The utility model (null = the active model) and the embedding model |
-| PATCH | `/api/v1/settings/models` | Change the utility model or the embedding model (changing the embedding model means re-indexing) |
-| GET | `/api/v1/usage` | Token and cost totals (filter by project, model, date) |
+| GET | `/api/v1/settings/models` | The utility model (null = the active model), the embedding model, and `background_summary_enabled` |
+| PATCH | `/api/v1/settings/models` | Change any of the three (changing the embedding model means re-indexing; turning background summaries off stops all background LLM calls) |
+| GET | `/api/v1/usage` | Token and cost totals (filter by project, model, date), grouped by `purpose` and `trigger`, so each background purpose is its own line |
 
 ## Projects and memory (`projects`)
 
@@ -60,8 +60,8 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 | POST | `/api/v1/messages/{id}/cancel` | Stop a reply that is still streaming |
 | GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply |
 | GET | `/api/v1/conversations/{id}/summary` | The current rolling summary and which messages it covers |
-| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | What would carry over to that model (summary, raw messages kept, token counts) |
-| POST | `/api/v1/conversations/{id}/switch-model` | Switch `{model_id, reason}`, creating a ContextHandoff (never calls the old model) |
+| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | What would carry over to that model (summary, raw messages kept, token counts), and whether the switch will make a summary call, with estimated tokens |
+| POST | `/api/v1/conversations/{id}/switch-model` | Switch `{model_id, reason}`, creating a ContextHandoff. Never calls the old model. Builds the summary now if background summaries are off |
 | GET | `/api/v1/conversations/{id}/handoffs` | History of model switches |
 
 ## RAG (`rag`)
@@ -73,6 +73,7 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 | GET | `/api/v1/index-runs/{run_id}` | Progress and result of one run |
 | POST | `/api/v1/index-runs/{run_id}/cancel` | Stop a running index |
 | GET | `/api/v1/projects/{id}/documents` | List indexed files |
+| GET | `/api/v1/projects/{id}/profile` | The project profile (languages, dependencies, markers), built without an LLM |
 | POST | `/api/v1/projects/{id}/search` | Test retrieval `{query, k}`, returns chunks with scores |
 | DELETE | `/api/v1/projects/{id}/index` | Remove all indexed data for the project |
 
@@ -99,7 +100,7 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 | GET | `/api/v1/teaching-notes/{id}` | Get one note |
 | DELETE | `/api/v1/teaching-notes/{id}` | Delete a note |
 | GET | `/api/v1/projects/{id}/concepts` | The passive "concepts for this project" list |
-| POST | `/api/v1/projects/{id}/concepts/refresh` | Rebuild the concept list (also runs silently after a stage is approved) |
+| POST | `/api/v1/projects/{id}/concepts/refresh` | Rebuild the list with the rule-based selector. **No LLM call.** It also runs after an index run and after a stage is approved |
 | POST | `/api/v1/concepts/{id}/dismiss` | Hide a concept from the list |
 
 ## Execution (`execution`), Later, not built in v0.1

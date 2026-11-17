@@ -86,6 +86,10 @@ ruff format --check .
   `langchain_community` or any other `langchain*` package, anywhere. `langgraph` is the only one
   allowed, and only inside `modules/workflow`. (`langchain-core` being installed as a dependency
   of LangGraph is fine.) See `docs/adr/0004-langgraph-selective.md`.
+- **Any LLM call the user did not directly ask for must be logged, visible, and possible to turn
+  off.** Every LLM call writes a `usage_records` row. Background calls use `trigger = background`,
+  show as their own line in the usage view, and have an off switch in UserModelSettings. If a
+  feature can be done without an LLM (rules, queries), do it without one.
 - **Every user-data table has `user_id`, and every query filters by it.** Get the user from the
   `get_current_user` dependency. In v0.1 that is always the default local user.
 - **No secrets in code or logs.** API keys live encrypted in the database. Never log prompts,

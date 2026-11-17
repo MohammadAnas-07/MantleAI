@@ -21,6 +21,11 @@ so the user needs an embeddings-capable key. There's no local embedding model in
 **utility model** setting (default: the conversation's active model) handles background work
 such as rolling conversation summaries.
 
+Because the gateway is the only path to a provider, it enforces the rule "any LLM call the user
+did not directly ask for must be logged, visible, and possible to turn off" (decision D10). Every
+call writes a UsageRecord with a `trigger` (`user` or `background`). A background call is refused
+if its switch in UserModelSettings is off.
+
 ## Alternatives considered
 
 - **Each provider's own SDK:** full control, but we'd have to write and maintain every adapter

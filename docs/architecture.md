@@ -38,6 +38,7 @@ Recorded 2026-11-17.
 | D7 | LangChain / LangGraph | We never import `langchain*`. We import only `langgraph`, and only inside `modules/workflow`. `langchain-core` arriving as a dependency of LangGraph is fine. If Planner and Reviewer can be plain Python, skip LangGraph (ADR 0004). |
 | D8 | Users | Every user-data table gets `user_id` now. One default local user is created by the first migration, and every v0.1 request runs as that user. Auth comes later (`feat/authentication`). |
 | D9 | Roadmap | The roadmap and the v0.1 label stay as they are. A later task will split the roadmap into phases. |
+| D10 | Background LLM calls (amends D3 and D5) | Background calls cost the user money. **Rule: any LLM call the user did not directly ask for must be logged, visible, and possible to turn off.** (1) The concepts list (ConceptSuggestion) is built only by a rule-based selector: YAML "relevant when" rules matched against the project profile. It makes no LLM call; an LLM is called only when the user asks for an explanation (a TeachingNote). (2) The rolling summary stays a background job, but every call is written to `usage_records` with `trigger = background`, shown as its own line in the usage view, and can be switched off in UserModelSettings. When it's off, the summary is built at switch time instead. Recorded 2026-11-17. |
 
 ## Assumptions
 
@@ -49,9 +50,11 @@ Recorded 2026-11-17.
    it, and auth will replace that dependency later. Every query on user data filters by `user_id`.
 4. "Indexing a project" means reading a **local folder path** the user enters. There is no upload
    and no GitHub clone.
-5. The rolling summary is updated after an assistant reply once the messages it doesn't yet cover
-   go past a token threshold (configurable). It runs as an in-process background task, and if it
-   fails, chat is not affected.
+5. When background summaries are on (the default, D10), the rolling summary is updated after an
+   assistant reply once the messages it doesn't yet cover go past a token threshold
+   (configurable). It runs as an in-process background task, and if it fails, chat is not
+   affected. Today it's the **only** LLM call the user doesn't directly ask for. Indexing
+   embeddings, query embeddings, agent runs and teaching notes all start from a user action.
 6. Mantle never switches models on its own. On a limit or provider error it *suggests* a switch,
    and the user confirms it.
 7. Project memory (requirements, decisions, tasks) belongs to the `projects` module. The workflow
@@ -65,8 +68,13 @@ Recorded 2026-11-17.
 11. The API is versioned under `/api/v1`. `/health` stays at the root.
 12. The context windows of models come from LiteLLM's model data, and the user can override them.
     The model catalog (ModelConfig) is shared reference data, not user data.
-13. The "concepts for this project" list is refreshed when the user asks, and silently after a
-    workflow stage is approved. It only appears in the teaching panel.
+13. The "concepts for this project" list is rule-based and free (no LLM, D10). It's refreshed when
+    the user asks, after an index run finishes, and after a workflow stage is approved. It only
+    appears in the teaching panel.
+14. The project profile is built without an LLM at the end of each index run. It records the
+    languages, the dependencies read from manifest files (`pyproject.toml`, `requirements.txt`,
+    `package.json`) and markers such as a Dockerfile, a compose file, a migrations folder or CI
+    workflows. The concept rules live in a YAML file inside the `teaching` module.
 
 ## System overview
 
@@ -92,9 +100,9 @@ Each module owns its tables and exposes a `service.py`. The arrows show who may 
 | `projects` | Project, MemoryItem | Project CRUD and project memory (requirements, decisions, tasks) | none |
 | `conversations` | Conversation, Message, ConversationSummary, ContextHandoff, MessageContext | Chat, the context builder (assembles every prompt), rolling summary, model switching | projects, rag, llm |
 | `llm` (LLM gateway) | ProviderCredential, ModelConfig, UserModelSettings, UsageRecord | Encrypted keys, model catalog, utility and embedding model settings, streaming completions, embeddings, token counting, typed errors | none |
-| `rag` | Document, Chunk, IndexRun | Walk folder, filter, chunk, embed, store, retrieve top-k | llm |
+| `rag` | Document, Chunk, IndexRun, ProjectProfile | Walk folder, filter, chunk, embed, store, retrieve top-k, build the project profile (no LLM) | llm |
 | `workflow` (agents) | WorkflowRun, StageState, AgentRun | Fixed stage list (D4), Planner and Reviewer agents, human approval | projects, rag, llm |
-| `teaching` | TeachingNote, ConceptSuggestion | Notes on request, the passive "concepts for this project" list | projects, conversations, rag, llm |
+| `teaching` | TeachingNote, ConceptSuggestion | Notes on request (LLM), and the passive "concepts for this project" list built from YAML rules + the project profile (no LLM) | projects, conversations, rag, llm |
 | `execution` | ExecutionRun (later) | Run commands in a sandbox after approval. **Not in v0.1.** | (later) |
 | shared (`app/core`) | User, AuditEvent | The default local user, the current-user dependency, the audit log | none |
 
@@ -119,9 +127,11 @@ UI                      conversations                    projects / rag         
  |<== SSE "token" ... "token" <----------------------------------------------------|
  |                        | save assistant Message (model_id), MessageContext rows, UsageRecord
  |<== SSE "done" {message_id, usage}
- |                        | background, if the messages not yet summarised > threshold:
+ |                        | background, only if background summaries are ON
+ |                        | and the messages not yet summarised > threshold:
  |                        |   complete(utility model, previous summary + new messages) ->|
  |                        |   save a new ConversationSummary {text, up_to_message_id, model_id}
+ |                        |   UsageRecord {purpose: rolling_summary, trigger: background}
 ```
 
 On a provider error the gateway raises a typed error (`RateLimited`, `ContextTooLong`,
@@ -148,9 +158,12 @@ UI                               conversations
  | next message -> Journey 1 using B: system + summary + kept messages + memory + retrieval
 ```
 
-Model A is never called during a switch, so a rate-limited or failing model doesn't block it. In
-the rare case that even the summary plus the last message doesn't fit B, the preview says so and
-the summary is rewritten shorter by the utility model (or by B if the utility model is A).
+Model A is never called during a switch, so a rate-limited or failing model doesn't block it.
+
+**When background summaries are OFF** (D10), or the summary is missing or too long for B, the
+summary is built **at switch time**. The preview says so and shows the estimated tokens. After the
+user confirms, the utility model writes the summary (or B writes it, if the utility model is A or
+unset). That call is logged with `trigger = user`, because the user asked for the switch.
 
 Every message stores the `model_id` that produced it, so the history shows which model said what.
 Project memory and retrieval do not depend on the model, so they carry over automatically.
