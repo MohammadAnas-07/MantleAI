@@ -4,7 +4,8 @@ Endpoints commit their own writes (`await session.commit()`); the session rolls 
 """
 
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager
 from typing import Annotated
 
 from fastapi import Depends
@@ -40,3 +41,14 @@ async def get_current_user_id(session: DbSession) -> uuid.UUID:
 
 
 CurrentUserId = Annotated[uuid.UUID, Depends(get_current_user_id)]
+
+SessionFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
+
+
+def get_session_factory() -> SessionFactory:
+    """Opens new sessions for work that outlives the request handler: an SSE stream and its
+    background tasks. Tests override it to hand out the test session."""
+    return SessionLocal
+
+
+SessionFactoryDep = Annotated[SessionFactory, Depends(get_session_factory)]

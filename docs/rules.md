@@ -45,7 +45,7 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 29. Write endpoints accept only `application/json`.
 30. An API response never contains an API key; at most the last 4 characters.
 31. Every new or changed endpoint is listed in `docs/api-outline.md` in the same PR.
-32. Streaming responses use SSE with the event names `context`, `token`, `done` and `error`.
+32. Streaming responses use SSE with the event names `message_start`, `delta`, `message_end` and `error`.
 
 ## LLM handling
 
