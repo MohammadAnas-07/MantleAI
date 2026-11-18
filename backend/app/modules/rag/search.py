@@ -195,9 +195,15 @@ def _whole_lines(hit: Hit) -> bool:
     return hit.text.count("\n") == hit.end_line - hit.start_line
 
 
+# Hits this many lines apart still merge. The chunker leaves out only blank lines between
+# definitions (Python puts two between top-level ones), so a gap this small is blank.
+MERGE_GAP_LINES = 2
+
+
 def merge_adjacent(hits: list[Hit]) -> list[Block]:
-    """Merge hits of the same file whose line ranges overlap or touch. A block keeps the best
-    score and ranks of its hits; blocks are ordered by score, then path and line."""
+    """Merge hits of the same file whose line ranges overlap, touch, or are separated by at
+    most MERGE_GAP_LINES blank lines. A block keeps the best score and ranks of its hits;
+    blocks are ordered by score, then path and line."""
     by_file: dict[str, list[Hit]] = {}
     for hit in hits:
         by_file.setdefault(hit.path, []).append(hit)
@@ -207,7 +213,13 @@ def merge_adjacent(hits: list[Hit]) -> list[Block]:
         current: Block | None = None
         lines: dict[int, str] = {}
         for hit in file_hits:
-            if current is not None and _whole_lines(hit) and hit.start_line <= current.end_line + 1:
+            if (
+                current is not None
+                and _whole_lines(hit)
+                and hit.start_line <= current.end_line + 1 + MERGE_GAP_LINES
+            ):
+                for gap in range(current.end_line + 1, hit.start_line):
+                    lines[gap] = ""
                 lines.update(enumerate(hit.text.split("\n"), start=hit.start_line))
                 current.end_line = max(current.end_line, hit.end_line)
                 current.score = max(current.score, hit.score)
