@@ -284,7 +284,7 @@ async def test_client_disconnect_saves_partial_text(
     scope = {
         "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1", "method": "POST",
         "scheme": "http", "path": url(world, "/messages"), "raw_path": b"", "query_string": b"",
-        "headers": [(b"content-type", b"application/json"), (b"host", b"test")],
+        "headers": [(b"content-type", b"application/json"), (b"host", b"localhost")],
         "client": ("127.0.0.1", 1), "server": ("test", 80), "root_path": "",
     }  # fmt: skip
     try:

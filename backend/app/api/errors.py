@@ -82,3 +82,61 @@ class JsonOnlyMiddleware:
                 await send({"type": "http.response.body", "body": body})
                 return
         await self.app(scope, receive, send)
+
+
+def _split_host(value: str) -> tuple[str, str | None]:
+    """("localhost", "8000") from "localhost:8000"; IPv6 literals keep their brackets."""
+    value = value.strip().lower()
+    if value.startswith("["):
+        end = value.find("]")
+        host, rest = value[: end + 1], value[end + 1 :]
+        return host, rest[1:] if rest.startswith(":") else None
+    host, _, port = value.partition(":")
+    return host, port or None
+
+
+def host_allowed(value: str, allowed: list[str]) -> bool:
+    """True when the Host header matches an allowed entry. An entry without a port matches
+    that host on any port; an entry with a port matches only that port."""
+    host, port = _split_host(value)
+    if not host:
+        return False
+    for entry in allowed:
+        e_host, e_port = _split_host(entry)
+        if host == e_host and (e_port is None or e_port == port):
+            return True
+    return False
+
+
+class AllowedHostsMiddleware:
+    """Refuse requests whose Host header is not in ALLOWED_HOSTS (400 `invalid_host`).
+
+    Pure ASGI, like JsonOnlyMiddleware, and it answers in the API's error shape. Starlette's
+    TrustedHostMiddleware would answer in plain text.
+    """
+
+    def __init__(self, app: ASGIApp, allowed_hosts: list[str]) -> None:
+        self.app = app
+        self.allowed_hosts = allowed_hosts
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers") or [])
+            host = headers.get(b"host", b"").decode("latin-1")
+            if not host_allowed(host, self.allowed_hosts):
+                body = json.dumps(
+                    error_body(
+                        "invalid_host",
+                        "This host name is not allowed. Open Mantle at localhost or 127.0.0.1.",
+                    )
+                ).encode()
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [(b"content-type", b"application/json")],
+                    }
+                )
+                await send({"type": "http.response.body", "body": body})
+                return
+        await self.app(scope, receive, send)

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
 
     # Browser origins allowed to call the API (the Vite dev server). Never "*": any website the
     # user visits could otherwise read the local API's answers.
+    # Host header values the API answers to. An entry without a port matches any port.
+    # Anything else is refused, which stops DNS rebinding: a page on evil.example whose name
+    # later resolves to 127.0.0.1 still sends "Host: evil.example".
+    allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
     cors_allowed_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )

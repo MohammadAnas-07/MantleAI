@@ -85,7 +85,7 @@ message could quote content.
 | | |
 | --- | --- |
 | Risk | There's no login in v0.1. Any web page in the browser could call `http://127.0.0.1:8000`, and other devices on the Wi-Fi could reach the API or the database. |
-| MVP | uvicorn binds to `127.0.0.1` only. CORS allows only the frontend's dev origin. A Host-header check (localhost / 127.0.0.1 only) blocks DNS-rebinding. Write requests must be JSON (which forces a CORS preflight). No GET request changes state. **Done (decision D6):** `docker-compose.yml` publishes the database on `127.0.0.1:5433` only (`fix/bind-database-to-localhost`). |
+| MVP | uvicorn binds to `127.0.0.1` only. CORS allows only the frontend's dev origins (`CORS_ALLOWED_ORIGINS`, no wildcard, no credentials). A Host-header check (`ALLOWED_HOSTS`: localhost and 127.0.0.1 on any port) answers anything else with 400 `invalid_host`, which blocks DNS rebinding. **Done** in `feat/frontend-workspace`. Write requests must be JSON (which forces a CORS preflight). No GET request changes state. **Done (decision D6):** `docker-compose.yml` publishes the database on `127.0.0.1:5433` only (`fix/bind-database-to-localhost`). |
 | Later | `feat/authentication`: real login and sessions, before Mantle is ever run on a server. Because every user-data table already has `user_id` and every query filters by it, auth only has to replace the "current user" dependency. |
 
 ### 8. Unrequested LLM calls (cost and data)

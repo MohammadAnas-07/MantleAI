@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.errors import JsonOnlyMiddleware, install_error_handlers
+from app.api.errors import AllowedHostsMiddleware, JsonOnlyMiddleware, install_error_handlers
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging
@@ -52,6 +52,8 @@ app.add_middleware(
     allow_credentials=False,
     max_age=600,
 )
+# Outermost: a request for a host name we don't serve gets no further.
+app.add_middleware(AllowedHostsMiddleware, allowed_hosts=settings.allowed_hosts)
 install_error_handlers(app)
 app.include_router(api_router)
 
