@@ -10,6 +10,7 @@ import logging
 import uuid
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import anyio
@@ -28,6 +29,7 @@ from app.modules.conversations.context_builder import (
 )
 from app.modules.conversations.models import (
     ContextHandoff,
+    ContextSourceType,
     Conversation,
     HandoffReason,
     Message,
@@ -39,6 +41,7 @@ from app.modules.conversations.repository import (
     ContextHandoffRepository,
     ConversationRepository,
     ConversationSummaryRepository,
+    MessageContextRepository,
     MessageRepository,
 )
 from app.modules.conversations.suggestions import suggest_models
@@ -73,6 +76,7 @@ from app.modules.projects.service import (
     pinned_block,
     pinned_selection,
 )
+from app.modules.rag.service import RetrievedBlock, blocks_for_chunks, retrieve_for_context
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +167,17 @@ async def select_pinned_for(
     )  # fmt: skip
 
 
+async def last_retrieved(
+    session: AsyncSession, user_id: uuid.UUID, conversation: Conversation
+) -> list[RetrievedBlock]:
+    """The code sent with the newest reply, read back from its message_contexts rows. Used by
+    the handoff preview and the switch, which make no model call (so no query embedding)."""
+    if not conversation.code_context_enabled:
+        return []
+    refs = await MessageContextRepository(session, user_id).latest_chunks(conversation.id)
+    return await blocks_for_chunks(session, user_id, conversation.project_id, refs)
+
+
 async def load_inputs(
     session: AsyncSession,
     gateway: Gateway,
@@ -170,9 +185,13 @@ async def load_inputs(
     conversation: Conversation,
     model: ModelInfo,
     new_user_text: str | None = None,
+    retrieved: list[RetrievedBlock] | None = None,
 ) -> ContextInputs:
     """Everything the context builder needs, read from the database. Optionally adds the user
-    message that is about to be sent (not saved yet)."""
+    message that is about to be sent (not saved yet). Without `retrieved`, the code of the
+    newest reply is used."""
+    if retrieved is None:
+        retrieved = await last_retrieved(session, user_id, conversation)
     project = await get_project(session, user_id, conversation.project_id)
     pinned = await select_pinned_for(session, gateway, user_id, conversation.project_id, model)
     summary_row = await ConversationSummaryRepository(session, user_id).latest(conversation.id)
@@ -194,6 +213,7 @@ async def load_inputs(
         pinned=pinned.items,
         summary=summary,
         history=history,
+        retrieved=retrieved,
         pinned_dropped=pinned.dropped,
     )
 
@@ -205,9 +225,12 @@ async def build_context(
     conversation: Conversation,
     model: ModelInfo,
     new_user_text: str | None = None,
+    retrieved: list[RetrievedBlock] | None = None,
 ) -> BuiltContext:
     """Build the request for `model`. No LLM call. ContextTooLong carries suggested_models."""
-    inputs = await load_inputs(session, gateway, user_id, conversation, model, new_user_text)
+    inputs = await load_inputs(
+        session, gateway, user_id, conversation, model, new_user_text, retrieved
+    )
     builder = ContextBuilder(lambda messages: count_tokens(gateway, model, messages))
     try:
         return builder.build(model, inputs)
@@ -246,6 +269,28 @@ def context_report(built: BuiltContext) -> dict[str, Any]:
             "included": built.pinned_included,
             "dropped": dropped_report(built.pinned_dropped),
         },
+        "retrieved": {
+            "tokens": built.retrieved_tokens,
+            "max_tokens": built.retrieved_max_tokens,
+            "used": [block_report(b) for b in built.retrieved_used],
+            "dropped": [
+                block_report(d.block) | {"reason": d.reason} for d in built.retrieved_dropped
+            ],
+        },
+    }
+
+
+def block_report(block: RetrievedBlock) -> dict[str, Any]:
+    """A retrieved block without its text: where it is from and how it ranked."""
+    return {
+        "path": block.path,
+        "start_line": block.start_line,
+        "end_line": block.end_line,
+        "symbol": block.symbol,
+        "score": block.score,
+        "vector_rank": block.vector_rank,
+        "text_rank": block.text_rank,
+        "chunk_ids": [str(c) for c in block.chunk_ids],
     }
 
 
@@ -281,7 +326,7 @@ async def preview_pinned(
 
 @dataclass(frozen=True)
 class SseEvent:
-    event: str  # message_start | delta | message_end | error
+    event: str  # message_start | warning | delta | message_end | error
     data: dict[str, Any]
 
 
@@ -293,6 +338,59 @@ class PreparedReply:
     built: BuiltContext
     user_message_id: uuid.UUID
     assistant_message_id: uuid.UUID
+    # Problems that did not stop the reply, sent as SSE "warning" events.
+    warnings: tuple[dict[str, Any], ...] = ()
+
+
+async def retrieve_code(
+    session: AsyncSession,
+    gateway: Gateway,
+    user_id: uuid.UUID,
+    conversation: Conversation,
+    query: str,
+) -> tuple[list[RetrievedBlock], dict[str, Any] | None]:
+    """Project code for this message, and a warning when it could not be used.
+
+    Retrieval must never fail the message: a provider error (rate limit, bad key, provider
+    down) or any other failure means no retrieved code plus a warning. The query embedding is
+    logged with purpose "embedding" (its usage row is kept even when it fails).
+    """
+    if not conversation.code_context_enabled:
+        return [], None
+    links = UsageLinks(project_id=conversation.project_id, conversation_id=conversation.id)
+    llm_error: LLMError | None = None
+    try:
+        async with session.begin_nested():  # a database error here must not break the reply
+            try:
+                outcome = await retrieve_for_context(
+                    session, gateway, user_id, conversation.project_id, query, links
+                )
+            except LLMError as exc:
+                llm_error = exc  # leave the savepoint normally, so the usage row stays
+    except Exception as exc:
+        logger.warning(
+            "retrieval failed conversation=%s type=%s", conversation.id, type(exc).__name__
+        )
+        return [], {
+            "code": "retrieval_failed",
+            "message": "Project code was not used: retrieval failed.",
+            "details": {},
+        }
+    if llm_error is not None:
+        logger.warning("retrieval skipped conversation=%s code=%s", conversation.id, llm_error.code)
+        return [], {
+            "code": "retrieval_failed",
+            "message": f"Project code was not used: the embedding call failed ({llm_error.code}).",
+            "details": {"error_code": llm_error.code},
+        }
+    return outcome.blocks, outcome.warning
+
+
+def _lock_held(since: datetime | None) -> bool:
+    if since is None:
+        return False
+    age = datetime.now(UTC) - since
+    return age < timedelta(seconds=settings.conversation_lock_timeout_seconds)
 
 
 async def prepare_reply(
@@ -307,7 +405,14 @@ async def prepare_reply(
     conversation = await get_conversation(session, user_id, conversation_id)
     model = await get_chat_model(session, conversation.current_model_id)
     await _require_key(session, user_id, model)
-    built = await build_context(session, gateway, user_id, conversation, model, new_user_text=text)
+    if _lock_held(conversation.generating_since):
+        # A cheap early check, so a refused message costs no query embedding. The atomic
+        # claim below still decides.
+        raise GenerationInProgress("A reply is already being generated for this conversation.")
+    retrieved, warning = await retrieve_code(session, gateway, user_id, conversation, text)
+    built = await build_context(
+        session, gateway, user_id, conversation, model, new_user_text=text, retrieved=retrieved
+    )
 
     conversations = ConversationRepository(session, user_id)
     if not await conversations.claim_lock(conversation_id, "generating"):
@@ -331,12 +436,26 @@ async def prepare_reply(
         model_id=model.id,
         status=MessageStatus.STREAMING,
     )
+    # What was sent: ids and line ranges only, never the text.
+    contexts = MessageContextRepository(session, user_id)
+    for rank, block in enumerate(built.retrieved_used, start=1):
+        for chunk_id in block.chunk_ids:
+            await contexts.add(
+                message_id=assistant.id,
+                source_type=ContextSourceType.CHUNK,
+                source_id=chunk_id,
+                score=block.score,
+                rank=rank,
+                start_line=block.start_line,
+                end_line=block.end_line,
+            )
     if not conversation.title:
         conversation.title = text.strip()[:TITLE_LENGTH]  # no LLM call for titles
     await session.commit()
     return PreparedReply(
-        conversation_id, conversation.project_id, model, built, user_message.id, assistant.id
-    )
+        conversation_id, conversation.project_id, model, built, user_message.id, assistant.id,
+        warnings=(warning,) if warning else (),
+    )  # fmt: skip
 
 
 async def _finish(
@@ -394,8 +513,11 @@ async def stream_reply(
                 "user_message_id": str(prepared.user_message_id),
                 "conversation_id": str(prepared.conversation_id),
                 "model_id": str(prepared.model.id),
+                "sources": [block_report(b) for b in prepared.built.retrieved_used],
             },
         )
+        for warning in prepared.warnings:
+            yield SseEvent("warning", {"message_id": str(prepared.assistant_message_id)} | warning)
         parts: list[str] = []
         done: ChatDone | None = None
         stream = gateway.stream_chat(
@@ -530,6 +652,11 @@ def handoff_note(
         f"{built.pinned_included} pinned items ({built.pinned_tokens} tokens)"
         + (f", {left_out} left out." if left_out else ".")
     )
+    if built.retrieved_used or built.retrieved_dropped:
+        lines.append(
+            f"{len(built.retrieved_used)} code sources ({built.retrieved_tokens} tokens)"
+            + (f", {len(built.retrieved_dropped)} left out." if built.retrieved_dropped else ".")
+        )
     lines.append("Dropped: " + (", ".join(built.dropped) if built.dropped else "nothing") + ".")
     return {
         "text": " ".join(lines),
@@ -542,6 +669,10 @@ def handoff_note(
         "pinned_items": built.pinned_included,
         "pinned_tokens": built.pinned_tokens,
         "pinned_dropped": dropped_report(built.pinned_dropped),
+        "retrieved": [block_report(b) for b in built.retrieved_used],
+        "retrieved_dropped": [
+            block_report(d.block) | {"reason": d.reason} for d in built.retrieved_dropped
+        ],
         "dropped": built.dropped,
         "budget": built.budget,
         "total_tokens": built.total_tokens,

@@ -18,6 +18,7 @@ from app.modules.llm.fake import FakeProvider
 from app.modules.llm.service import ChatMessages, ContextTooLong, ModelInfo
 from app.modules.projects.pinned import neutralize
 from app.modules.projects.service import PinnedItem, ProjectInfo
+from app.modules.rag.service import RetrievedBlock
 
 FAKE = FakeProvider()
 SETTINGS = BudgetSettings(reserved_output_tokens=200, safety_margin=0.10, keep_recent_turns=1)
@@ -46,6 +47,10 @@ def history(n_pairs: int, size: int = 200) -> list[HistoryMessage]:
     return out
 
 
+def block(path: str, start: int, end: int, score: float, body: str) -> RetrievedBlock:
+    return RetrievedBlock(path, start, end, "python", None, body, score, 1, 1, (uuid.uuid4(),))
+
+
 DECISION_ID, REQUIREMENT_ID, TASK_ID = (uuid.UUID(int=n) for n in (0xD, 0xE, 0xF))
 
 
@@ -63,12 +68,12 @@ def full_inputs(n_pairs: int = 10) -> ContextInputs:
         ],
         summary=SummaryInput("Decided on FastAPI. " * 30, 1, 0),
         history=history(n_pairs),
-        retrieved=["app/main.py:1-10 ..." * 20],
+        retrieved=[block("app/main.py", 1, 10, 0.03, "def main(): ..." * 20)],
     )
 
 
 FULL_DROP_ORDER = [
-    "retrieved_context",
+    "retrieved app/main.py:1-10",
     *[f"message #{i}" for i in range(1, 19)],  # 10 pairs, keep the last 1 turn + latest
     "conversation_summary",
     f"pinned task {TASK_ID.hex[:8]}",
@@ -129,7 +134,9 @@ def test_window_small_enough_drops_through_summary_and_pinned() -> None:
             seen.update(builder.build(model(window), full_inputs()).dropped)
         except ContextTooLong:
             continue
-    assert {"retrieved_context", "conversation_summary", f"pinned task {TASK_ID.hex[:8]}"} <= seen
+    assert {
+        "retrieved app/main.py:1-10", "conversation_summary", f"pinned task {TASK_ID.hex[:8]}"
+    } <= seen  # fmt: skip
 
 
 def test_oversized_latest_message_raises_context_too_long() -> None:

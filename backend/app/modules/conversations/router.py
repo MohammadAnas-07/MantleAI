@@ -20,7 +20,7 @@ from app.modules.conversations.repository import (
 from app.modules.conversations.schemas import (
     ConversationCreate,
     ConversationOut,
-    ConversationRename,
+    ConversationPatch,
     HandoffOut,
     MessageCreate,
     MessageOut,
@@ -44,6 +44,7 @@ def _out(conversation: Conversation) -> ConversationOut:
         current_model_id=conversation.current_model_id,
         generating=conversation.generating_since is not None,
         summary_error=conversation.summary_error,
+        code_context_enabled=conversation.code_context_enabled,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
     )
@@ -76,11 +77,15 @@ async def get_conversation(
 
 
 @router.patch("/conversations/{conversation_id}")
-async def rename_conversation(
-    conversation_id: uuid.UUID, body: ConversationRename, session: DbSession, user_id: CurrentUserId
+async def update_conversation(
+    conversation_id: uuid.UUID, body: ConversationPatch, session: DbSession, user_id: CurrentUserId
 ) -> ConversationOut:
+    """Rename, or turn project code context on or off for this conversation."""
     conversation = await service.get_conversation(session, user_id, conversation_id)
-    conversation.title = body.title
+    if body.title is not None:
+        conversation.title = body.title
+    if body.code_context_enabled is not None:
+        conversation.code_context_enabled = body.code_context_enabled
     await session.commit()
     await session.refresh(conversation)
     return _out(conversation)
