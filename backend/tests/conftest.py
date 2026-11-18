@@ -23,6 +23,9 @@ from alembic import command
 from app.core.config import settings
 
 TEST_DATABASE_NAME = "mantle_test"
+
+# The sample project is data for the indexing tests, not tests to run.
+collect_ignore_glob = ["fixtures/*"]
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 

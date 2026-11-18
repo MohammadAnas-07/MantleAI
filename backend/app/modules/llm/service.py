@@ -109,11 +109,14 @@ async def get_model_settings(session: AsyncSession, user_id: uuid.UUID) -> Model
     return ModelSettings(row.utility_model_id, row.background_summary_enabled)
 
 
-async def get_embedding_model(session: AsyncSession, user_id: uuid.UUID) -> EmbeddingModelInfo:
+async def get_embedding_model(
+    session: AsyncSession, user_id: uuid.UUID, *, require_key: bool = True
+) -> EmbeddingModelInfo:
     """The user's embedding model: their setting, else `DEFAULT_EMBEDDING_MODEL`.
 
     Raises ModelUnavailable when it is missing, disabled, or its dimension doesn't match the
-    vector column, and NoCredential when the user has no key for its provider.
+    vector column, and (with `require_key`) NoCredential when the user has no key for its
+    provider.
     """
     models = ModelConfigRepository(session)
     row = await UserModelSettingsRepository(session, user_id).get_for_user()
@@ -132,7 +135,7 @@ async def get_embedding_model(session: AsyncSession, user_id: uuid.UUID) -> Embe
         raise ModelUnavailable(
             "Pick an enabled embedding model in /api/v1/settings/models before indexing."
         )
-    if model.provider not in await providers_with_keys(session, user_id):
+    if require_key and model.provider not in await providers_with_keys(session, user_id):
         raise NoCredential(
             f"Add an API key for {model.provider} to index with {model.display_name}.",
             details={"provider": model.provider},
@@ -179,6 +182,7 @@ __all__ = [
     "count_tokens",
     "get_chat_model",
     "get_embedding_model",
+    "get_embedding_model_by_id",
     "get_gateway",
     "get_model_settings",
     "key_hint",
@@ -187,3 +191,21 @@ __all__ = [
     "seed_default_models",
     "validate_master_key",
 ]
+
+
+async def get_embedding_model_by_id(
+    session: AsyncSession, model_id: uuid.UUID
+) -> EmbeddingModelInfo:
+    """An enabled embedding model by id (for a job that snapshotted it), or ModelUnavailable."""
+    model = await ModelConfigRepository(session).get(model_id)
+    if model is None or not model.enabled or model.kind != ModelKind.EMBEDDING:
+        raise ModelUnavailable("The embedding model of this index run is gone or disabled.")
+    return EmbeddingModelInfo(
+        id=model.id,
+        provider=model.provider,
+        litellm_model=model.litellm_model,
+        display_name=model.display_name,
+        dimensions=model.embedding_dimensions or 0,
+        max_input_tokens=model.context_window,
+        input_cost_per_mtok=model.input_cost_per_mtok,
+    )
