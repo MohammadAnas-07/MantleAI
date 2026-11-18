@@ -167,6 +167,36 @@ Database tests use a separate database, `mantle_test`, which they create if it's
 never touch `mantle`. If PostgreSQL is down, those tests are skipped and the rest still pass.
 `ruff format .` reformats the code.
 
+## The web app (frontend)
+
+The workspace UI is in `frontend`. It needs Node.js 22 or newer (an LTS release) and the API
+running (step 8). In a second PowerShell window, from the project folder:
+
+```powershell
+cd frontend
+Copy-Item .env.example .env.local    # optional: only if the API is not on http://127.0.0.1:8000
+npm install
+npm run dev
+```
+
+Open <http://127.0.0.1:5173>. The API only accepts this origin (`CORS_ALLOWED_ORIGINS`) and the
+host names `localhost` and `127.0.0.1` (`ALLOWED_HOSTS`); open the app by one of those names.
+
+Checks, from `frontend`:
+
+```powershell
+npm run typecheck
+npm run lint
+npm run format:check
+npm run test
+npm run build
+npm run gen:api:check
+```
+
+`npm run gen:api` regenerates `src/lib/api/schema.ts` from the backend's OpenAPI schema (it runs
+`backend\scripts\export_openapi.py` with `backend\.venv`, no server needed). Run it after
+changing an endpoint and commit the result.
+
 ## Switch demo (real models)
 
 `backend\scripts\switch_demo.py` measures the Phase 1 success metric with **real, paid** calls.
@@ -235,6 +265,8 @@ Copy-Item backend\.env.example backend\.env
 | `DATABASE_URL` | How to connect to PostgreSQL |
 | `MASTER_ENCRYPTION_KEY` | **Required.** Fernet key that encrypts your provider API keys; the API won't start without it. Generate it with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. If you lose or change it, saved provider keys can't be read |
 | `EMBEDDING_DIMENSIONS` | Dimension of the vector column (default 1536). Changing it needs a new migration and re-indexing |
+| `CORS_ALLOWED_ORIGINS` | Browser origins that may call the API, as a JSON list (default the Vite dev server on `localhost` and `127.0.0.1`, port 5173). Never `*` |
+| `ALLOWED_HOSTS` | Host names the API answers to, as a JSON list (default `localhost` and `127.0.0.1`, any port). Others get 400 `invalid_host` |
 | `DEFAULT_EMBEDDING_MODEL` | Embedding model used when you haven't picked one (default `gemini/gemini-embedding-001`) |
 | `INDEX_COST_LIMIT_USD` | Indexing is refused above this estimated cost unless `force` is sent (default `1.00`) |
 | `EMBED_BATCH_DELAY_SECONDS` | Pause between embedding batches, for free tiers with low per-minute limits (default `1.0`) |

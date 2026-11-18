@@ -41,7 +41,7 @@ async def api_client(
     override(session, gateway, user_id)
     try:
         transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as client:
             yield client
     finally:
         app.dependency_overrides.clear()

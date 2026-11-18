@@ -98,3 +98,23 @@ class UsageOut(BaseModel):
     total_input_tokens: int
     total_output_tokens: int
     total_cost_usd: Decimal
+
+
+class UsageRecordOut(BaseModel):
+    """One model call. Metadata only: never prompts, replies or keys."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    model_id: uuid.UUID
+    purpose: str
+    trigger: str
+    status: str
+    error_code: str | None
+    input_tokens: int
+    output_tokens: int
+    cost_usd: Decimal | None
+    latency_ms: int | None
+    project_id: uuid.UUID | None
+    conversation_id: uuid.UUID | None

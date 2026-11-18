@@ -1,3 +1,4 @@
 # Frontend
 
-The Mantle AI frontend will be built with React, Vite, TypeScript and Tailwind CSS. It is added in a later chunk; for now this folder is only a placeholder so the project layout is clear from the start.
+The Mantle workspace UI: React, TypeScript (strict), Vite, Tailwind CSS. See the main README for
+how to run it, and `docs/design-app.md` for the design.

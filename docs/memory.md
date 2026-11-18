@@ -10,18 +10,15 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phases 1 and 2 are merged; Phase 3 indexing is merged (PR #17, `3f3a2cb`): indexing, hybrid
-search, retrieved code in chat, migrations `0005`/`0006`, 373 tests. The dev database `mantle`
-is at `0006`. Real-key eval on 2026-11-18 (Gemini embedding, sample project, 20 questions):
-recall@5 vector 1.00 / text 0.95 / hybrid 1.00, MRR 0.950 / 0.833 / 0.950; it left a project
-"Retrieval eval" (`376f899f...`) in the dev database. Not done yet: the Phase 3 demo with real
-models, `GET /messages/{id}/context`. `fix/crlf-fixture-test` fixes a test that failed after
-checkout on main (see gotchas).
-To work: `docker compose up -d` from the project folder, then in `backend`
-`.venv\Scripts\Activate.ps1` and `uvicorn app.main:app --reload`.
-Open Phase 1/2 items: a cross-provider switch demo (needs a second working key), the Phase 2
-demo (memory answers in a new conversation on another model). Keys: free Gemini key works;
-OpenAI key valid but no credit (`rate_limited`); no Anthropic or Voyage key.
+Phases 1-3 are merged (last: PR #18, `b645b11`, a CRLF test fix). Phase 5's UI is built on
+`feat/frontend-workspace` (not pushed, no PR yet): `frontend/` (React, Vite, TS strict,
+Tailwind, grunge-lite design), 48 frontend tests; backend CORS, Host check, project PATCH and
+DELETE, operation ids, `GET /usage/records`; 396 backend tests. Dev database `mantle` at `0006`.
+Phase 3 real-key eval (2026-11-18): recall@5 vector 1.00 / text 0.95 / hybrid 1.00. Not done:
+the Phase 3 demo with real models, `GET /messages/{id}/context`, Phase 4 (workflow, teaching).
+To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
+`uvicorn app.main:app --reload`; `frontend`: `npm run dev` (http://127.0.0.1:5173).
+Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
 First demo target: 2026-12-17. Last updated 2026-11-18.
 
 ## Done
@@ -37,10 +34,15 @@ First demo target: 2026-12-17. Last updated 2026-11-18.
   `indexer` (incremental, vector reuse by hash, batches, backoff, cancel, resume, startup
   recovery), `search` (RRF k=60); `app/api/projects.py`; ContextBuilder retrieved section;
   SSE `warning`; Gemini embedding with task types; `scripts/eval_retrieval.py`; ADRs 0006, 0007.
+  PR #18: the identical-file test is line-ending independent.
+- 2026-11-18: `feat/frontend-workspace` (in review): `docs/design-app.md`; frontend (settings,
+  projects, index, memory, chat with SSE streaming, context preview, switching, activity log);
+  backend CORS + Host check, project PATCH/DELETE, operation ids, `/usage/records`,
+  `scripts/export_openapi.py`; frontend rules in `CLAUDE.md` and `rules.md` (77-84).
 
 ## In progress
 
-- `fix/crlf-fixture-test`: one test made line-ending independent; waiting for push and PR.
+- `feat/frontend-workspace`: committed locally, waiting for the developer's review and push.
 
 ## Next
 
@@ -49,7 +51,8 @@ The developer decides. Candidates:
    switch models, ask again). The eval is done; a bigger eval set would show hybrid's value.
 2. `GET /messages/{id}/context` (rows exist), then the Phase 2 demo script.
 3. `feat/project-profile` (before `feat/teaching-layer`), then `feat/workflow-and-agents`.
-4. Not built from api-outline: message cancel, project update/archive/delete.
+4. Not built: message cancel, project description/archive; API gaps from the UI work (typed
+   models for `dict` responses, CORS on 500s) are listed in the frontend PR description.
 
 ## Decisions
 
@@ -72,6 +75,10 @@ The developer decides. Candidates:
 | 2026-11-18 | `INDEX_COST_LIMIT_USD` (1.00) is an app setting; it moves to user settings with auth | One user in v0.1 | `security.md` |
 | 2026-11-18 | Handoff preview reuses the code of the newest reply (message contexts), so it makes no embedding call | Preview stays free | `api-outline.md` |
 | 2026-11-18 | Project profile not built here; own branch `feat/project-profile` before `feat/teaching-layer` | One topic per branch | `roadmap.md` |
+| 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4); app design "grunge-lite" | User's choice | `design-app.md` |
+| 2026-11-18 | TypeScript 5.9 (not 7): openapi-typescript and typescript-eslint support only up to 6.x/5.x | Toolchain support | `frontend/package.json` |
+| 2026-11-18 | API types generated from OpenAPI and committed; `gen:api:check` guards them; operationId = route function name | Builds without a backend; stable names | `api-outline.md` |
+| 2026-11-18 | Allowed hosts localhost/127.0.0.1 any port (400 `invalid_host`); CORS only the dev origins; project default model lives in project settings | DNS rebinding; user's choice | `security.md` |
 
 Full decision text: `docs/architecture.md` → Decisions.
 
@@ -82,36 +89,38 @@ Full decision text: `docs/architecture.md` → Decisions.
 - **Docker Desktop can hang; the DB container can stop by itself** (`Exited (255)`). Then
   `alembic` fails with `WinError 1225`. Run `docker compose ps` and `docker compose up -d`.
 - **A Fernet key is 44 characters and ends with `=`.** The API won't start without a valid one.
-- **PowerShell commands don't work in Git Bash**; in Git Bash use `source .venv/Scripts/activate`.
-- **Python/pytest startup is slow on this machine** (6–16 s). The full suite takes 1–2 minutes.
+- **PowerShell commands don't work in Git Bash** (use `source .venv/Scripts/activate`). Python
+  and pytest start slowly here (6-16 s); the backend suite takes 1-2 minutes.
 - **`requirements.lock` was made on Windows with Python 3.14**; regenerate with `python -m pip freeze --exclude-editable > requirements.lock`.
-- **No LICENSE file yet. `gh` isn't installed**; the developer opens and merges PRs by hand.
-- Git "LF will be replaced by CRLF" warnings are harmless. The first commit is named "chunk 0" (pre-rule).
+- **No LICENSE yet. `gh` isn't installed**: the developer opens and merges PRs. CRLF warnings
+  are harmless; the first commit is named "chunk 0" (pre-rule).
 - **Changing `EMBEDDING_DIMENSIONS` needs a new migration** and a re-index; a test catches a
   mismatch. Voyage (1024 dims) stays disabled at 1536. `pgvector` returns numpy arrays.
-- **Repositories don't check that a parent row belongs to the same user.** Fix before auth.
-- **`litellm` takes ~11 s to import**: lazy import; `LITELLM_LOCAL_MODEL_COST_MAP=True`.
+- **Repositories don't check a parent row's user** (fix before auth); `litellm` imports lazily (~11 s).
 - **LiteLLM wraps mid-stream errors in `MidStreamFallbackError`**; `map_provider_error` unwraps
   it and maps by HTTP status too. The free Gemini tier rate-limits after ~30 calls in a few
   minutes; indexing backs off (`EMBED_RATE_LIMIT_BACKOFF_SECONDS`, doubling, `EMBED_MAX_RETRIES`).
-- **Rows created in one transaction share `now()`**: never order by `created_at` to find "newest".
-- **The running app must import every model** (`app/db/session.py` imports `app.db.models`);
+- **Rows in one transaction share `now()`** (never order by `created_at` for "newest"). **The
+  running app must import every model** (`app/db/session.py` imports `app.db.models`);
   `tests/test_app_wiring.py` checks it in a fresh interpreter.
 - **Under Starlette/anyio, cancellation hits every later `await`.** Writes after a client
   disconnect run inside `anyio.CancelScope(shield=True)`.
-- Tests run Alembic in a separate thread (`env.py` calls `asyncio.run()`).
-- **Every write endpoint needs a JSON body** (even `{}`), or `/docs` gets 415.
-- **Swagger's "Example Value" is not the real answer**; the real one is under "Server response".
-- OpenAI: `auth_failed` = wrong or partial key; `rate_limited` on a tiny test = no credit.
-- **Index jobs are in-process `BackgroundTasks`**: with httpx `ASGITransport` they finish before
-  the test's request returns. A restart kills them; startup marks them `failed`/`interrupted`.
+- Tests run Alembic in a separate thread. **Every write endpoint needs a JSON body** (even `{}`),
+  or `/docs` and the frontend get 415. Swagger's "Example Value" is not the real answer.
+- **Index jobs are in-process `BackgroundTasks`**: in tests they finish before the request
+  returns; a restart kills them (startup marks them `interrupted`). Search is dev-only.
 - **`tests/fixtures/sample_project` is data**: excluded from ruff (`extend-exclude`) and pytest
   (`collect_ignore_glob`). Secret-shaped strings in tests are built at runtime.
 - **`core.autocrlf=true` checks the fixture out with CRLF.** Tests must not assume LF in
   `tests/fixtures` (a test that turned LF into CRLF made CR CR LF and failed on main).
-- **The search endpoint is dev-only** (404 unless `APP_ENV=development`).
 - **Editing files with Python heredocs in Git Bash turned `\n` in code into real newlines** twice;
   use an editor tool for code that contains escape sequences.
+- **Port 8000 may already be taken by another uvicorn** (an older one without CORS): the UI then
+  fails with CORS errors. Check `netstat -ano | findstr :8000`.
+- **An unhandled 500 has no CORS headers** (Starlette's error middleware sits outside CORS), so
+  the browser shows a network error. Happens on the slow first DB connection after a restart.
+- **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`** (the old name is ignored). Backend
+  tests use `base_url="http://localhost"`: the Host check refuses other names.
 - **What FakeProvider tests can't prove:** real summary quality, real token counts, real
   streaming chunks, and real retrieval quality (fake embeddings are bag-of-words). Only
   `scripts/switch_demo.py` and `scripts/eval_retrieval.py` with real keys do.
@@ -122,6 +131,7 @@ Full decision text: `docs/architecture.md` → Decisions.
 - Docker container `mantleai-db-1`, image `pgvector/pgvector:pg16` (pgvector 0.8.7), volume `pgdata`.
 - `DATABASE_URL=postgresql+asyncpg://mantle:mantle@127.0.0.1:5433/mantle` (local dev only); tests use `mantle_test`.
 - API: `uvicorn app.main:app --reload` from `backend` → `http://127.0.0.1:8000` (`/health`, `/docs`).
+- Frontend: Node 24.18 / npm 11.16; `npm run dev` from `frontend` → `http://127.0.0.1:5173`.
 - GitHub remote: `origin` → `MohammadAnas-07/MantleAI`, default branch `main`.
 
 ## Archive

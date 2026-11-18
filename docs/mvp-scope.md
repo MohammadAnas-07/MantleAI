@@ -17,7 +17,7 @@ v0.1 is a local tool for **one developer on their own machine**, using **their o
 | Two agents | **Planner** (drafts) and **Reviewer** (critiques). No tools, text output only. |
 | Teaching notes | "What, why, how" notes, created only when the user asks, using project context (this is the only teaching LLM call). Plus a passive "concepts for this project" list, built by YAML rules and the project profile with no LLM call. No pop-ups or interruptions. |
 | Visible background calls | Any LLM call the user did not directly ask for is logged, shown as its own line in the usage view, and can be turned off. In v0.1 the only one is the rolling summary. |
-| Simple React UI | Projects, chat with a model picker, memory, workflow, teaching notes, settings. |
+| Simple React UI | Projects, chat with a model picker, memory, workflow, teaching notes, settings. The first version (`feat/frontend-workspace`) has projects, chat, memory, index, context and settings; the workflow and teaching screens come later, after their backend in Phase 4. |
 
 ## Not in v0.1
 

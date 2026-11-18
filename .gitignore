@@ -13,6 +13,10 @@ __pycache__/
 # Node / frontend
 node_modules/
 dist/
+coverage/
+*.tsbuildinfo
+.env.local
+.env.*.local
 
 # Editors
 .idea/

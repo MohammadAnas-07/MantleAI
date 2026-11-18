@@ -1,9 +1,14 @@
 # API outline
 
-REST + JSON, under `/api/v1`, except `/health`. Streaming uses server-sent events (SSE). There is
+REST + JSON, under `/api/v1`, except `/health`. Every operation has a tag and an `operationId` equal to the route function's name (for example `list_projects`), so generated clients get stable names; `backend/scripts/export_openapi.py` writes the schema without a server. Streaming uses server-sent events (SSE). There is
 no auth in v0.1: every request runs as the default local user, and every query filters by that
 user's `user_id` (see `docs/security.md`). Every write request must send
 `Content-Type: application/json`.
+
+Browsers may call the API only from `CORS_ALLOWED_ORIGINS` (the Vite dev server), and only with
+a Host header in `ALLOWED_HOSTS` (localhost or 127.0.0.1); any other host gets 400
+`invalid_host`. The frontend's types come from this API's OpenAPI schema
+(`frontend/src/lib/api/schema.ts`, `npm run gen:api`).
 
 Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": "...", "details": {}}}`.
 
@@ -36,11 +41,12 @@ if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `r
 | GET | `/api/v1/settings/models` | The utility model (null = the active model), the embedding model, and `background_summary_enabled` |
 | PATCH | `/api/v1/settings/models` | Change any of the three (changing the embedding model means re-indexing; turning background summaries off stops all background LLM calls) |
 | GET | `/api/v1/usage` | Token and cost totals (filter by project, model, date), grouped by `purpose` and `trigger`, so each background purpose is its own line |
+| GET | `/api/v1/usage/records` | Single calls, newest first (`since`, `limit` 1-500, default 100): model, purpose, trigger, status, error code, tokens, cost, latency, project and conversation ids. Metadata only, never prompts or replies. Used by the frontend's activity log |
 
 ## Projects and memory (`projects`)
 
-Built: list, create and get projects (`feat/model-switching`), and project memory
-(`feat/project-memory`). Not built yet: project PATCH and DELETE, and approve/reject (they need
+Built: list, create, get, update and delete projects, and project memory
+(`feat/project-memory`). Not built yet: description changes, archive, and approve/reject (they need
 AI-proposed items, Phase 4). Every memory query filters by user and project; another user's or
 another project's item is a 404. Text fields are trimmed and validated (422 names the field).
 Edits are last-write-wins.
@@ -50,8 +56,8 @@ Edits are last-write-wins.
 | GET | `/api/v1/projects` | List projects, each with `root_path`, `indexed`, `last_indexed_at`, `needs_reindex` and `reindex_reasons` (a fixed number of queries, whatever the project count). Served by `app/api/projects.py`, which combines projects and rag |
 | POST | `/api/v1/projects` | Create a project `{name, description?, root_path?}`; `root_path` is checked like `PUT /source` (422 `invalid_source_path`) |
 | GET | `/api/v1/projects/{id}` | Get one project, with the same index fields |
-| PATCH | `/api/v1/projects/{id}` | Update name, description, path, default model; archive |
-| DELETE | `/api/v1/projects/{id}` | Delete a project and all its data |
+| PATCH | `/api/v1/projects/{id}` | `{name?, default_model_id?}` (at least one; `null` clears the default model). An unknown, disabled or non-chat model is 422 `model_unavailable`; a model without a saved key is allowed. The folder changes through `PUT /projects/{id}/source`; description and archive are not built |
+| DELETE | `/api/v1/projects/{id}` | Delete a project and all its data (memory, conversations, index, runs cascade; usage rows stay). 409 `index_in_progress` while an index run is queued or running |
 | GET | `/api/v1/projects/{id}/memory` | List memory items: filter by `kind`, `status`; `limit` (1-100, default 50) and `offset`; ordered by `created_at`, then id. Returns `{items, total, limit, offset}` |
 | POST | `/api/v1/projects/{id}/memory` | Add an item `{kind, title, body?, status?, priority?, why?, alternatives?, decided_at?}`. 409 `memory_limit_reached` past 500 per kind |
 | GET | `/api/v1/memory/{item_id}` | One item, with `depends_on_ids` and `is_blocked` (tasks) and `supersedes_ids` / `superseded_by_id` (decisions) |

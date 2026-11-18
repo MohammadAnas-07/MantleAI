@@ -67,6 +67,14 @@ class UserModelSettingsRepository(UserScopedRepository[UserModelSettings]):
 class UsageRecordRepository(UserScopedRepository[UsageRecord]):
     model = UsageRecord
 
+    async def recent(self, *, since: datetime | None, limit: int) -> Sequence[UsageRecord]:
+        """The newest calls first, optionally only those at or after `since`."""
+        stmt = self._select()
+        if since is not None:
+            stmt = stmt.where(UsageRecord.created_at >= since)
+        stmt = stmt.order_by(UsageRecord.created_at.desc(), UsageRecord.id.desc()).limit(limit)
+        return (await self.session.execute(stmt)).scalars().all()
+
     async def totals(
         self,
         *,

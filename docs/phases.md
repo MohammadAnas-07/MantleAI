@@ -138,9 +138,15 @@ this?" and get a teaching note.
 **Demo:** the full v0.1 flow in the React app: create a project, add memory, index it, chat,
 switch models, approve a workflow stage, open a teaching note, check usage.
 
+**Built so far** (`feat/frontend-workspace`, 2026-11-18): settings (keys, models, usage),
+projects, the index panel, memory, conversations with streaming, the context preview, model
+switching and the activity log. The workflow and teaching screens come later, with their
+backend (Phase 4), which is not built yet.
+
 **Exit criteria:**
-- [ ] Every "v0.1 is finished when" item in `docs/mvp-scope.md` is true.
-- [ ] `docs/design-app.md` exists and the UI follows it.
+- [ ] Every "v0.1 is finished when" item in `docs/mvp-scope.md` is true. (Not yet: workflow and
+  teaching need Phase 4 first.)
+- [x] `docs/design-app.md` exists and the UI follows it.
 - [ ] A new user can go from `README.md` to a first chat in under 15 minutes.
 - [ ] You start the 2-week trial for the success metric in `docs/prd.md`.
 

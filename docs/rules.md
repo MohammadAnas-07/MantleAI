@@ -103,6 +103,17 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 69. `docs/memory.md` is updated at the end of every task.
 70. Docs use plain English, short sentences and no filler.
 
+## Frontend
+
+77. TypeScript runs in strict mode and `any` is a lint error; use `unknown` and narrow it.
+78. API types are generated from the backend's OpenAPI schema (`npm run gen:api`), committed, and `npm run gen:api:check` passes.
+79. Every request goes through `frontend/src/lib/api/client.ts`; errors reach the UI as `ApiError` with the backend's code and message.
+80. API keys never go into localStorage, sessionStorage, URLs, logs or error messages; the theme is the only thing in localStorage.
+81. No `console.log`; no prompt or message text in any console output.
+82. Model output is rendered as Markdown without raw HTML and without `dangerouslySetInnerHTML`; links get `rel="noopener noreferrer"`.
+83. Tests never reach a real API: MSW fails the run on an unhandled request.
+84. `npm run typecheck`, `lint`, `format:check`, `test` and `build` pass in `frontend` before every commit that touches it.
+
 ## Definition of done
 
 71. The task does what its roadmap item says and nothing more.
