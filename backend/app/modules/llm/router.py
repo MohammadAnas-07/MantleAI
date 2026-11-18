@@ -24,6 +24,7 @@ from app.modules.llm.repository import (
 from app.modules.llm.schemas import (
     CredentialCreate,
     CredentialOut,
+    CredentialTestIn,
     CredentialTestOut,
     ModelOut,
     ModelPatch,
@@ -90,8 +91,13 @@ async def add_credential(
 
 @router.post("/credentials/{credential_id}/test")
 async def test_credential(
-    credential_id: uuid.UUID, session: DbSession, user_id: CurrentUserId, gateway: GatewayDep
+    credential_id: uuid.UUID,
+    body: CredentialTestIn,
+    session: DbSession,
+    user_id: CurrentUserId,
+    gateway: GatewayDep,
 ) -> CredentialTestOut:
+    """Make the smallest possible call with this key. Send `{}` as the body."""
     ok, error_code, model_id = await gateway.test_credential(session, user_id, credential_id)
     tested_at = datetime.now(UTC)
     await ProviderCredentialRepository(session, user_id).update(
