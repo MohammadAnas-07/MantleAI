@@ -351,3 +351,30 @@ async def test_runs_are_per_user(session: AsyncSession, world: RagWorld, root: P
     with pytest.raises(NotFound):
         await get_run(session, other.user_id, run.id)
     assert (await session.get(IndexRun, run.id)) is not None
+
+
+async def test_app_start_fails_interrupted_runs(
+    session: AsyncSession, world: RagWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.main
+    from tests.conversation_helpers import session_factory
+
+    run = await start_index(session, world.user_id, world.project_id)
+    await session.commit()
+    monkeypatch.setattr(app.main, "SessionLocal", session_factory(session))
+    await app.main.fail_interrupted_index_runs()
+    await session.refresh(run)
+    assert (run.status, run.error) == ("failed", "interrupted")
+
+
+async def test_app_start_survives_a_database_that_is_down(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import app.main
+
+    def down() -> None:
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(app.main, "SessionLocal", down)
+    await app.main.fail_interrupted_index_runs()
+    assert "interrupted index runs" in caplog.text
