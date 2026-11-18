@@ -53,7 +53,8 @@ and the new model continues with the earlier context.
 - [x] The rolling summary runs in the background and can be turned off; when off, the summary is built at switch time.
 - [x] The handoff preview shows what carries over; the switch never calls the old model.
 - [x] A rate-limit or context-limit error shows a "switch model" suggestion.
-- [ ] The demo switch passes the 5-question check (at least 4 of 5). Run `python scripts/switch_demo.py --model-a ... --model-b ...` with real keys.
+- [x] The demo switch passes the 5-question check (at least 4 of 5): 5/5 on 2026-11-18, Gemini 3.8
+  Flash -> Gemini 3.5 Flash Lite (same provider, summary not exercised). Run `python scripts/switch_demo.py --model-a ... --model-b ...` with real keys.
 - [x] All tests pass without API keys.
 
 **Postponed:** any UI, project memory, indexing, workflow, teaching.
