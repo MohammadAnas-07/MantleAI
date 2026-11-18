@@ -1,0 +1,47 @@
+# Data for scripts/switch_demo.py: the Phase 1 success check (docs/prd.md, docs/phases.md).
+# Model A hears 5 decisions with their reasons. Then the conversation switches to model B, which
+# must answer 5 questions about those decisions without anything being re-explained.
+# A question passes if the answer contains ALL words in expect_all and AT LEAST ONE word in
+# expect_any (case-insensitive). The demo passes at 4 of 5.
+
+project:
+  name: Bookmark manager (switch demo)
+  description: A small web service to save, tag and search bookmarks for one team.
+
+turns:
+  - >-
+    We're designing a bookmark manager service. Decision 1: the database is PostgreSQL,
+    because we need full-text search over titles and notes and JSONB for flexible metadata.
+    Just acknowledge the decision in one or two sentences.
+  - >-
+    Decision 2: the API is built with FastAPI, because we want async I/O and the automatic
+    OpenAPI docs for the frontend team. Acknowledge briefly.
+  - >-
+    Decision 3: users log in with a magic link sent by email, no passwords at all, because
+    our users kept forgetting passwords and we don't want to store password hashes.
+    Acknowledge briefly.
+  - >-
+    Decision 4: every table uses UUIDv7 primary keys, because they sort by creation time and
+    can be generated in the client. Acknowledge briefly.
+  - >-
+    Decision 5: we deploy on a single Hetzner VPS with Docker Compose, because the budget is
+    5 euros per month. Acknowledge briefly.
+  - >-
+    Now list one risk for each of the five decisions, one short line each.
+
+questions:
+  - question: Which database did we pick for this project, and what were the reasons?
+    expect_all: [postgres]
+    expect_any: [full-text, full text, jsonb]
+  - question: Which web framework does the API use, and why?
+    expect_all: [fastapi]
+    expect_any: [async, openapi]
+  - question: How do users log in, and why did we choose that?
+    expect_all: []
+    expect_any: [magic link, magic-link, email link, login link]
+  - question: What kind of primary keys do our tables use?
+    expect_all: []
+    expect_any: [uuidv7, uuid v7, uuid7, uuid version 7]
+  - question: Where do we deploy, and what is the monthly budget?
+    expect_all: [hetzner]
+    expect_any: ["5", five]
