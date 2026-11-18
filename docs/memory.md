@@ -10,13 +10,13 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phase 1 coding has started. The database layer is merged to `main` (PR #5, `758e897`): 22 tables,
-async Alembic, repositories, Fernet key encryption, seed script, 61 tests. The dev database
-`mantle` is migrated to `0001` and seeded with the default local user, and the API starts with a
-valid `MASTER_ENCRYPTION_KEY`. PostgreSQL + pgvector runs in Docker on `127.0.0.1:5433`. Next is
-`feat/llm-gateway`.
+Phase 1 is in progress. The database layer is merged (PR #5). The LLM gateway is built on
+`feat/llm-gateway` (committed, not pushed or merged): LiteLLM backend, FakeProvider, typed errors,
+usage records, model catalog, `/api/v1` foundation and the llm endpoints, 96 tests. After it
+merges: run `alembic upgrade head` (migration `0002`) and `python -m app.db.seed` (adds the model
+catalog) on the dev database. Next is `feat/model-switching`.
 First demo (model switching) target: 2026-12-17.
-Last updated 2026-11-17.
+Last updated 2026-11-18.
 
 ## Done
 
@@ -33,6 +33,13 @@ Last updated 2026-11-17.
   (`app/db/repository.py`) plus one per table in `modules/<m>/repository.py`, Fernet helper
   `modules/llm/crypto.py`, seed `python -m app.db.seed`, tests on `mantle_test`. ExecutionRun not
   created (Later). `pgvector` added as a dependency.
+- 2026-11-18: `feat/llm-gateway` (not merged yet): `modules/llm/gateway.py` (`stream_chat`,
+  `complete`, `embed`, `count_tokens`, `test_credential`; one usage row per call, also on error
+  and cancel), `litellm_backend.py` (only file importing litellm; lazy import), `fake.py`
+  (FakeProvider with call log), typed errors in `errors.py`, catalog in `catalog.py` (seeded),
+  migration `0002` (`model_configs.supports_tools`), `app/api/` (router, `get_db`,
+  `get_current_user_id`, error shape, JSON-only middleware, `/me`), llm endpoints, key-masking log
+  filter. `litellm>=1.110.0,<1.111` added.
 
 ## In progress
 
@@ -40,9 +47,16 @@ Last updated 2026-11-17.
 
 ## Next
 
-1. `feat/llm-gateway`: model catalog seed, LiteLLM calls, usage records, fake provider, key test.
-   Reuse `modules/llm/crypto.py` and `ProviderCredentialRepository.add_key`.
-2. `feat/model-switching`: conversations, streaming, rolling summary, switch. Ends Phase 1.
+1. Merge `feat/llm-gateway`.
+2. `feat/model-switching`: the user's brief of 2026-11-18 (ContextBuilder with prompts/ files and a
+   10% safety margin, incremental rolling summary with a per-conversation lock, conversation and
+   switch endpoints, SSE, `backend/scripts/switch_demo.py` + YAML). Decided for it on 2026-11-18:
+   SSE events are `message_start`, `delta`, `message_end`, `error` (update rule #32 and
+   api-outline); usage names stay as in data-model (`chat`+`user`, `rolling_summary`+`background`,
+   `switch_summary`+`user`); switching is `POST /conversations/{id}/switch-model`, the handoff note
+   goes on ContextHandoff (new JSON column), partial replies are saved as status `cancelled`.
+   When background summaries are off, the switch-time summary is written by the NEW model.
+   Ends Phase 1.
 
 After that, `feat/project-memory` is Phase 2.
 
@@ -76,6 +90,11 @@ After that, `feat/project-memory` is Phase 2.
 | 2026-11-17 | Enums are VARCHAR(32), no PG enum types or CHECK constraints | Adding a value needs no migration | `docs/data-model.md` |
 | 2026-11-17 | SET NULL FKs are DEFERRABLE INITIALLY DEFERRED | Project delete cascades must not trip FK checks mid-cascade | `docs/data-model.md` |
 | 2026-11-17 | Usage records keep rows on project/conversation delete (SET NULL) | Cost history stays complete | `docs/data-model.md` |
+| 2026-11-18 | `feat/llm-gateway` before `feat/model-switching`, on its own branch | Model switching needs the gateway; one topic per branch | `docs/roadmap.md` |
+| 2026-11-18 | Gateway backends: `LiteLLMBackend` (real) and `FakeProvider` (tests), chosen by the `get_gateway` dependency | Tests never need keys or network | 0003 |
+| 2026-11-18 | Default model catalog hardcoded from LiteLLM 1.110.0 data, seeded with `ON CONFLICT DO NOTHING` | Seeding works offline and keeps user changes | — |
+| 2026-11-18 | Usage purpose `key_test` for the "test key" call | Every LLM call writes a usage row | `docs/data-model.md` |
+| 2026-11-18 | Write requests must be JSON (415 otherwise), via a pure ASGI middleware | security.md #7; pure ASGI keeps SSE working | `docs/security.md` |
 | 2026-11-17 | The API refuses to start without a valid `MASTER_ENCRYPTION_KEY` | Fail fast instead of failing on first key use | `docs/security.md` |
 
 Full decision text: `docs/architecture.md` → Decisions.
@@ -104,6 +123,13 @@ Full decision text: `docs/architecture.md` → Decisions.
   pointing at another user's conversation). Only one user exists in v0.1; fix before auth, with
   composite FKs `(parent_id, user_id)` or service-level checks.
 - Tests run Alembic in a separate thread, because `alembic/env.py` calls `asyncio.run()`.
+- **`litellm` takes about 11 s to import.** It's imported lazily on the first real call;
+  `LITELLM_LOCAL_MODEL_COST_MAP=True` stops it downloading model data.
+- **Rows created in one transaction share `now()`,** so "newest" by `created_at` is a tie in tests
+  (and in any single request). Tests age rows with SQL. Model switching should order summaries by
+  the message sequence they cover, not by time.
+- Voyage embeddings are 1024-dimensional, so Voyage stays disabled while `EMBEDDING_DIMENSIONS` is
+  1536.
 - `pgvector` returns embeddings as numpy arrays, not lists (numpy comes in with `pgvector`).
 
 ## Environment notes

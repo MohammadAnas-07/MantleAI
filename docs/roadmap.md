@@ -12,10 +12,10 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 | Done | `docs/project-documentation` | Architecture, requirements, scope, data model, API outline, security, ADRs. |
 | Done | `fix/bind-database-to-localhost` | Publish PostgreSQL on 127.0.0.1 only. |
 | Done | `docs/product-and-process-docs` | Idea, PRD, rules, phases and working memory. |
-| Next | `chore/pin-dependencies` | Version ranges in `pyproject.toml` and a `requirements.lock` file, so every install is reproducible. |
-| | `feat/database-models` | Alembic setup and the v0.1 tables from `docs/data-model.md`, with migration tests. |
-| | `feat/llm-gateway` | Key test (the encryption helper and table exist from `feat/database-models`), model catalog, streaming chat and embeddings through LiteLLM, usage records, fake provider for tests. |
-| | `feat/model-switching` | Conversations and streaming messages, context builder, rolling summary, handoff preview and switch. |
+| Done | `chore/pin-dependencies` | Version ranges in `pyproject.toml` and a `requirements.lock` file, so every install is reproducible. |
+| Done | `feat/database-models` | Alembic setup and the v0.1 tables from `docs/data-model.md`, with migration tests. |
+| In review | `feat/llm-gateway` | Key test (the encryption helper and table exist from `feat/database-models`), model catalog, streaming chat and embeddings through LiteLLM, usage records, fake provider for tests. |
+| Next | `feat/model-switching` | Conversations and streaming messages, context builder, rolling summary, handoff preview and switch. |
 
 ## [Phase 2: Project memory survives a switch](phases.md#phase-2-project-memory-survives-a-switch)
 

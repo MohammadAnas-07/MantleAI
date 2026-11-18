@@ -45,9 +45,9 @@ and the new model continues with the earlier context.
 6. Show the usage list: each call, its model, and background summary calls on their own line.
 
 **Exit criteria:**
-- [ ] Dependencies have version ranges, and `backend/requirements.lock` exists.
+- [x] Dependencies have version ranges, and `backend/requirements.lock` exists.
 - [x] Alembic migrations create all v0.1 tables and downgrade cleanly; the seed script creates the default local user.
-- [ ] Keys are stored encrypted; the API shows only the last 4 characters.
+- [x] Keys are stored encrypted; the API shows only the last 4 characters.
 - [ ] Streaming chat works with at least two providers.
 - [ ] Every message records its model, and every LLM call writes a usage record with `trigger`.
 - [ ] The rolling summary runs in the background and can be turned off; when off, the summary is built at switch time.

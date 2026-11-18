@@ -134,7 +134,8 @@ python -m app.db.seed
 ```
 
 `alembic upgrade head` creates every table and enables pgvector. `python -m app.db.seed` creates
-the default local user; running it again does nothing. To remove all tables:
+the default local user and the default model catalog; running it again does nothing (and keeps
+any model changes you made). To remove all tables:
 `alembic downgrade base`.
 
 ### 8. Start the API server
