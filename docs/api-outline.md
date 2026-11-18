@@ -5,6 +5,11 @@ no auth in v0.1: every request runs as the default local user, and every query f
 user's `user_id` (see `docs/security.md`). Every write request must send
 `Content-Type: application/json`.
 
+Browsers may call the API only from `CORS_ALLOWED_ORIGINS` (the Vite dev server), and only with
+a Host header in `ALLOWED_HOSTS` (localhost or 127.0.0.1); any other host gets 400
+`invalid_host`. The frontend's types come from this API's OpenAPI schema
+(`frontend/src/lib/api/schema.ts`, `npm run gen:api`).
+
 Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": "...", "details": {}}}`.
 
 ## System

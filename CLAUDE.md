@@ -13,7 +13,8 @@ LLMs. It is not an LLM. Background: `docs/idea.md`, `docs/architecture.md`, `doc
 - Backend: Python 3.12+ (developed on 3.14), FastAPI, Pydantic v2, SQLAlchemy 2 async + asyncpg, Alembic
 - Database: PostgreSQL 16 + pgvector in Docker, on `127.0.0.1:5433`
 - LLMs: LiteLLM, only inside `modules/llm`. Agents: LangGraph, only inside `modules/workflow`
-- Frontend (later): React + Vite + TypeScript + Tailwind
+- Frontend: React 19 + Vite + TypeScript 5.9 (strict) + Tailwind 4, TanStack Query, react-router,
+  Vitest + Testing Library + MSW, ESLint, Prettier. Design: `docs/design-app.md`
 - Tooling: ruff (line length 100), pytest + pytest-asyncio, httpx
 
 ## Layout
@@ -24,6 +25,8 @@ backend/app/
   modules/     projects  conversations  llm  rag  workflow  teaching  execution
                each: router.py  schemas.py  models.py  service.py (public interface)
 backend/tests/
+frontend/src/   lib/api (client, SSE reader, generated schema.ts)  components/ui  layout
+                hooks  features/{settings,projects,index,memory,conversations,context,activity}
 docs/          architecture, rules, memory, phases, ADRs (docs/adr/)
 ```
 
@@ -39,7 +42,26 @@ ruff check .
 ruff format --check .
 ```
 
+Frontend (second terminal, from `frontend`):
+
+```powershell
+npm install
+npm run dev                          # http://127.0.0.1:5173 (VITE_API_BASE_URL, see .env.example)
+npm run typecheck; npm run lint; npm run format:check; npm run test; npm run build
+npm run gen:api:check                # fails if src/lib/api/schema.ts is out of date
+```
+
 First-time setup is in `README.md`.
+
+## Frontend rules (full list in docs/rules.md)
+
+- TypeScript strict, **no `any`** (lint error). Use `unknown` and narrow it.
+- API types come from the backend's OpenAPI schema: change an endpoint, run `npm run gen:api`
+  and commit `openapi.json` and `schema.ts`. Hand-written types only for `dict` responses
+  (`src/lib/api/types.ts`).
+- All requests go through `src/lib/api/client.ts`; streams through `src/lib/api/sse.ts`.
+- API keys never go into storage, URLs, logs or error messages; no prompts or message text in
+  the console. Model output is rendered without raw HTML.
 
 ## Core rules (full list in docs/rules.md)
 
