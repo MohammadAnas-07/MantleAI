@@ -49,6 +49,7 @@ numpy==2.5.5
 openai==3.54.0
 opentelemetry-api==1.45.2
 packaging==26.3
+pathspec==1.1.1
 pgvector==0.4.2
 pluggy==1.7.0
 propcache==0.5.4
@@ -76,6 +77,11 @@ starlette==1.10.0
 tiktoken==0.14.0
 tokenizers==0.23.3
 tqdm==4.70.1
+tree-sitter==0.25.2
+tree-sitter-c-sharp==0.23.5
+tree-sitter-embedded-template==0.25.0
+tree-sitter-language-pack==0.13.0
+tree-sitter-yaml==0.7.2
 truststore==0.10.5
 typing-inspection==0.4.5
 typing_extensions==4.16.0

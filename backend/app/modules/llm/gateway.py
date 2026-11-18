@@ -22,7 +22,7 @@ import anyio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
-from app.modules.llm.backend import Backend, ChatMessages, TextDelta, UsageInfo
+from app.modules.llm.backend import Backend, ChatMessages, EmbedInputType, TextDelta, UsageInfo
 from app.modules.llm.crypto import decrypt_secret
 from app.modules.llm.errors import LLMError, ModelUnavailable, NoCredential
 from app.modules.llm.models import (
@@ -247,12 +247,24 @@ class Gateway:
         links: UsageLinks | None = None,
         credential: ProviderCredential | None = None,
         purpose: UsagePurpose = UsagePurpose.EMBEDDING,
+        input_type: EmbedInputType | None = None,
     ) -> list[list[float]]:
+        """Embed `texts` with an embedding model. Vectors have the model's catalog dimension.
+
+        `input_type` is "document" for stored text and "query" for a search query. One usage
+        row is written for success and for error.
+        """
         model = await self.get_model(session, model_id, ModelKind.EMBEDDING)
         api_key = await self._api_key(session, user_id, model, credential)
         started = time.monotonic()
         try:
-            result = await self.backend.embed(model.litellm_model, texts, api_key=api_key)
+            result = await self.backend.embed(
+                model.litellm_model,
+                texts,
+                api_key=api_key,
+                dimensions=model.embedding_dimensions,
+                input_type=input_type,
+            )
         except LLMError as exc:
             await self._record(
                 session,

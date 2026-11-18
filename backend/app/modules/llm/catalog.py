@@ -52,6 +52,10 @@ DEFAULT_MODELS: list[CatalogEntry] = [
                  1_048_576, 65_536, True, _d("0.3"), _d("2.5")),
     CatalogEntry("openai", "openai/text-embedding-3-small", "OpenAI text-embedding-3-small", EMBED,
                  8_191, None, False, _d("0.02"), _d("0"), embedding_dimensions=1536),
+    # Native size 3072; the gateway asks for EMBEDDING_DIMENSIONS (1536) through `dimensions`.
+    # LiteLLM 1.110.0 data: max input 2048 tokens, $0.15 per million input tokens.
+    CatalogEntry("google", "gemini/gemini-embedding-001", "Gemini Embedding 001", EMBED,
+                 2_048, None, False, _d("0.15"), _d("0"), embedding_dimensions=1536),
     CatalogEntry("voyage", "voyage/voyage-4-lite", "Voyage 4 Lite", EMBED,
                  32_000, None, False, _d("0.02"), _d("0"), embedding_dimensions=1024),
 ]  # fmt: skip
