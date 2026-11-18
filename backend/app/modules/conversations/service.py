@@ -18,11 +18,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.errors import AppError, NotFound
 from app.modules.conversations.context_builder import (
+    BudgetSettings,
     BuiltContext,
     ContextBuilder,
     ContextInputs,
     HistoryMessage,
     SummaryInput,
+    compute_budget,
 )
 from app.modules.conversations.models import (
     ContextHandoff,
@@ -64,7 +66,13 @@ from app.modules.llm.service import (
     get_model_settings,
     providers_with_keys,
 )
-from app.modules.projects.service import get_project, list_pinned_items
+from app.modules.projects.service import (
+    DroppedPin,
+    PinnedSelection,
+    get_project,
+    pinned_block,
+    pinned_selection,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -134,16 +142,39 @@ async def _require_key(session: AsyncSession, user_id: uuid.UUID, model: ModelIn
         )
 
 
+def pinned_token_budget(model: ModelInfo) -> int:
+    """The share of the model's context budget that pinned memory may use."""
+    budget, _, _ = compute_budget(model, BudgetSettings.from_settings())
+    return max(int(budget * settings.pinned_max_share), 0)
+
+
+async def select_pinned_for(
+    session: AsyncSession,
+    gateway: Gateway,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    model: ModelInfo,
+) -> PinnedSelection:
+    """Pinned memory for `model`, counted with that model's token counter."""
+    return await pinned_selection(
+        session, user_id, project_id,
+        max_tokens=pinned_token_budget(model),
+        count=lambda text: count_tokens(gateway, model, [{"role": "system", "content": text}]),
+    )  # fmt: skip
+
+
 async def load_inputs(
     session: AsyncSession,
+    gateway: Gateway,
     user_id: uuid.UUID,
     conversation: Conversation,
+    model: ModelInfo,
     new_user_text: str | None = None,
 ) -> ContextInputs:
     """Everything the context builder needs, read from the database. Optionally adds the user
     message that is about to be sent (not saved yet)."""
     project = await get_project(session, user_id, conversation.project_id)
-    pinned = await list_pinned_items(session, user_id, conversation.project_id)
+    pinned = await select_pinned_for(session, gateway, user_id, conversation.project_id, model)
     summary_row = await ConversationSummaryRepository(session, user_id).latest(conversation.id)
     after = summary_row.to_sequence if summary_row else 0
     messages = await MessageRepository(session, user_id).in_order(
@@ -158,7 +189,13 @@ async def load_inputs(
         if summary_row
         else None
     )
-    return ContextInputs(project=project, pinned=pinned, summary=summary, history=history)
+    return ContextInputs(
+        project=project,
+        pinned=pinned.items,
+        summary=summary,
+        history=history,
+        pinned_dropped=pinned.dropped,
+    )
 
 
 async def build_context(
@@ -170,7 +207,7 @@ async def build_context(
     new_user_text: str | None = None,
 ) -> BuiltContext:
     """Build the request for `model`. No LLM call. ContextTooLong carries suggested_models."""
-    inputs = await load_inputs(session, user_id, conversation, new_user_text)
+    inputs = await load_inputs(session, gateway, user_id, conversation, model, new_user_text)
     builder = ContextBuilder(lambda messages: count_tokens(gateway, model, messages))
     try:
         return builder.build(model, inputs)
@@ -203,6 +240,39 @@ def context_report(built: BuiltContext) -> dict[str, Any]:
             for s in built.sections
         ],
         "dropped": built.dropped,
+        "pinned": {
+            "tokens": built.pinned_tokens,
+            "max_tokens": pinned_token_budget(built.model),
+            "included": built.pinned_included,
+            "dropped": dropped_report(built.pinned_dropped),
+        },
+    }
+
+
+def dropped_report(dropped: list[DroppedPin]) -> list[dict[str, str]]:
+    return [{"id": str(d.id), "kind": d.kind, "reason": d.reason} for d in dropped]
+
+
+async def preview_pinned(
+    session: AsyncSession,
+    gateway: Gateway,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    model_id: uuid.UUID,
+) -> dict[str, Any]:
+    """What would be pinned for `model_id` right now, and what is left out and why. No LLM call."""
+    model = await get_chat_model(session, model_id)
+    selection = await select_pinned_for(session, gateway, user_id, project_id, model)
+    return {
+        "model_id": str(model.id),
+        "max_tokens": pinned_token_budget(model),
+        "tokens": selection.tokens,
+        "text": pinned_block(selection.items),
+        "items": [
+            {"id": str(i.id), "kind": i.kind, "status": i.status, "line": i.line}
+            for i in selection.items
+        ],  # fmt: skip
+        "dropped": dropped_report(selection.dropped),
     }
 
 
@@ -455,7 +525,11 @@ def handoff_note(
             f"Summary covers messages {summary['from_sequence']}-{summary['to_sequence']}, "
             f"{summary['tokens']} tokens{made}."
         )
-    lines.append(f"{built.pinned_included} pinned items.")
+    left_out = len(built.pinned_dropped)
+    lines.append(
+        f"{built.pinned_included} pinned items ({built.pinned_tokens} tokens)"
+        + (f", {left_out} left out." if left_out else ".")
+    )
     lines.append("Dropped: " + (", ".join(built.dropped) if built.dropped else "nothing") + ".")
     return {
         "text": " ".join(lines),
@@ -466,6 +540,8 @@ def handoff_note(
         "summary": summary,
         "summary_built_at_switch": summary_built_now,
         "pinned_items": built.pinned_included,
+        "pinned_tokens": built.pinned_tokens,
+        "pinned_dropped": dropped_report(built.pinned_dropped),
         "dropped": built.dropped,
         "budget": built.budget,
         "total_tokens": built.total_tokens,

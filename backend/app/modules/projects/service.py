@@ -1,17 +1,36 @@
 """Public interface of the projects module (rule 6).
 
-v0.1 so far: read a project, and read its pinned memory items for the context builder. Memory
-CRUD comes in `feat/project-memory`.
+Other modules read projects and project memory only through this file. Memory is written only by
+the user through the projects endpoints (`memory_service.py`); nothing here calls an LLM.
 """
 
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
-from app.modules.projects.models import MemoryItemKind, MemoryItemStatus
+from app.modules.projects.pinned import (
+    DroppedPin,
+    PinnedItem,
+    PinnedSelection,
+    pinned_block,
+    select_pinned,
+)
 from app.modules.projects.repository import MemoryItemRepository, ProjectRepository
+
+__all__ = [
+    "DroppedPin",
+    "PinnedItem",
+    "PinnedSelection",
+    "ProjectInfo",
+    "create_project",
+    "get_project",
+    "list_projects",
+    "pinned_block",
+    "pinned_selection",
+]
 
 
 @dataclass(frozen=True)
@@ -19,18 +38,6 @@ class ProjectInfo:
     id: uuid.UUID
     name: str
     description: str | None
-
-
-@dataclass(frozen=True)
-class PinnedItem:
-    kind: str  # requirement | decision | task
-    title: str
-    body: str
-
-
-# Pinned items, most important first. When the token budget is tight, the context builder drops
-# from the end of this list.
-_PINNED_ORDER = [MemoryItemKind.DECISION, MemoryItemKind.REQUIREMENT, MemoryItemKind.TASK]
 
 
 async def get_project(
@@ -54,17 +61,16 @@ async def list_projects(session: AsyncSession, user_id: uuid.UUID) -> list[Proje
     return [ProjectInfo(p.id, p.name, p.description) for p in rows]
 
 
-async def list_pinned_items(
-    session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID
-) -> list[PinnedItem]:
-    """Accepted decisions, approved requirements and open tasks. Read-only."""
-    pinned = {
-        MemoryItemStatus.ACCEPTED,
-        MemoryItemStatus.APPROVED,
-        MemoryItemStatus.TODO,
-        MemoryItemStatus.IN_PROGRESS,
-    }
-    rows = await MemoryItemRepository(session, user_id).list(project_id=project_id, limit=500)
-    rank = {kind: i for i, kind in enumerate(_PINNED_ORDER)}
-    rows = sorted((r for r in rows if r.status in pinned), key=lambda r: rank[r.kind])
-    return [PinnedItem(kind=r.kind.value, title=r.title, body=r.body) for r in rows]
+async def pinned_selection(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    *,
+    max_tokens: int,
+    count: Callable[[str], int],
+) -> PinnedSelection:
+    """The project's pinned memory within `max_tokens`. The caller passes the token counter of
+    the target model (projects calls no other module, so it can't count tokens itself)."""
+    await get_project(session, user_id, project_id)
+    rows = await MemoryItemRepository(session, user_id).in_project(project_id)
+    return select_pinned(rows, max_tokens=max_tokens, count=count)

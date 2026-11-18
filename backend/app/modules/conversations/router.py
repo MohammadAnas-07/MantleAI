@@ -176,6 +176,22 @@ async def handoff_preview(
     return await service.preview_handoff(session, gateway, user_id, conversation_id, model_id)
 
 
+@router.get("/projects/{project_id}/memory/pinned")
+async def pinned_preview(
+    project_id: uuid.UUID,
+    model_id: uuid.UUID,
+    session: DbSession,
+    user_id: CurrentUserId,
+    gateway: GatewayDep,
+) -> dict[str, Any]:
+    """The project memory that would be pinned for `model_id` now: the exact text, its tokens,
+    and the ids left out with the reason (kind_cap or budget). No LLM call.
+
+    Served here, not by the projects module, because it needs the model's token counter.
+    """
+    return await service.preview_pinned(session, gateway, user_id, project_id, model_id)
+
+
 @router.post("/conversations/{conversation_id}/switch-model")
 async def switch_model(
     conversation_id: uuid.UUID,
