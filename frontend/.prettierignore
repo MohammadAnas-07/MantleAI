@@ -1,0 +1,6 @@
+dist
+coverage
+node_modules
+package-lock.json
+src/lib/api/schema.ts
+src/lib/api/openapi.json
