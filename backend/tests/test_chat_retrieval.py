@@ -202,3 +202,18 @@ async def test_preview_without_any_reply_has_no_code(
             f"/api/v1/conversations/{conv}/handoff-preview", params={"model_id": str(row.id)}
         )
     assert r.json()["retrieved"]["used"] == []
+
+
+async def test_unexpected_retrieval_error_still_answers(
+    session: AsyncSession, world: RagWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.modules.conversations.service as conversations
+
+    async def broken(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(conversations, "retrieve_for_context", broken)
+    conv = await conversation(session, world)
+    events = await send(session, world, conv, "where is the health check timeout set")
+    assert events[1][0] == "warning" and events[1][1]["code"] == "retrieval_failed"
+    assert events[-1][0] == "message_end"

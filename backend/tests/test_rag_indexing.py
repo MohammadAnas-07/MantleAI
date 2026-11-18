@@ -378,3 +378,84 @@ async def test_app_start_survives_a_database_that_is_down(
     monkeypatch.setattr(app.main, "SessionLocal", down)
     await app.main.fail_interrupted_index_runs()
     assert "interrupted index runs" in caplog.text
+
+
+async def test_indexed_file_that_gains_a_secret_loses_its_chunks(
+    session: AsyncSession, world: RagWorld, root: Path
+) -> None:
+    await index_once(session, world)
+    path = root / "backend" / "app" / "config.py"
+    path.write_text(path.read_text() + "\nTOKEN = '" + "ghp_" + "a" * 36 + "'\n")
+    await index_once(session, world)
+    doc = (await documents(session, world))["backend/app/config.py"]
+    assert (doc.status, doc.skip_reason, doc.content_hash) == ("skipped", "possible secret", None)
+    assert await count_chunks(session, world, document_id=doc.id) == 0
+
+
+async def test_reordered_functions_reuse_every_vector(
+    session: AsyncSession, world: RagWorld, root: Path
+) -> None:
+    # Three functions, each above the merge size, and no module code to merge with them.
+    def func(name: str) -> str:
+        body = "".join(f"    value = value + {i}  # {name}\n" for i in range(12))
+        return f"def step_{name}(value):\n{body}    return value\n"
+
+    funcs = [func(name) for name in ("one", "two", "three")]
+    path = root / "backend" / "app" / "steps.py"
+    path.write_text("\n\n".join(funcs))
+    await index_once(session, world)
+    reordered = "\n\n".join([funcs[2], funcs[0], funcs[1]])
+    path.write_text(reordered)
+    world.fake.calls.clear()
+    run = await index_once(session, world)
+    assert run.files_indexed == 1 and embedded_texts(world.fake) == []
+    doc = (await documents(session, world))["backend/app/steps.py"]
+    chunks = (
+        await session.scalars(
+            select(Chunk).where(Chunk.document_id == doc.id).order_by(Chunk.ordinal)
+        )
+    ).all()
+    lines = reordered.split("\n")
+    for chunk in chunks:  # line numbers follow the new layout
+        assert chunk.text == "\n".join(lines[chunk.start_line - 1 : chunk.end_line])
+
+
+async def test_batch_delay_between_batches(
+    session: AsyncSession, root: Path, monkeypatch: pytest.MonkeyPatch, _fast: list[float]
+) -> None:
+    monkeypatch.setattr(settings, "embed_batch_max_items", 10)
+    monkeypatch.setattr(settings, "embed_batch_delay_seconds", 1.5)
+    world = await make_rag_world(session, root)
+    run = await index_once(session, world)
+    batches = len([c for c in world.fake.calls if c.kind == "embed"])
+    assert batches > 1 and _fast == [1.5] * (batches - 1)
+    assert run.status == "succeeded"
+
+
+async def test_source_folder_removed_before_the_job_runs(
+    session: AsyncSession, world: RagWorld, root: Path
+) -> None:
+    import shutil
+
+    from app.modules.rag.service import run_index_job
+    from tests.conversation_helpers import session_factory
+
+    run = await start_index(session, world.user_id, world.project_id)
+    await session.commit()
+    shutil.rmtree(root)
+    await run_index_job(session_factory(session), world.gateway, world.user_id, run.id)
+    await session.refresh(run)
+    assert (run.status, run.error) == ("failed", "source_missing")
+    with pytest.raises(NoSourcePath):
+        await start_index(session, world.user_id, world.project_id)
+
+
+async def test_unexpected_error_fails_the_run_without_leaking_text(
+    session: AsyncSession, root: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    flaky = FlakyProvider(ValueError("secret file text here"), fail_on={1})
+    world = await make_rag_world(session, root, flaky)
+    run = await index_once(session, world)
+    assert (run.status, run.error) == ("failed", "internal_error")
+    assert "secret file text here" not in caplog.text
+    assert "type=ValueError" in caplog.text
