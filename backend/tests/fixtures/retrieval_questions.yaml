@@ -1,0 +1,43 @@
+# Questions about tests/fixtures/sample_project and the file that answers each one.
+# Used by scripts/eval_retrieval.py (recall@5 and MRR) and, in part, by the retrieval tests.
+
+- question: Where is the health check timeout set?
+  expected: backend/app/main.py
+- question: How are passwords hashed?
+  expected: backend/app/auth.py
+- question: How long does a session token stay valid?
+  expected: backend/app/auth.py
+- question: How are session tokens signed and verified?
+  expected: backend/app/auth.py
+- question: How big is the database connection pool?
+  expected: backend/app/db.py
+- question: Where are schema migrations applied?
+  expected: backend/app/db.py
+- question: How do I mark a task as done?
+  expected: backend/app/tasks.py
+- question: Which tasks count as overdue and in what order are they listed?
+  expected: backend/app/tasks.py
+- question: What happens when a task title is empty?
+  expected: backend/app/tasks.py
+- question: How does the API rate limiter refill its tokens?
+  expected: backend/app/rate_limit.py
+- question: How is the Retry-After value computed?
+  expected: backend/app/rate_limit.py
+- question: When is a reminder email sent?
+  expected: backend/app/email.py
+- question: Which SMTP host and port are used?
+  expected: backend/app/email.py
+- question: Which environment variable turns on debug mode?
+  expected: backend/app/config.py
+- question: How does the web client retry failed requests?
+  expected: web/src/api/client.ts
+- question: How are finished tasks hidden in the list?
+  expected: web/src/components/TaskList.tsx
+- question: How is typing in the search box debounced?
+  expected: web/src/hooks/useDebounce.ts
+- question: How is a due date formatted for display?
+  expected: web/src/utils/date.ts
+- question: What does logout remove from local storage?
+  expected: web/src/store/session.ts
+- question: How do I build and run the Docker image?
+  expected: docs/deployment.md
