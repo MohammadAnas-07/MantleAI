@@ -10,16 +10,16 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phases 1-3 are merged (last: PR #18, `b645b11`, a CRLF test fix). Phase 5's UI is built on
-`feat/frontend-workspace` (not pushed, no PR yet): `frontend/` (React, Vite, TS strict,
-Tailwind, grunge-lite design), 48 frontend tests; backend CORS, Host check, project PATCH and
-DELETE, operation ids, `GET /usage/records`; 396 backend tests. Dev database `mantle` at `0006`.
+Phases 1-3 are merged, and Phase 5's first UI too (PR #19, `a5c9738`): `frontend/` (React,
+Vite, TS strict, Tailwind, grunge-lite design), 48 frontend tests; backend CORS, Host check,
+project PATCH and DELETE, operation ids, `GET /usage/records`; 396 backend tests. All checks
+pass on `main` after the merge. Dev database `mantle` at `0006`.
 Phase 3 real-key eval (2026-11-18): recall@5 vector 1.00 / text 0.95 / hybrid 1.00. Not done:
 the Phase 3 demo with real models, `GET /messages/{id}/context`, Phase 4 (workflow, teaching).
 To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev` (http://127.0.0.1:5173).
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-18.
+First demo target: 2026-12-17. Last updated 2026-11-19.
 
 ## Done
 
@@ -35,14 +35,14 @@ First demo target: 2026-12-17. Last updated 2026-11-18.
   recovery), `search` (RRF k=60); `app/api/projects.py`; ContextBuilder retrieved section;
   SSE `warning`; Gemini embedding with task types; `scripts/eval_retrieval.py`; ADRs 0006, 0007.
   PR #18: the identical-file test is line-ending independent.
-- 2026-11-18: `feat/frontend-workspace` (in review): `docs/design-app.md`; frontend (settings,
+- 2026-11-18: `feat/frontend-workspace` (PR #19, merged): `docs/design-app.md`; frontend (settings,
   projects, index, memory, chat with SSE streaming, context preview, switching, activity log);
   backend CORS + Host check, project PATCH/DELETE, operation ids, `/usage/records`,
   `scripts/export_openapi.py`; frontend rules in `CLAUDE.md` and `rules.md` (77-84).
 
 ## In progress
 
-- `feat/frontend-workspace`: committed locally, waiting for the developer's review and push.
+- Nothing.
 
 ## Next
 
@@ -115,8 +115,8 @@ Full decision text: `docs/architecture.md` → Decisions.
   `tests/fixtures` (a test that turned LF into CRLF made CR CR LF and failed on main).
 - **Editing files with Python heredocs in Git Bash turned `\n` in code into real newlines** twice;
   use an editor tool for code that contains escape sequences.
-- **Port 8000 may already be taken by another uvicorn** (an older one without CORS): the UI then
-  fails with CORS errors. Check `netstat -ano | findstr :8000`.
+- **Windows lets several uvicorns listen on port 8000; the oldest answers.** An old one without
+  CORS makes the UI say "Can't reach the API". Keep one; check `netstat -ano | findstr :8000`.
 - **An unhandled 500 has no CORS headers** (Starlette's error middleware sits outside CORS), so
   the browser shows a network error. Happens on the slow first DB connection after a restart.
 - **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`** (the old name is ignored). Backend
