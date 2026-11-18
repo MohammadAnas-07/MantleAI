@@ -49,6 +49,8 @@ export const api = {
   deleteCredential: (id: string) =>
     apiFetch<undefined>(`/api/v1/credentials/${id}`, { method: "DELETE" }),
   models: (o: Opts = {}) => apiFetch<Model[]>("/api/v1/models", o),
+  updateModel: (id: string, body: { enabled?: boolean; context_window?: number }) =>
+    apiFetch<Model>(`/api/v1/models/${id}`, { method: "PATCH", body }),
   modelSettings: (o: Opts = {}) => apiFetch<ModelSettings>("/api/v1/settings/models", o),
   updateModelSettings: (body: ModelSettingsPatch) =>
     apiFetch<ModelSettings>("/api/v1/settings/models", { method: "PATCH", body }),
@@ -65,6 +67,12 @@ export const api = {
     apiFetch<Project>(`/api/v1/projects/${id}`, { method: "PATCH", body }),
   deleteProject: (id: string) =>
     apiFetch<undefined>(`/api/v1/projects/${id}`, { method: "DELETE" }),
+
+  setSource: (id: string, rootPath: string) =>
+    apiFetch<IndexStatus>(`/api/v1/projects/${id}/source`, {
+      method: "PUT",
+      body: { root_path: rootPath },
+    }),
 
   // ---- index ----
   indexStatus: (id: string, o: Opts = {}) =>
