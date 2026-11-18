@@ -57,10 +57,14 @@ async def list_projects(session: AsyncSession, user_id: uuid.UUID) -> list[Proje
 async def list_pinned_items(
     session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID
 ) -> list[PinnedItem]:
-    """Active decisions and requirements, and open tasks. Read-only."""
-    rows = await MemoryItemRepository(session, user_id).list(
-        project_id=project_id, status=MemoryItemStatus.ACTIVE, limit=500
-    )
+    """Accepted decisions, approved requirements and open tasks. Read-only."""
+    pinned = {
+        MemoryItemStatus.ACCEPTED,
+        MemoryItemStatus.APPROVED,
+        MemoryItemStatus.TODO,
+        MemoryItemStatus.IN_PROGRESS,
+    }
+    rows = await MemoryItemRepository(session, user_id).list(project_id=project_id, limit=500)
     rank = {kind: i for i, kind in enumerate(_PINNED_ORDER)}
-    rows = sorted(rows, key=lambda r: rank[r.kind])
+    rows = sorted((r for r in rows if r.status in pinned), key=lambda r: rank[r.kind])
     return [PinnedItem(kind=r.kind.value, title=r.title, body=r.body) for r in rows]
