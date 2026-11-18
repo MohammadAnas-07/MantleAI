@@ -100,6 +100,7 @@ async def build_graph(
     message = await add(
         MessageRepository,
         conversation_id=conversation.id,
+        sequence=1,
         role="assistant",
         content=[{"type": "text", "text": "hello"}],
         model_id=chat_id,
@@ -110,6 +111,8 @@ async def build_graph(
     summary = await add(
         ConversationSummaryRepository,
         conversation_id=conversation.id,
+        from_sequence=1,
+        to_sequence=1,
         summary="Goals: demo.",
         up_to_message_id=message.id,
         model_id=chat_id,

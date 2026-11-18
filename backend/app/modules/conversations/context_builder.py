@@ -202,7 +202,7 @@ def compute_budget(model: ModelInfo, budget: BudgetSettings) -> tuple[int, int, 
     return model.context_window - reserved - margin, reserved, margin
 
 
-def _required_start(history: list[HistoryMessage], keep_recent_turns: int) -> int:
+def required_start(history: list[HistoryMessage], keep_recent_turns: int) -> int:
     """Index of the first message that must be kept: the latest user message plus
     `keep_recent_turns` user turns before it, with everything after them."""
     user_positions = [i for i, m in enumerate(history) if m.role == "user"]
@@ -222,7 +222,7 @@ class ContextBuilder:
 
         converted = [to_chat_messages(m, model.supports_tools) for m in inputs.history]
         msg_tokens = [self.count(msgs) if msgs else 0 for msgs in converted]
-        required = _required_start(inputs.history, self.budget_settings.keep_recent_turns)
+        required = required_start(inputs.history, self.budget_settings.keep_recent_turns)
 
         base = system_text(inputs.project)
         use_retrieved = bool(inputs.retrieved)

@@ -32,6 +32,10 @@ dev = [
 where = ["."]
 include = ["app", "app.*"]
 
+# Versioned prompt files are read at runtime.
+[tool.setuptools.package-data]
+"app.modules.conversations.prompts" = ["*.txt"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

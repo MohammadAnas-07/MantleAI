@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.repositories import UserRepository
@@ -155,9 +155,12 @@ async def test_message_content_is_provider_neutral(session: AsyncSession, graph_
         {"type": "text", "text": "Let me check."},
         {"type": "tool_call", "id": "call_1", "name": "search", "arguments": {"q": "x"}},
     ]
-    message = await repo.add(conversation_id=conversation_id, role="assistant", content=parts)
+    message = await repo.add(
+        conversation_id=conversation_id, sequence=2, role="assistant", content=parts
+    )
     result = await repo.add(
         conversation_id=conversation_id,
+        sequence=3,
         role="tool",
         content=[{"type": "tool_result", "tool_call_id": "call_1", "content": "found"}],
     )
@@ -170,20 +173,20 @@ async def test_message_content_is_provider_neutral(session: AsyncSession, graph_
     assert stored_result.content[0]["is_error"] is False
 
     with pytest.raises(ValidationError):
-        await repo.add(conversation_id=conversation_id, role="user", content=[{"type": "image"}])
+        await repo.add(
+            conversation_id=conversation_id, sequence=4, role="user", content=[{"type": "image"}]
+        )
+    assert await repo.next_sequence(conversation_id) == 4
 
 
 async def test_latest_summary(session: AsyncSession, graph_a: Graph) -> None:
     first = graph_a.rows[ConversationSummaryRepository]
     repo = ConversationSummaryRepository(session, graph_a.user_id)
-    # One test transaction means one now(); age the first row so "newest" is well defined.
-    await session.execute(
-        text("UPDATE conversation_summaries SET created_at = now() - interval '1 minute' "
-             "WHERE id = :id"),
-        {"id": first.id},
-    )  # fmt: skip
+    # "Latest" means covering the most messages, not newest by time (same now() in one tx).
     newer = await repo.add(
         conversation_id=first.conversation_id,
+        from_sequence=1,
+        to_sequence=first.to_sequence + 1,
         summary="Newer.",
         up_to_message_id=first.up_to_message_id,
         model_id=first.model_id,
