@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     # HNSW supports at most 2000 dimensions for the `vector` type.
     embedding_dimensions: int = Field(default=1536, ge=1, le=2000)
 
+    # Browser origins allowed to call the API (the Vite dev server). Never "*": any website the
+    # user visits could otherwise read the local API's answers.
+    cors_allowed_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
+    )
+
     # Context builder. Budget = context window - reserved output - safety margin (a share of the
     # context window, because token counts are estimates and tokenizers differ).
     context_reserved_output_tokens: int = Field(default=4096, ge=1)
