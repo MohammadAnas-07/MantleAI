@@ -26,5 +26,20 @@ def test_running_app_registers_every_table() -> None:
     assert out == "22 True"
 
 
+def test_every_write_endpoint_takes_a_json_body() -> None:
+    # Regression: POST /credentials/{id}/test had no body, so /docs sent no Content-Type and the
+    # JSON-only middleware (rule 29) answered 415. A JSON body makes /docs send the header.
+    from app.main import app
+
+    missing = [
+        f"{method.upper()} {path}"
+        for path, operations in app.openapi()["paths"].items()
+        for method, operation in operations.items()
+        if method in {"post", "put", "patch"}
+        and "application/json" not in operation.get("requestBody", {}).get("content", {})
+    ]
+    assert missing == []
+
+
 def test_app_start_does_not_import_litellm() -> None:
     assert run("import sys, app.main; print('litellm' in sys.modules)") == "False"

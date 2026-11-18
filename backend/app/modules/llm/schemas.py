@@ -34,6 +34,13 @@ class CredentialOut(BaseModel):
     created_at: datetime
 
 
+class CredentialTestIn(BaseModel):
+    """Empty on purpose. A JSON body makes clients (and /docs) send
+    `Content-Type: application/json`, which every write request must have (rule 29)."""
+
+    model_config = ConfigDict(extra="forbid", json_schema_extra={"example": {}})
+
+
 class CredentialTestOut(BaseModel):
     ok: bool
     error_code: str | None

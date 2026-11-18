@@ -29,7 +29,7 @@ if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `r
 | GET | `/api/v1/providers` | List supported providers, whether a key is set, and whether the provider can do embeddings |
 | GET | `/api/v1/credentials` | List saved keys (label, provider, last 4 characters only) |
 | POST | `/api/v1/credentials` | Save a key `{provider, label, api_key}` (encrypted, never returned) |
-| POST | `/api/v1/credentials/{id}/test` | Make a tiny test call with this key (1 output token, logged as `key_test`); returns `{ok, error_code, model_id, tested_at}` |
+| POST | `/api/v1/credentials/{id}/test` | Body `{}`. Make a tiny test call with this key (1 output token, logged as `key_test`); returns `{ok, error_code, model_id, tested_at}` |
 | DELETE | `/api/v1/credentials/{id}` | Delete a key |
 | GET | `/api/v1/models` | List models (`kind`, context window, enabled) |
 | PATCH | `/api/v1/models/{id}` | Enable or disable a model, override its context window |
