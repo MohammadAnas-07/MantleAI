@@ -1,5 +1,6 @@
 """Provider errors map to typed gateway errors (rule 51). Imports litellm, but makes no call."""
 
+import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -43,6 +44,58 @@ def test_maps_litellm_errors(name: str, expected: type[LLMError]) -> None:
     mapped = map_provider_error(make(name), "openai/gpt-x")
     assert type(mapped) is expected
     assert PROVIDER_TEXT not in mapped.message
+
+
+def mid_stream(original: Exception | None) -> Exception:
+    from litellm.exceptions import MidStreamFallbackError
+
+    return MidStreamFallbackError(
+        message=PROVIDER_TEXT, model="gpt-x", llm_provider="gemini", original_exception=original
+    )
+
+
+class StatusOnly(Exception):
+    """A provider error that LiteLLM didn't map to a type, only an HTTP status."""
+
+    def __init__(self, status_code: int) -> None:
+        super().__init__(PROVIDER_TEXT)
+        self.status_code = status_code
+
+
+@pytest.mark.parametrize(
+    ("inner", "expected"),
+    [
+        (lambda: make("RateLimitError"), RateLimited),
+        (lambda: make("AuthenticationError"), AuthFailed),
+        (lambda: make("ContextWindowExceededError"), ContextTooLong),
+        (lambda: StatusOnly(429), RateLimited),
+        (lambda: StatusOnly(401), AuthFailed),
+        (lambda: StatusOnly(500), ProviderUnavailable),
+        (lambda: None, ProviderUnavailable),
+    ],
+)
+def test_mid_stream_errors_are_unwrapped(
+    inner: Callable[[], Exception | None], expected: type[LLMError]
+) -> None:
+    # Regression: a Gemini rate limit during a stream arrived as MidStreamFallbackError (a
+    # ServiceUnavailableError) and was reported as provider_unavailable.
+    mapped = map_provider_error(mid_stream(inner()), "gemini/x")
+    assert type(mapped) is expected
+    assert PROVIDER_TEXT not in mapped.message
+
+
+async def test_mid_stream_rate_limit_is_logged_with_status_not_text(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def failing(**_: Any) -> None:
+        raise mid_stream(StatusOnly(429))
+
+    monkeypatch.setattr(_litellm(), "acompletion", failing)
+    stream = LiteLLMBackend().stream_chat("gemini/x", [], api_key="k", max_tokens=1)
+    with caplog.at_level(logging.WARNING), pytest.raises(RateLimited):
+        await anext(stream)
+    assert "type=MidStreamFallbackError root=StatusOnly status=429" in caplog.text
+    assert PROVIDER_TEXT not in caplog.text
 
 
 def test_unknown_errors_become_provider_unavailable() -> None:
