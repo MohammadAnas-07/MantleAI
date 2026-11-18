@@ -282,6 +282,9 @@ async def _finish(
 ) -> None:
     """Save the assistant message and release the generation lock. Shielded from cancellation."""
     with anyio.CancelScope(shield=True):
+        if not session.is_active:
+            # A database error earlier in this stream left the transaction unusable.
+            await session.rollback()
         messages = MessageRepository(session, user_id)
         values: dict[str, Any] = {
             "content": [{"type": "text", "text": text}] if text else [],
