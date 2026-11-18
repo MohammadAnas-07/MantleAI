@@ -118,10 +118,6 @@ class SkipReport:
             for reason in sorted(self.counts)
         }
 
-    @property
-    def total(self) -> int:
-        return sum(self.counts.values())
-
 
 @dataclass(frozen=True)
 class FileEntry:

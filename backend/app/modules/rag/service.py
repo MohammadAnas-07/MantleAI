@@ -209,6 +209,7 @@ async def index_status_many(
 async def index_status(
     session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID
 ) -> IndexStatus:
+    """The index status of one project; 404 if it is not this user's."""
     project = await get_project(session, user_id, project_id)
     return (await index_status_many(session, user_id, [project]))[project.id]
 
@@ -231,6 +232,7 @@ async def set_source(
 
 
 async def get_run(session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> IndexRun:
+    """One index run of this user; 404 otherwise."""
     run = await session.scalar(
         select(IndexRun).where(IndexRun.user_id == user_id, IndexRun.id == run_id)
     )
@@ -242,6 +244,7 @@ async def get_run(session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) 
 async def list_runs(
     session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID, limit: int = 50
 ) -> Sequence[IndexRun]:
+    """The project's index runs, newest first."""
     await get_project(session, user_id, project_id)
     rows = await session.scalars(
         select(IndexRun)
@@ -253,6 +256,7 @@ async def list_runs(
 
 
 async def cancel_run(session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> IndexRun:
+    """Ask a run to stop (see `request_cancel`)."""
     return await request_cancel(session, await get_run(session, user_id, run_id))
 
 
