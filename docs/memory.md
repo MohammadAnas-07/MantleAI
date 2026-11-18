@@ -16,9 +16,11 @@ Phase 1: run `scripts/switch_demo.py` with real keys and pass 4 of 5. Real calls
 2026-11-18: Gemini 3.8 Flash streams fine (6 demo turns); the developer's OpenAI key is valid but
 returns `rate_limited` (no credit). `feat/second-gemini-model` adds Gemini 3.5 Flash Lite so the
 demo can run Gemini -> Gemini with the free key (then `python -m app.db.seed`).
-**Switch demo 2026-11-18: 5/5 PASS**, Gemini 3.8 Flash -> Gemini 3.5 Flash Lite. Limits: one
-provider only (docs' demo is cross-provider), and the conversation was short, so all 12 messages
-went verbatim and the rolling summary was not exercised.
+**Switch demo 2026-11-18: 5/5 PASS twice**, Gemini 3.8 Flash -> Gemini 3.5 Flash Lite. Run 1:
+all 12 messages verbatim. Run 2 (`SUMMARY_TRIGGER_TOKENS=200`): summary of #1-#6 (198 tokens,
+decisions 1-3 with reasons) + #7-#12 verbatim; B still 5/5, so the summary path works with real
+models; the next summary was incremental and kept all reasons. Limit: one provider only (the
+docs' demo is cross-provider, e.g. Claude -> GPT); needs a second working key.
 First demo target: 2026-12-17.
 Last updated 2026-11-18.
 

@@ -54,7 +54,9 @@ and the new model continues with the earlier context.
 - [x] The handoff preview shows what carries over; the switch never calls the old model.
 - [x] A rate-limit or context-limit error shows a "switch model" suggestion.
 - [x] The demo switch passes the 5-question check (at least 4 of 5): 5/5 on 2026-11-18, Gemini 3.8
-  Flash -> Gemini 3.5 Flash Lite (same provider, summary not exercised). Run `python scripts/switch_demo.py --model-a ... --model-b ...` with real keys.
+  Flash -> Gemini 3.5 Flash Lite, both with all history verbatim and with decisions 1-3 reaching
+  model B only through the rolling summary (`SUMMARY_TRIGGER_TOKENS=200`). Same provider only;
+  a cross-provider run still needs a second working key. Run `python scripts/switch_demo.py --model-a ... --model-b ...` with real keys.
 - [x] All tests pass without API keys.
 
 **Postponed:** any UI, project memory, indexing, workflow, teaching.
