@@ -1,5 +1,6 @@
 """Application settings, loaded from environment variables and backend/.env."""
 
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
@@ -50,6 +51,45 @@ class Settings(BaseSettings):
 
     # A generation or summary lock older than this is treated as stale (crashed job).
     conversation_lock_timeout_seconds: int = Field(default=600, ge=1)
+
+    # ---- project indexing (rag) ----
+    # Used when the user has not picked an embedding model in their settings.
+    default_embedding_model: str = "gemini/gemini-embedding-001"
+    # Files over this size, past this count, or with more segments than this are skipped.
+    index_max_file_bytes: int = Field(default=1_000_000, ge=1)
+    index_max_files: int = Field(default=20_000, ge=1)
+    index_max_chunks_per_file: int = Field(default=200, ge=1)
+    # Extra file name patterns (gitignore syntax) that are never read, on top of the built-in
+    # sensitive list in app/modules/rag/secrets.py.
+    index_sensitive_patterns: list[str] = Field(default_factory=list)
+    # Indexing is refused above this estimated cost unless the request sends force=true.
+    # An app setting in v0.1; it moves to the user's settings when auth arrives.
+    index_cost_limit_usd: Decimal = Field(default=Decimal("1.00"), ge=0)
+
+    # Splitting files into segments. Sizes are in characters (about 4 per token).
+    chunk_max_chars: int = Field(default=4000, ge=200)
+    chunk_min_chars: int = Field(default=200, ge=0)  # smaller segments merge with a neighbour
+    chunk_window_lines: int = Field(default=60, ge=5)  # line-based splitting
+    chunk_overlap_lines: int = Field(default=5, ge=0)
+
+    # Embedding batches. Each batch is one provider call and one transaction.
+    embed_batch_max_items: int = Field(default=64, ge=1)
+    embed_batch_max_tokens: int = Field(default=16_000, ge=100)
+    # Pause between batches, so free tiers with low per-minute limits keep up.
+    embed_batch_delay_seconds: float = Field(default=1.0, ge=0)
+    # On RateLimited: wait this long, doubling each time up to the cap, then give up.
+    embed_rate_limit_backoff_seconds: float = Field(default=10.0, ge=0)
+    embed_rate_limit_backoff_max_seconds: float = Field(default=120.0, ge=0)
+    embed_max_retries: int = Field(default=5, ge=0)
+
+    # Retrieval.
+    retrieval_top_k: int = Field(default=8, ge=1)
+    retrieval_max_top_k: int = Field(default=50, ge=1)  # hard cap for any request
+    retrieval_candidates: int = Field(default=50, ge=1)  # per search arm, before fusion
+    retrieval_query_max_chars: int = Field(default=2000, ge=1)
+    retrieval_rrf_k: int = Field(default=60, ge=1)
+    # Share of the context budget the retrieved code may use.
+    retrieved_max_share: float = Field(default=0.30, gt=0, le=1)
 
 
 @lru_cache

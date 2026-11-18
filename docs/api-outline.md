@@ -47,9 +47,9 @@ Edits are last-write-wins.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/v1/projects` | List projects |
-| POST | `/api/v1/projects` | Create a project `{name, description, root_path}` |
-| GET | `/api/v1/projects/{id}` | Get one project |
+| GET | `/api/v1/projects` | List projects, each with `root_path`, `indexed`, `last_indexed_at`, `needs_reindex` and `reindex_reasons` (a fixed number of queries, whatever the project count). Served by `app/api/projects.py`, which combines projects and rag |
+| POST | `/api/v1/projects` | Create a project `{name, description?, root_path?}`; `root_path` is checked like `PUT /source` (422 `invalid_source_path`) |
+| GET | `/api/v1/projects/{id}` | Get one project, with the same index fields |
 | PATCH | `/api/v1/projects/{id}` | Update name, description, path, default model; archive |
 | DELETE | `/api/v1/projects/{id}` | Delete a project and all its data |
 | GET | `/api/v1/projects/{id}/memory` | List memory items: filter by `kind`, `status`; `limit` (1-100, default 50) and `offset`; ordered by `created_at`, then id. Returns `{items, total, limit, offset}` |
@@ -77,29 +77,39 @@ A second reply or a switch while a reply is streaming gets 409 `generation_in_pr
 | GET | `/api/v1/projects/{id}/conversations` | List the project's conversations |
 | POST | `/api/v1/projects/{id}/conversations` | Create one `{title, model_id}` |
 | GET | `/api/v1/conversations/{id}` | Get a conversation and its current model |
-| PATCH | `/api/v1/conversations/{id}` | Rename |
+| PATCH | `/api/v1/conversations/{id}` | `{title?, code_context_enabled?}` (at least one). `code_context_enabled: false` turns project code retrieval off for this conversation (default on) |
 | DELETE | `/api/v1/conversations/{id}` | Delete |
 | GET | `/api/v1/conversations/{id}/messages` | List messages by `sequence` (paged with `after_sequence`, `limit`) |
-| POST | `/api/v1/conversations/{id}/messages` | Send `{content}`. The response is an SSE stream: `message_start`, `delta` (text), then `message_end` (with usage) or `error` (with `suggested_models` for rate limits and context limits). The reply is saved when the stream ends; if the client disconnects, the upstream call is cancelled and the partial text is saved with status `cancelled`. Purpose `chat`, trigger `user`. The first message sets the title (first 60 characters; no LLM call) |
+| POST | `/api/v1/conversations/{id}/messages` | Send `{content}`. The response is an SSE stream: `message_start` (with `sources`: the retrieved code blocks, path, lines, scores, no text), zero or more `warning` (`{code, message, details}`: `retrieval_failed` when the query embedding failed, `needs_reindex`; the reply still comes), `delta` (text), then `message_end` (with usage) or `error` (with `suggested_models` for rate limits and context limits). In an indexed project the message is first embedded as a search query (purpose `embedding`, trigger `user`) unless the conversation turned code context off. The reply is saved when the stream ends; if the client disconnects, the upstream call is cancelled and the partial text is saved with status `cancelled`. Purpose `chat`, trigger `user`. The first message sets the title (first 60 characters; no LLM call) |
 | POST | `/api/v1/messages/{id}/cancel` | Stop a reply that is still streaming. **Not built yet**; closing the stream cancels the reply |
-| GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply. **Not built yet** (comes with retrieval and project memory) |
+| GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply. **Not built yet**; the code used is already stored as `message_contexts` rows (chunk ids and line ranges) and sent in `message_start` |
 | GET | `/api/v1/conversations/{id}/summary` | The current rolling summary, the message `sequence` range it covers, whether a job is running, and the last job error |
-| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | Exactly what would be sent to that model: each section (system, pinned items, summary, recent messages, retrieved context) with its content and tokens, the budget (context window - reserved output - safety margin), the total, what is dropped, `pinned` (its tokens, limit, and the item ids left out with the reason), `has_key`, and `will_build_summary` with its input tokens. No LLM call; never contains keys |
+| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | Exactly what would be sent to that model: each section (system, pinned items, summary, recent messages, retrieved context) with its content and tokens, the budget (context window - reserved output - safety margin), the total, what is dropped, `pinned` (its tokens, limit, and the item ids left out with the reason), `retrieved` (its tokens, its limit of 30% of the budget, the blocks `used` and `dropped` with path, lines, score and reason `share` or `context_budget`; the code is the one sent with the newest reply, read back from its message contexts), `has_key`, and `will_build_summary` with its input tokens. No LLM call (not even a query embedding); never contains keys |
 | POST | `/api/v1/conversations/{id}/switch-model` | Switch `{model_id, reason}`. Checks the model exists and the user has a key for its provider. Never calls the old model. If background summaries are off, the NEW model writes the summary now (purpose `switch_summary`, trigger `user`). Creates a ContextHandoff whose `note` (built without an LLM, never sent to a model) lists messages carried verbatim, the summary range and size, pinned items and what was dropped. Returns `{conversation, handoff, preview}` |
 | GET | `/api/v1/conversations/{id}/handoffs` | History of model switches |
 
 ## RAG (`rag`)
 
+Built in `feat/project-indexing-rag`. The only model calls are embeddings, through the gateway
+with purpose `embedding` and trigger `user` (they show in `GET /usage`). Another user's or
+another project's data is a 404. Index runs are in-process background tasks: at most one queued
+or running run per project (409 `index_in_progress`); a server restart marks a leftover run
+`failed` with error `interrupted`. Run statuses: `queued`, `running`, `succeeded`, `failed`,
+`cancelled`.
+
 | Method | Path | Purpose |
 | --- | --- | --- |
-| POST | `/api/v1/projects/{id}/index` | Start (re-)indexing `root_path`. Returns 202 `{run_id}`, or 422 if no embeddings-capable key or embedding model is set |
-| GET | `/api/v1/projects/{id}/index-runs` | List index runs |
-| GET | `/api/v1/index-runs/{run_id}` | Progress and result of one run |
-| POST | `/api/v1/index-runs/{run_id}/cancel` | Stop a running index |
-| GET | `/api/v1/projects/{id}/documents` | List indexed files |
-| GET | `/api/v1/projects/{id}/profile` | The project profile (languages, dependencies, markers), built without an LLM |
-| POST | `/api/v1/projects/{id}/search` | Test retrieval `{query, k}`, returns chunks with scores |
-| DELETE | `/api/v1/projects/{id}/index` | Remove all indexed data for the project |
+| PUT | `/api/v1/projects/{id}/source` | Set or change the folder to index `{root_path}`. Must be absolute, exist, be a readable folder; a filesystem root, the home folder or a folder above it is refused (422 `invalid_source_path`, `details.reason`). Stored as the real path. Indexed data stays; a new folder makes the project `needs_reindex` (`source_changed`) until it is indexed again. Returns the index status |
+| GET | `/api/v1/projects/{id}/index` | Index status: `indexed`, `last_indexed_at`, `needs_reindex`, `reindex_reasons` (`embedding_model_changed`, `source_changed`), `embedding_models`, `files`, `active_run_id` |
+| POST | `/api/v1/projects/{id}/index/estimate` | Body `{}`. What indexing would do now: files to index, unchanged, skipped and deleted; segments to embed and reused; tokens (about 4 characters each); cost; provider and model; the limit; the skip report. Reads the folder; no model call |
+| POST | `/api/v1/projects/{id}/index` | Start (re-)indexing `{force?}`. Returns 202 `{run_id, status, estimate}`. 422 `no_source_path`, `model_unavailable` or `no_credential`; 409 `index_in_progress`; 409 `cost_limit_exceeded` (with `details.estimate`) when the estimate is above `INDEX_COST_LIMIT_USD` and `force` is not true |
+| GET | `/api/v1/projects/{id}/index-runs` | List index runs, newest first (`limit`) |
+| GET | `/api/v1/index-runs/{run_id}` | One run: status, error, counters (`files_seen`, `files_indexed`, `files_skipped`, `files_unchanged`, `chunks_created`, `tokens`, `cost_estimate_usd`), estimate, skip report (count and example paths per reason) |
+| POST | `/api/v1/index-runs/{run_id}/cancel` | Body `{}`. A queued run is cancelled at once; a running one stops before its next batch (finished batches stay) |
+| GET | `/api/v1/projects/{id}/documents` | Files of the index by path: `status` (`pending`, `indexed`, `skipped`), `skip_reason`, language, size, lines, `parse_fallback`. Filter `status`; `limit`, `offset`; `counts` per status. Folders and `.gitignore` matches are only counted in the run's skip report |
+| DELETE | `/api/v1/projects/{id}/index` | Remove all file rows and chunks of the project (runs stay as history). 409 while a run is active |
+| POST | `/api/v1/projects/{id}/search` | **Dev only** (404 unless `APP_ENV=development`). `{query, top_k?, mode?: hybrid \| vector \| text, path_prefix?, language?}`. Embeds the query and returns merged results with path, lines, language, symbol, `vector_rank`, `text_rank`, fused `score` and text, plus `needs_reindex`. 422 `invalid_query` when the query is empty or over `RETRIEVAL_QUERY_MAX_CHARS`, or `top_k` is over `RETRIEVAL_MAX_TOP_K`; 409 `not_indexed`; no match is an empty list |
+| GET | `/api/v1/projects/{id}/profile` | The project profile (languages, dependencies, markers), built without an LLM. **Not built yet** (`feat/project-profile`) |
 
 ## Workflow and agents (`workflow`)
 

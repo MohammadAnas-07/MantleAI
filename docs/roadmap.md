@@ -27,13 +27,14 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 
 | Status | Branch | Goal |
 | --- | --- | --- |
-| | `feat/project-indexing-rag` | Index a local folder into pgvector, re-index only changed files, retrieve and cite top-k chunks in chat. |
+| In review | `feat/project-indexing-rag` | Index a local folder into pgvector, re-index only changed files, retrieve and cite top-k chunks in chat. |
 
 ## [Phase 4: Workflow, agents and teaching](phases.md#phase-4-workflow-agents-and-teaching)
 
 | Status | Branch | Goal |
 | --- | --- | --- |
 | | `feat/workflow-and-agents` | Fixed workflow stages, Planner and Reviewer agents, approve, request changes or skip; approval of AI-proposed memory items. |
+| | `feat/project-profile` | Build the project profile (languages, dependencies from `pyproject.toml`, `requirements.txt`, `package.json`, markers such as Dockerfile, migrations, CI) at the end of each index run, without an LLM, and serve `GET /projects/{id}/profile`. The concepts list in `feat/teaching-layer` reads it. |
 | | `feat/teaching-layer` | Project-aware "what, why, how" teaching notes on request, and the rule-based concepts list. |
 
 ## [Phase 5: Workspace UI (v0.1 complete)](phases.md#phase-5-workspace-ui-v01-complete)

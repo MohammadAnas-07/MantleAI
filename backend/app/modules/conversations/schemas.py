@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 
 class TextPart(BaseModel):
@@ -40,8 +40,20 @@ class ConversationCreate(BaseModel):
     title: str = Field(default="", max_length=300)
 
 
-class ConversationRename(BaseModel):
-    title: str = Field(min_length=1, max_length=300)
+class ConversationPatch(BaseModel):
+    """Rename, or turn project code context on or off. Only the fields sent change."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    # False: no code is retrieved for this conversation (no query embedding calls).
+    code_context_enabled: bool | None = None
+
+    @model_validator(mode="after")
+    def _not_empty(self) -> "ConversationPatch":
+        if self.title is None and self.code_context_enabled is None:
+            raise ValueError("send title or code_context_enabled")
+        return self
 
 
 class ConversationOut(BaseModel):
@@ -53,6 +65,7 @@ class ConversationOut(BaseModel):
     current_model_id: uuid.UUID
     generating: bool
     summary_error: str | None
+    code_context_enabled: bool
     created_at: datetime
     updated_at: datetime
 

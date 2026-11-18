@@ -93,19 +93,29 @@ answer that cites `backend/app/db/session.py` with line numbers. Switch models a
 citations still work.
 
 **Exit criteria:**
-- [ ] Indexing a local folder works with an OpenAI or Voyage embedding key, and is refused without one.
-- [ ] Secret files, binaries and large files are skipped, and the count is reported.
-- [ ] Re-indexing embeds only changed files.
-- [ ] Answers cite real `path:lines`, and the "sources used" view lists them.
-- [ ] The project profile (languages, dependencies, markers) is built without an LLM.
+- [x] Indexing a local folder works with an embedding key, and is refused without one (built and
+  tested with FakeProvider on 2026-11-18; default model `gemini/gemini-embedding-001`; not yet
+  run with a real key: `scripts/eval_retrieval.py`).
+- [x] Secret files, binaries and large files are skipped, and the count is reported (per reason,
+  with example paths, in the run's skip report and the documents list).
+- [x] Re-indexing embeds only changed files (and only the changed segments in them).
+- [ ] Answers cite real `path:lines`, and the "sources used" view lists them. (Partly: the prompt
+  carries `<source path lines>` blocks, `message_start` lists the sources and `message_contexts`
+  stores them; `GET /messages/{id}/context` and a real-model demo are not done.)
+- [ ] The project profile (languages, dependencies, markers) is built without an LLM. Moved to
+  its own branch, `feat/project-profile` (Phase 4, before `feat/teaching-layer`, which needs it).
 
-**Postponed:** reranker, hybrid search, external documentation, local embeddings.
+**Also built:** hybrid search (vector + full text, reciprocal rank fusion), a cost estimate and
+limit before indexing, resumable runs with rate-limit backoff, a per-conversation switch for
+code context.
+
+**Postponed:** reranker, external documentation, local embeddings, file watchers.
 
 ## Phase 4: Workflow, agents and teaching
 
 **Goal:** structured engineering stages with human approval, and Mantle explains why.
 
-**Branches:** `feat/workflow-and-agents`, `feat/teaching-layer`.
+**Branches:** `feat/workflow-and-agents`, `feat/project-profile`, `feat/teaching-layer`.
 
 **Demo:** run the five stages for a small feature. The Planner drafts and the Reviewer flags
 risks. Approving a stage turns its proposed decisions into memory. Then ask "why did we choose

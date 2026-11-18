@@ -10,7 +10,14 @@ from functools import cache
 from types import ModuleType
 from typing import Any
 
-from app.modules.llm.backend import ChatMessages, EmbedResult, StreamItem, TextDelta, UsageInfo
+from app.modules.llm.backend import (
+    ChatMessages,
+    EmbedInputType,
+    EmbedResult,
+    StreamItem,
+    TextDelta,
+    UsageInfo,
+)
 from app.modules.llm.errors import (
     AuthFailed,
     ContextTooLong,
@@ -89,6 +96,29 @@ def _log_provider_error(exc: Exception, model: str) -> None:
     )
 
 
+# Models whose output size can be chosen. LiteLLM 1.110.0 maps `dimensions` to
+# `outputDimensionality` for Gemini and to `output_dimension` for Voyage; OpenAI takes it as
+# is, but only from text-embedding-3 on. Sending it to other models is an error.
+_SETTABLE_DIMENSIONS = ("gemini/", "voyage/", "openai/text-embedding-3")
+
+# Gemini embeds documents and queries differently. LiteLLM 1.110.0 passes `task_type` through
+# as `taskType`; both values are in its own TaskType enum. CODE_RETRIEVAL_QUERY is Google's
+# type for a plain-language question about code, matched against RETRIEVAL_DOCUMENT vectors.
+_GEMINI_TASK_TYPES = {"document": "RETRIEVAL_DOCUMENT", "query": "CODE_RETRIEVAL_QUERY"}
+
+
+def embed_kwargs(
+    model: str, dimensions: int | None, input_type: EmbedInputType | None
+) -> dict[str, Any]:
+    """Provider-specific embedding arguments. No network."""
+    kwargs: dict[str, Any] = {}
+    if dimensions is not None and model.startswith(_SETTABLE_DIMENSIONS):
+        kwargs["dimensions"] = dimensions
+    if input_type is not None and model.startswith("gemini/"):
+        kwargs["task_type"] = _GEMINI_TASK_TYPES[input_type]
+    return kwargs
+
+
 class LiteLLMBackend:
     async def stream_chat(
         self, model: str, messages: ChatMessages, *, api_key: str, max_tokens: int | None
@@ -115,10 +145,19 @@ class LiteLLMBackend:
             _log_provider_error(exc, model)
             raise map_provider_error(exc, model) from None
 
-    async def embed(self, model: str, texts: list[str], *, api_key: str) -> EmbedResult:
+    async def embed(
+        self,
+        model: str,
+        texts: list[str],
+        *,
+        api_key: str,
+        dimensions: int | None = None,
+        input_type: EmbedInputType | None = None,
+    ) -> EmbedResult:
         litellm = _litellm()
+        kwargs = embed_kwargs(model, dimensions, input_type)
         try:
-            response = await litellm.aembedding(model=model, input=texts, api_key=api_key)
+            response = await litellm.aembedding(model=model, input=texts, api_key=api_key, **kwargs)
         except Exception as exc:
             _log_provider_error(exc, model)
             raise map_provider_error(exc, model) from None

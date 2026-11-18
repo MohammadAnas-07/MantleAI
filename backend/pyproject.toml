@@ -17,6 +17,11 @@ dependencies = [
     "cryptography>=50.0.2,<51",
     "pgvector>=0.4.2,<0.5",
     "litellm>=1.110.0,<1.111",
+    "tree-sitter>=0.25,<0.26",
+    # 0.13 ships the grammars inside the wheel. 1.x downloads them from the network on first
+    # use, which breaks offline tests and fetches native code at runtime. See ADR 0007.
+    "tree-sitter-language-pack>=0.13,<1",
+    "pathspec>=1.1,<2",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +46,8 @@ include = ["app", "app.*"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Sample code that indexing tests read; it is data, not part of the backend.
+extend-exclude = ["tests/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

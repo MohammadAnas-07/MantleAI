@@ -64,7 +64,8 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 **Project**
 - `user_id` → User
 - `name`, `description`
-- `root_path`: the local folder to index (nullable)
+- `root_path`: the local folder to index (nullable). Validated by the rag module (absolute,
+  exists, readable folder, not a filesystem root or the home folder) and stored as the real path
 - `default_model_id` → ModelConfig (nullable)
 - `archived_at` (nullable)
 
@@ -119,6 +120,8 @@ defanged.
 - `generating_since` (nullable): lock, one reply or switch at a time (409 otherwise)
 - `summary_started_at` (nullable): lock, one rolling-summary job at a time
 - `summary_error` (nullable): error code of the last failed summary job
+- `code_context_enabled` (bool, default true; migration `0006`): when false, no project code is
+  retrieved for this conversation, so no query embedding is made
 - A lock older than `CONVERSATION_LOCK_TIMEOUT_SECONDS` (600) is stale and can be taken over.
 
 **Message**
@@ -167,6 +170,9 @@ summarized.
 - `source_type`: `chunk` | `memory_item` | `summary`
 - `source_id` (UUID of the Chunk, MemoryItem or ConversationSummary)
 - `score` (nullable), `rank`
+- `start_line`, `end_line` (nullable; migration `0006`): for chunks, the lines that were sent.
+  Ids and line ranges only, never the text. Written for each reply that used retrieved code
+  (one row per chunk; chunks merged into one block share its rank, score and lines).
 
 ## llm module (LLM gateway)
 
@@ -206,26 +212,54 @@ summarized.
 
 ## rag module
 
-**IndexRun**
+**IndexRun**: one indexing job (migration `0005`).
 - `user_id` → User, `project_id` → Project
-- `status`: `running` | `done` | `failed` | `cancelled`
-- `files_seen`, `files_indexed`, `files_skipped`, `chunks_created`
-- `error` (nullable), `finished_at`
-- `embedding_model_id` → ModelConfig
+- `status`: `queued` | `running` | `succeeded` | `failed` | `cancelled` (`done` before `0005`).
+  At most one `queued` or `running` run per project: partial unique index
+  `uq_index_runs_project_id_active`. A run left `queued` or `running` when the server starts is
+  set to `failed` with `error` = `interrupted`.
+- `files_seen`, `files_indexed`, `files_skipped`, `files_unchanged`, `chunks_created`, `tokens`
+  (estimated, about 4 characters each), `cost_estimate_usd`
+- `error` (nullable: an error code such as `rate_limited`, `auth_failed`, `source_missing`,
+  `interrupted`, `internal_error`), `started_at`, `finished_at`, `cancel_requested_at`
+- `force` (bool): started above the cost limit on purpose
+- `embedding_model_id` → ModelConfig, plus snapshots `embedding_model` (name) and `root_path`
+- `estimate` (JSON): the estimate checked before the run; `skip_report` (JSON): count and up to
+  5 example paths per skip reason
 
-**Document**: one indexed file.
+**Document**: one file of the project.
 - `user_id` → User, `project_id` → Project
-- `path` (relative to `root_path`), `content_hash`, `size_bytes`, `language`
+- `path` (relative to `root_path`, POSIX form), unique per project
+- `status`: `pending` (its segments are being embedded) | `indexed` | `skipped`
+- `skip_reason` (nullable): `sensitive_name`, `possible secret`, `too_large`, `too_many_files`,
+  `too_many_segments`, `lock_file`, `minified`, `binary`, `unsupported_type`,
+  `unsupported_encoding`, `empty`, `long_lines`, `unreadable`, `changed_while_reading`. Ignored
+  folders, `.gitignore` matches and symlinks have no row; they are only counted in the run's
+  `skip_report`.
+- `content_hash` (sha256 of the LF-normalized text; null until every segment of that content is
+  stored), `size_bytes`, `mtime_ns`, `line_count`, `language`
+- `parse_fallback` (nullable): `syntax_error` or `no_grammar` when code was split by lines
+- `embedding_model`: the model its chunks were made with
 - `last_index_run_id` → IndexRun
 
-**Chunk**
+**Chunk**: one segment of a document ("chunk" in table and column names).
 - `user_id` → User, `document_id` → Document, `project_id` → Project (copied here for fast filtering)
-- `ordinal`, `text`, `start_line`, `end_line`, `token_count`
-- `embedding` (vector)
-- `embedding_model` (the LiteLLM model name), `embedding_dimensions`
+- `ordinal`, `text`, `start_line`, `end_line` (1-based, inclusive, on the LF text), `token_count`
+- `language`, `chunk_type` (`function` | `class` | `method` | `module` | `section` | `lines`),
+  `symbol` (function or class name, `Class.method`, or a Markdown heading path)
+- `content_hash`: sha256 of the text sent to the embedder (`File: path`, `Symbol: ...`, then the
+  text). The same hash and model reuse the stored vector, so unchanged segments of an edited file
+  are not embedded again.
+- `search_text`: path, symbol and text with identifiers split into words (`healthCheck` →
+  `healthcheck health check`); `search_tsv` is generated from it
+  (`to_tsvector('simple', search_text)`, GIN index `ix_chunks_search_tsv`)
+- `embedding` (vector, HNSW cosine index)
+- `embedding_model` (the LiteLLM model name), `embedding_dimensions`; index
+  `ix_chunks_project_id_embedding_model`. No unique `(document_id, ordinal)` since `0005`: while a
+  changed file is being indexed, its old and new segments exist side by side.
 
 **ProjectProfile**: facts about the project, built **without an LLM** at the end of each index
-run. One row per project.
+run. One row per project. The table exists; filling it is `feat/project-profile`.
 - `user_id` → User, `project_id` → Project (unique)
 - `languages` (JSON, for example `{"python": 42, "typescript": 10}`, the file counts)
 - `dependencies` (JSON, names read from `pyproject.toml`, `requirements.txt`, `package.json`)
@@ -239,7 +273,11 @@ column and rebuilds the HNSW index (`ix_chunks_embedding_hnsw`, cosine), and eve
 be re-indexed. `tests/test_migrations.py` fails if the database and the setting disagree. Vectors from different models can't be compared, so changing
 the model means re-indexing the project. Retrieval only uses chunks whose `embedding_model`
 matches the query's model. A model with a different dimension also needs a migration to change
-the column.
+the column. The user's embedding model is `user_model_settings.embedding_model_id`, else
+`DEFAULT_EMBEDDING_MODEL` (`gemini/gemini-embedding-001`, asked for 1536 dimensions; its native
+size is 3072). A project whose chunks were made with another model is `needs_reindex`
+(`embedding_model_changed`); so is one whose `root_path` differs from its last successful run
+(`source_changed`). Both are computed when read, not stored.
 
 ## workflow module
 

@@ -15,7 +15,7 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 8. Only `app/modules/workflow` imports `langgraph`.
 9. No file anywhere imports a `langchain*` package.
 10. Only `app/modules/rag` reads files from a project folder.
-11. Module dependencies follow the "May call" column in `docs/architecture.md`, with no cycles.
+11. Module dependencies follow the "May call" column in `docs/architecture.md`, with no cycles; `tests/test_module_boundaries.py` checks it (ADR 0006).
 
 ## Testing
 
@@ -45,7 +45,7 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 29. Write endpoints accept only `application/json`.
 30. An API response never contains an API key; at most the last 4 characters.
 31. Every new or changed endpoint is listed in `docs/api-outline.md` in the same PR.
-32. Streaming responses use SSE with the event names `message_start`, `delta`, `message_end` and `error`.
+32. Streaming responses use SSE with the event names `message_start`, `warning`, `delta`, `message_end` and `error`; `warning` reports a problem that did not stop the reply (amended 2026-11-18 for retrieval).
 
 ## LLM handling
 

@@ -188,6 +188,36 @@ python scripts\switch_demo.py --model-a gemini/gemini-3.8-flash --model-b gemini
 
 New catalog models appear after `python -m app.db.seed` (existing models and keys stay as they are).
 
+## Indexing a project
+
+> **Warning: indexing sends your code to your embedding provider.** Every indexed file is split
+> into segments and each one is sent to the provider of your embedding model (by default Google,
+> `gemini/gemini-embedding-001`). Every chat message in an indexed project is sent there too, as
+> the search query. Free tiers (for example the free Gemini API tier) may use what you send to
+> train their models. Don't index code you are not allowed to share with that provider.
+
+Mantle skips `.env*` files, keys and certificates (`*.pem`, `*.key`, `*.pfx`, `id_*`, ...),
+`credentials*` and `secrets*` files, binaries, lock files, minified files, files over 1 MB, and
+any file whose content looks like it holds a secret (private key headers, AWS, OpenAI, Google,
+GitHub, Slack or Stripe keys). It also follows `.gitignore`. This is a safety net, not a
+guarantee; see `docs/security.md`.
+
+From `backend`, with the API running and a Google key saved (`POST /api/v1/credentials`):
+
+```powershell
+$p = Invoke-RestMethod -Method Post http://127.0.0.1:8000/api/v1/projects -ContentType application/json -Body '{"name": "My app", "root_path": "C:\\code\\my-app"}'
+Invoke-RestMethod -Method Post "http://127.0.0.1:8000/api/v1/projects/$($p.id)/index/estimate" -ContentType application/json -Body '{}'
+Invoke-RestMethod -Method Post "http://127.0.0.1:8000/api/v1/projects/$($p.id)/index" -ContentType application/json -Body '{}'
+```
+
+The estimate shows the file count, segments, tokens and cost first. Indexing is refused above
+`INDEX_COST_LIMIT_USD` (default $1.00) unless you send `{"force": true}`. Re-running only embeds
+what changed. Turn code context off for one conversation with
+`PATCH /api/v1/conversations/{id}` and `{"code_context_enabled": false}`.
+
+`backend\scripts\eval_retrieval.py` indexes the sample project in `backend\tests\fixtures` with
+your real key and prints recall@5 and MRR for vector, text and hybrid search.
+
 ## Configuration
 
 Settings are read from `backend\.env`. This file is for your machine only and is **not** committed to
@@ -205,6 +235,13 @@ Copy-Item backend\.env.example backend\.env
 | `DATABASE_URL` | How to connect to PostgreSQL |
 | `MASTER_ENCRYPTION_KEY` | **Required.** Fernet key that encrypts your provider API keys; the API won't start without it. Generate it with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. If you lose or change it, saved provider keys can't be read |
 | `EMBEDDING_DIMENSIONS` | Dimension of the vector column (default 1536). Changing it needs a new migration and re-indexing |
+| `DEFAULT_EMBEDDING_MODEL` | Embedding model used when you haven't picked one (default `gemini/gemini-embedding-001`) |
+| `INDEX_COST_LIMIT_USD` | Indexing is refused above this estimated cost unless `force` is sent (default `1.00`) |
+| `EMBED_BATCH_DELAY_SECONDS` | Pause between embedding batches, for free tiers with low per-minute limits (default `1.0`) |
+| `INDEX_MAX_FILE_BYTES`, `INDEX_MAX_FILES` | Skip files over this size and past this count (defaults 1 MB, 20000) |
+| `INDEX_SENSITIVE_PATTERNS` | Extra file patterns never to index, as a JSON list in gitignore syntax, for example `["private/", "*.secret"]` |
+
+All indexing and retrieval settings, with their defaults, are in `backend\app\core\config.py`.
 
 ## VS Code
 

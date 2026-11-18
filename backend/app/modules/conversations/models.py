@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import Index, String, Text, UniqueConstraint, text
+from sqlalchemy import Index, String, Text, UniqueConstraint, text, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import UserOwnedEntity, fk, str_enum
@@ -55,6 +55,8 @@ class Conversation(UserOwnedEntity):
     summary_started_at: Mapped[datetime | None]  # one rolling-summary job at a time
     # Error code of the last failed rolling-summary job (rule 55); cleared on success.
     summary_error: Mapped[str | None] = mapped_column(String(64))
+    # When false, no project code is retrieved for this conversation (no query embedding).
+    code_context_enabled: Mapped[bool] = mapped_column(default=True, server_default=true())
 
 
 class Message(UserOwnedEntity):
@@ -150,3 +152,6 @@ class MessageContext(UserOwnedEntity):
     source_id: Mapped[uuid.UUID]
     score: Mapped[float | None]
     rank: Mapped[int]
+    # For chunks: the lines that were sent. Ids and line ranges only, never the text.
+    start_line: Mapped[int | None]
+    end_line: Mapped[int | None]

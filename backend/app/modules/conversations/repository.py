@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.db.repository import UserScopedRepository
 from app.modules.conversations.models import (
     ContextHandoff,
+    ContextSourceType,
     Conversation,
     ConversationSummary,
     Message,
@@ -121,3 +122,31 @@ class ContextHandoffRepository(UserScopedRepository[ContextHandoff]):
 
 class MessageContextRepository(UserScopedRepository[MessageContext]):
     model = MessageContext
+
+    async def latest_chunks(
+        self, conversation_id: uuid.UUID
+    ) -> list[tuple[uuid.UUID, float | None]]:
+        """(chunk id, score) of the code sent with the newest reply that had any, best first."""
+        newest = (
+            select(func.max(Message.sequence))
+            .join(MessageContext, MessageContext.message_id == Message.id)
+            .where(
+                Message.user_id == self.user_id,
+                Message.conversation_id == conversation_id,
+                MessageContext.user_id == self.user_id,
+                MessageContext.source_type == ContextSourceType.CHUNK,
+            )
+            .scalar_subquery()
+        )
+        rows = await self.session.execute(
+            select(MessageContext.source_id, MessageContext.score)
+            .join(Message, Message.id == MessageContext.message_id)
+            .where(
+                MessageContext.user_id == self.user_id,
+                MessageContext.source_type == ContextSourceType.CHUNK,
+                Message.conversation_id == conversation_id,
+                Message.sequence == newest,
+            )
+            .order_by(MessageContext.rank, MessageContext.source_id)
+        )
+        return [(r.source_id, r.score) for r in rows]
