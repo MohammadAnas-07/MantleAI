@@ -36,14 +36,35 @@ A basic threat model for v0.1: one user, running locally, using their own API ke
 | | |
 | --- | --- |
 | Risk | Indexed files contain injection text, or secrets that get sent to a third-party LLM provider. |
-| MVP | Every chunk goes in delimited blocks (`<source path=... lines=...>`), with its citation. Secret files are never indexed: `.env*`, `*.pem`, `*.key`, `id_*`, `*.pfx`. Chunks that look like keys (private-key headers, `sk-`/`AKIA` style tokens) are dropped. The UI shows exactly which sources were sent with each answer. |
-| Later | A configurable ignore file (`.mantleignore`), a better secret scanner, and an option to block sending code to selected providers. |
+| MVP | Every retrieved block goes in `<source path=... lines=...>` inside `<retrieved_context>`, with its citation. Text in the code that looks like our tags (`</source>`, `</retrieved_context>`, `</retrieved>`, ...) or a chat-template boundary (`<\|...\|>`, `[INST]`, `<<SYS>>`) is defanged (`<` becomes `&lt;`), and the system prompt says sources are data. Secrets are kept out as below. `message_start` lists exactly which sources were sent with each answer, and `message_contexts` stores their ids and line ranges. |
+| Later | A `.mantleignore` file, a better secret scanner, and an option to block sending code to selected providers. |
+
+#### What indexing skips, and why
+
+Indexed text goes to a **third-party embedding provider** (Google by default), and every chat
+message in an indexed project goes there as the search query. **Free tiers may use what they
+receive for training.** The README says so where indexing is explained. So the rules are strict,
+and a file that only looks risky is skipped whole: one file missing from the index is cheap, a
+leaked key is not.
+
+| Skipped | Why |
+| --- | --- |
+| Names: `.env`, `.env.*`, `*.env`, `*.pem`, `*.key`, `*.pfx`, `*.p12`, `*.jks`, `*.keystore`, `*.kdbx`, `id_*`, `credentials*`, `secrets*`, `.netrc`, `.npmrc`, `.pypirc`, `.htpasswd`, plus `INDEX_SENSITIVE_PATTERNS` | Files that usually hold keys or passwords. `id_*` follows rule 48 literally, so it also skips harmless files such as `id_utils.py`. Reason `sensitive_name` |
+| Content with a private-key header, an AWS key id or secret, an OpenAI/Anthropic `sk-` key, a Google `AIza` key, a GitHub, Slack or Stripe live token | The whole file is skipped, reason `possible secret`. Only the reason and the path are stored |
+| `.gitignore` matches (nested files and `!` negations), `.git`, `node_modules`, virtualenvs (any folder with `pyvenv.cfg`), `__pycache__`, `dist`, `build`, caches | Not the user's source, or already marked as private |
+| Symlinks and Windows junctions | Never followed, so no link can leave the root and no loop can form |
+| Lock files, minified files, source maps, images, archives, PDFs, fonts, media, compiled files, databases; any file with a null byte, a UTF-16/32 BOM or invalid UTF-8; lines over 10,000 characters | Binary or generated; nothing useful to embed |
+| Files over `INDEX_MAX_FILE_BYTES` (1 MB), past `INDEX_MAX_FILES`, or with more than `INDEX_MAX_CHUNKS_PER_FILE` segments; files that change while read | Cost and correctness limits |
+
+Logs from indexing and retrieval hold paths, counts, error codes and timings only, never file
+contents or query text. An unexpected error is logged by its type name, because an exception
+message could quote content.
 
 ### 4. File access
 | | |
 | --- | --- |
 | Risk | Indexing reads files outside the project, or a path trick (`..`, symlinks) reaches system files. |
-| MVP | Only `rag` reads files, and **only reads**. Mantle never writes to the project folder in v0.1. Every path is resolved and must stay inside `root_path`; symlinks that point outside are skipped. There are size limits (1 MB per file) and binary files are skipped. |
+| MVP | Only `rag` reads files, and **only reads**. Mantle never writes to the project folder in v0.1. The root must be an absolute, readable folder, and can't be a filesystem root, the home folder or a folder above it; it is stored as its real path. Symlinks and junctions inside it are never followed. There are size limits (1 MB per file) and binary files are skipped. |
 | Later | Per-project file permissions, and write access only through approved, sandboxed tools. |
 
 ### 5. Code execution
@@ -72,7 +93,7 @@ A basic threat model for v0.1: one user, running locally, using their own API ke
 | --- | --- |
 | Risk | Mantle quietly calls a paid model in the background. That spends the user's money and sends their content to a provider they didn't expect. |
 | Rule | **Any LLM call the user did not directly ask for must be logged, visible, and possible to turn off.** |
-| MVP | Every LLM call writes a UsageRecord with a `trigger` (`user` or `background`). The usage view shows each background purpose as its own line. The only background call in v0.1 is the rolling conversation summary, and it can be turned off (`background_summary_enabled`); when it's off, the summary is built at switch time, which the user asked for. The concepts list uses rules only, with no LLM. |
+| MVP | Every LLM call writes a UsageRecord with a `trigger` (`user` or `background`). The usage view shows each background purpose as its own line. The only background call in v0.1 is the rolling conversation summary, and it can be turned off (`background_summary_enabled`); when it's off, the summary is built at switch time, which the user asked for. The concepts list uses rules only, with no LLM. Indexing embeddings start from the user's index request; the query embedding of a chat message starts from the message. Both are logged with purpose `embedding`, and the query embedding can be turned off per conversation (`code_context_enabled`). Indexing has a cost guard: an estimate runs first and indexing above `INDEX_COST_LIMIT_USD` needs `force` (an app setting in v0.1; it moves to user settings when auth arrives). |
 | Later | Spending caps for background calls, and a per-project switch. |
 
 ## Checklist for every PR
