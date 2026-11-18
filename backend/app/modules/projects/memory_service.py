@@ -45,10 +45,12 @@ _DECIDED = {MemoryItemStatus.ACCEPTED, MemoryItemStatus.REJECTED}
 
 
 def invalid(field: str, message: str) -> AppError:
+    """A 422 that names the field, like the request-validation errors do."""
     return AppError(message, code="invalid_field", status_code=422, details={"field": field})
 
 
 def conflict(code: str, message: str, **details: Any) -> AppError:
+    """A 409: the request is valid but clashes with what is stored."""
     return AppError(message, code=code, status_code=409, details=details)
 
 
@@ -61,6 +63,7 @@ async def _check_project(session: AsyncSession, user_id: uuid.UUID, project_id: 
 
 
 async def get_item(session: AsyncSession, user_id: uuid.UUID, item_id: uuid.UUID) -> MemoryItem:
+    """The user's item, from any of their projects; 404 otherwise."""
     item = await MemoryItemRepository(session, user_id).get(item_id)
     if item is None:
         raise NotFound("Memory item not found.")
@@ -100,34 +103,36 @@ async def list_items(
 # ---- field rules per kind --------------------------------------------------------------------
 
 
+def _enum_or_none[E: (MemoryItemStatus, MemoryItemPriority)](enum: type[E], value: str) -> E | None:
+    try:
+        return enum(value)
+    except ValueError:
+        return None
+
+
 def _check_fields(kind: MemoryItemKind, values: dict[str, Any], *, creating: bool) -> None:
-    status = values.get("status")
-    if status is not None:
-        try:
-            status = MemoryItemStatus(status)
-        except ValueError:
-            status = None
+    """Check status, priority and decision-only fields against the item's kind, and turn
+    status and priority strings into enums (in place)."""
+    if values.get("status") is not None:
+        status = _enum_or_none(MemoryItemStatus, values["status"])
+        if status == MemoryItemStatus.SUPERSEDED:
+            raise invalid("status", "Use the supersede action to supersede a decision.")
         if status is None or status not in STATUSES_BY_KIND[kind]:
             allowed = ", ".join(s.value for s in STATUSES_BY_KIND[kind] if s.value != "superseded")
             raise invalid("status", f"A {kind.value} status must be one of: {allowed}.")
-        if status == MemoryItemStatus.SUPERSEDED:
-            raise invalid("status", "Use the supersede action to supersede a decision.")
         values["status"] = status
     elif "status" in values and not creating:
         raise invalid("status", "status can't be null.")
 
-    priority = values.get("priority")
-    if priority is not None:
+    if values.get("priority") is not None:
         allowed_priorities = PRIORITIES_BY_KIND[kind]
         if not allowed_priorities:
             raise invalid("priority", f"A {kind.value} has no priority.")
-        try:
-            values["priority"] = MemoryItemPriority(priority)
-        except ValueError:
-            values["priority"] = None
-        if values["priority"] not in allowed_priorities:
+        priority = _enum_or_none(MemoryItemPriority, values["priority"])
+        if priority not in allowed_priorities:
             choices = ", ".join(p.value for p in allowed_priorities)
             raise invalid("priority", f"A {kind.value} priority must be one of: {choices}.")
+        values["priority"] = priority
 
     if kind != MemoryItemKind.DECISION:
         for field in DECISION_ONLY:
@@ -141,6 +146,11 @@ def _check_fields(kind: MemoryItemKind, values: dict[str, Any], *, creating: boo
 async def create_item(
     session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID, data: MemoryItemCreate
 ) -> MemoryItem:
+    """Add an item written by the user. 409 when the project has the maximum of this kind.
+
+    The limit check and the insert are separate statements, so two requests at the same moment
+    could go one item over the limit.
+    """
     await _check_project(session, user_id, project_id)
     kind = MemoryItemKind(data.kind)
     values = data.model_dump(exclude={"kind"})
@@ -252,7 +262,11 @@ async def add_dependency(
     session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID, depends_on_id: uuid.UUID
 ) -> bool:
     """Make `task_id` depend on `depends_on_id`. Returns False if the link already existed
-    (a duplicate is ignored, not an error)."""
+    (a duplicate is ignored, not an error).
+
+    The cycle check reads the links and then inserts; two requests at the same moment that each
+    close half a loop could both pass.
+    """
     task = await get_item(session, user_id, task_id)
     if task_id == depends_on_id:
         raise AppError("A task can't depend on itself.", code="invalid_dependency",
@@ -297,6 +311,7 @@ def _reaches(
 async def remove_dependency(
     session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID, depends_on_id: uuid.UUID
 ) -> None:
+    """Remove one dependency link; 404 if it doesn't exist."""
     task = await get_item(session, user_id, task_id)
     links = MemoryDependencyRepository(session, user_id)
     link = await links.find(task_id, depends_on_id)
