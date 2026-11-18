@@ -34,6 +34,20 @@ class Settings(BaseSettings):
     summary_trigger_tokens: int = Field(default=2000, ge=1)
     summary_max_output_tokens: int = Field(default=1024, ge=1)
 
+    # Project memory (requirements, decisions, tasks), written only by the user.
+    memory_title_max_length: int = Field(default=200, ge=1, le=300)  # column is 300
+    memory_text_max_length: int = Field(default=5000, ge=1)
+    memory_max_items_per_kind: int = Field(default=500, ge=1)
+    memory_page_max: int = Field(default=100, ge=1)
+
+    # Pinned memory in the model context: a share of the context budget, a cap per kind, and a
+    # cut-off for long items.
+    pinned_max_share: float = Field(default=0.25, gt=0, le=1)
+    pinned_max_decisions: int = Field(default=30, ge=0)
+    pinned_max_requirements: int = Field(default=30, ge=0)
+    pinned_max_tasks: int = Field(default=30, ge=0)
+    pinned_item_max_chars: int = Field(default=600, ge=40)
+
     # A generation or summary lock older than this is treated as stale (crashed job).
     conversation_lock_timeout_seconds: int = Field(default=600, ge=1)
 

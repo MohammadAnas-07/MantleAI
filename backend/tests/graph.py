@@ -22,7 +22,11 @@ from app.modules.llm.repository import (
     UsageRecordRepository,
     UserModelSettingsRepository,
 )
-from app.modules.projects.repository import MemoryItemRepository, ProjectRepository
+from app.modules.projects.repository import (
+    MemoryDependencyRepository,
+    MemoryItemRepository,
+    ProjectRepository,
+)
 from app.modules.rag.repository import (
     ChunkRepository,
     DocumentRepository,
@@ -181,9 +185,19 @@ async def build_graph(
         project_id=project.id,
         kind="decision",
         title="Use PostgreSQL",
+        status="accepted",
         source="agent",
         source_message_id=message.id,
         source_agent_run_id=agent_run.id,
+    )
+    tasks = MemoryItemRepository(session, user_id)
+    first = await tasks.add(project_id=project.id, kind="task", title="Schema", status="todo")
+    second = await tasks.add(project_id=project.id, kind="task", title="API", status="todo")
+    await add(
+        MemoryDependencyRepository,
+        project_id=project.id,
+        task_id=second.id,
+        depends_on_id=first.id,
     )
     note = await add(
         TeachingNoteRepository,
@@ -223,6 +237,7 @@ async def build_graph(
 PROJECT_SCOPED = [
     ProjectRepository,
     MemoryItemRepository,
+    MemoryDependencyRepository,
     ConversationRepository,
     MessageRepository,
     ConversationSummaryRepository,

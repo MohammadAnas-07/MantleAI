@@ -10,10 +10,10 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phase 1's core feature works with real models. Everything is merged to `main` (up to PR #12,
-`39530e1`); 194 tests. The dev database `mantle` is at migration `0003` and has the full catalog
-(incl. Gemini 3.5 Flash Lite). Docker and the API server were stopped at the end of 2026-11-18;
-start with `docker compose up -d`.
+Phase 1's core feature works with real models; Phase 2 (project memory) is built on
+`feat/project-memory` (committed, not pushed or merged); 270 tests. Merged to `main`: up to PR #13.
+After the merge, run `alembic upgrade head` (migration `0004`) on the dev database `mantle`
+(now at `0003`). Docker is running (started for this task).
 **Switch demo 2026-11-18: 5/5 PASS twice**, Gemini 3.8 Flash -> Gemini 3.5 Flash Lite. Run 1:
 all 12 messages verbatim. Run 2 (`SUMMARY_TRIGGER_TOKENS=200`): summary of #1-#6 (198 tokens,
 decisions 1-3 with reasons) + #7-#12 verbatim; B still 5/5, so the summary path works with real
@@ -45,6 +45,12 @@ Last updated 2026-11-18.
   endpoint takes `{}` so `/docs` sends JSON); PR #11 `feat/second-gemini-model` (Gemini 3.5 Flash
   Lite + demo results); PR #12 `fix/unwrap-stream-errors` (mid-stream 429 reported as
   `rate_limited`; logs show root type and HTTP status).
+- 2026-11-18: `feat/project-memory` (not merged): migration `0004` (per-kind statuses and
+  priorities, decision `why`/`alternatives`/`decided_at`/`superseded_by_id`, `memory_dependencies`
+  table), `projects/memory_service.py` (validation, item limit, supersede, dependency cycles),
+  `projects/schemas.py`, memory routes, `projects/pinned.py` (selection, caps, share of budget,
+  deterministic one-line text, delimiter defanging), pinned info in handoff preview and note,
+  `GET /projects/{id}/memory/pinned`. `pytest-cov` added. Coverage of the projects module: 99%.
 
 ## In progress
 
@@ -53,7 +59,8 @@ Last updated 2026-11-18.
 ## Next
 
 The developer decides what comes next. Candidates:
-1. `feat/project-memory` (Phase 2): memory CRUD; pinned items already flow into the context.
+1. Merge `feat/project-memory`, then the Phase 2 demo: 3 decisions + 2 tasks as memory, a NEW
+   conversation on another model answers the 5 questions from memory alone.
 2. A cross-provider switch demo, once a second provider key works (closes Phase 1 fully).
 3. Not built yet from api-outline: `POST /messages/{id}/cancel`, `GET /messages/{id}/context`,
    project update/archive/delete.
@@ -81,6 +88,11 @@ The developer decides what comes next. Candidates:
 | 2026-11-18 | Messages ordered by `sequence`; current summary = highest `to_sequence` | Timestamps tie within one transaction | `docs/data-model.md` |
 | 2026-11-18 | Locks as timestamp columns claimed with one atomic UPDATE; stale after 600 s | Simple, testable, survives crashes | `docs/data-model.md` |
 | 2026-11-18 | Minimal project endpoints (list, create, get) added in `feat/model-switching` | Needed to create conversations via the API | — |
+| 2026-11-18 | Memory stays ONE `memory_items` table; per-kind statuses/priorities checked in the service; new columns + `memory_dependencies` | User's choice; least churn | `docs/data-model.md` |
+| 2026-11-18 | Memory paths follow api-outline (`/projects/{id}/memory`, `/memory/{id}`) + supersede, dependencies, pinned preview; approve/reject wait for Phase 4 | User's choice | `docs/api-outline.md` |
+| 2026-11-18 | Supersede accepts a new decision or an existing one; a superseded decision can't replace another, which rules out loops | One simple check covers every loop | — |
+| 2026-11-18 | Duplicate dependency links are ignored (no error) | Idempotent, consistent | — |
+| 2026-11-18 | Pinned preview is served by `conversations` (needs the model's token counter); `projects` gets the counter passed in | Rule 11: projects calls no module | — |
 
 Full decision text: `docs/architecture.md` → Decisions.
 

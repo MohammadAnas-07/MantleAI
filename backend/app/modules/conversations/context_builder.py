@@ -26,7 +26,7 @@ from typing import Any
 from app.core.config import settings
 from app.modules.conversations.prompts import SYSTEM_PROMPT, load_prompt
 from app.modules.llm.service import ChatMessages, ContextTooLong, ModelInfo
-from app.modules.projects.service import PinnedItem, ProjectInfo
+from app.modules.projects.service import DroppedPin, PinnedItem, ProjectInfo, pinned_block
 
 TokenCounter = Callable[[ChatMessages], int]
 
@@ -50,11 +50,14 @@ class SummaryInput:
 @dataclass(frozen=True)
 class ContextInputs:
     project: ProjectInfo
+    # Already selected, ordered and rendered by the projects module (most important first).
     pinned: list[PinnedItem]
     summary: SummaryInput | None
     # Messages NOT covered by the summary, oldest first. The last one is the latest user message.
     history: list[HistoryMessage]
     retrieved: list[str] = field(default_factory=list)
+    # Pinned items the projects module already left out (kind cap, pinned share of the budget).
+    pinned_dropped: list[DroppedPin] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -98,6 +101,10 @@ class BuiltContext:
     summary_range: tuple[int, int] | None
     summary_tokens: int
     pinned_included: int
+    pinned_tokens: int
+    # Every pinned item that was left out and why: kind_cap, budget (the pinned share), or
+    # context_budget (dropped here because the whole request was too big).
+    pinned_dropped: list[DroppedPin]
 
 
 # ---- tool history conversion -----------------------------------------------------------------
@@ -167,10 +174,8 @@ def system_text(project: ProjectInfo) -> str:
 
 
 def pinned_text(items: list[PinnedItem]) -> str:
-    if not items:
-        return ""
-    lines = [f"- [{i.kind}] {i.title}" + (f": {i.body}" if i.body else "") for i in items]
-    return "<pinned_items>\n" + _neutralize("\n".join(lines)) + "\n</pinned_items>"
+    # Rendered and neutralized by the projects module (projects/pinned.py).
+    return pinned_block(items)
 
 
 def summary_text(summary: SummaryInput | None) -> str:
@@ -267,7 +272,7 @@ class ContextBuilder:
             if pinned_kept > 0:
                 pinned_kept -= 1
                 item = inputs.pinned[pinned_kept]
-                dropped.append(f"pinned {item.kind}: {item.title}")
+                dropped.append(f"pinned {item.kind} {item.id.hex[:8]}")
                 return True
             return False
 
@@ -294,6 +299,9 @@ class ContextBuilder:
                                 converted[first_kept:])  # fmt: skip
         included = inputs.history[first_kept:]
         summary = inputs.summary if use_summary else None
+        pinned_dropped = list(inputs.pinned_dropped) + [
+            DroppedPin(p.id, p.kind, "context_budget") for p in inputs.pinned[pinned_kept:]
+        ]
         return BuiltContext(
             model=model,
             messages=messages,
@@ -309,6 +317,8 @@ class ContextBuilder:
             summary_range=(summary.from_sequence, summary.to_sequence) if summary else None,
             summary_tokens=next(s.tokens for s in sections if s.name == "conversation_summary"),
             pinned_included=pinned_kept,
+            pinned_tokens=next(s.tokens for s in sections if s.name == "pinned_items"),
+            pinned_dropped=pinned_dropped,
         )
 
     def _report(

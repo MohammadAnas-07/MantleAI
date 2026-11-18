@@ -33,6 +33,49 @@ async def scalar(url: URL, sql: str) -> object:
         await engine.dispose()
 
 
+async def execute(url: URL, *statements: str) -> list[tuple[object, ...]]:
+    """Run statements in one committed transaction; return the rows of the last one."""
+    engine = create_async_engine(url, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            result = None
+            for sql in statements:
+                result = await conn.execute(text(sql))
+            return [tuple(r) for r in result] if result is not None and result.returns_rows else []
+    finally:
+        await engine.dispose()
+
+
+async def test_0004_maps_old_memory_statuses(migrated_database: URL) -> None:
+    """Rows written with the old shared statuses get each kind's own status and priority."""
+    user, project = "00000000-0000-0000-0000-00000000aa04", "00000000-0000-0000-0000-00000000bb04"
+    alembic_run("downgrade", "0003")
+    try:
+        await execute(
+            migrated_database,
+            f"INSERT INTO users (id, display_name) VALUES ('{user}', 'm')",
+            f"INSERT INTO projects (id, user_id, name) VALUES ('{project}', '{user}', 'p')",
+            "INSERT INTO memory_items (user_id, project_id, kind, title, status, priority, source)"
+            f" VALUES ('{user}', '{project}', 'decision', 'd', 'active', 'high', 'user'),"
+            f" ('{user}', '{project}', 'requirement', 'r', 'active', 'high', 'user'),"
+            f" ('{user}', '{project}', 'task', 't', 'active', 'low', 'user')",
+        )
+        alembic_run("upgrade", "head")
+        rows = await execute(
+            migrated_database,
+            f"SELECT kind, status, priority FROM memory_items WHERE project_id = '{project}' "
+            "ORDER BY kind",
+        )
+        assert rows == [
+            ("decision", "accepted", None),
+            ("requirement", "approved", "must"),
+            ("task", "todo", "low"),
+        ]
+    finally:
+        alembic_run("upgrade", "head")
+        await execute(migrated_database, f"DELETE FROM users WHERE id = '{user}'")
+
+
 async def test_downgrade_to_base_and_upgrade_to_head(migrated_database: URL) -> None:
     expected = set(Base.metadata.tables)
 
