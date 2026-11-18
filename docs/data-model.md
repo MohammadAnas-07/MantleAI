@@ -68,15 +68,47 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 - `default_model_id` → ModelConfig (nullable)
 - `archived_at` (nullable)
 
-**MemoryItem**: requirements, decisions and tasks in one table.
+**MemoryItem**: requirements, decisions and tasks in one table. Written only by the user
+through the API (no LLM). Statuses and priorities are per kind, checked in
+`app/modules/projects/memory_service.py`. Edits are last-write-wins (no version check).
 - `user_id` → User, `project_id` → Project
 - `kind`: `requirement` | `decision` | `task`
-- `title`, `body` (markdown)
-- `status`: `proposed` | `active` | `done` | `rejected` | `superseded`
-- `priority`: `low` | `medium` | `high` (nullable)
-- `source`: `user` | `chat` | `agent`
+- `title` (one line, at most `MEMORY_TITLE_MAX_LENGTH` = 200), `body` (at most
+  `MEMORY_TEXT_MAX_LENGTH` = 5000; for a decision: what was decided). Text is trimmed; any Unicode
+  is fine; control characters and null bytes are rejected.
+- `status`, per kind:
+  - decision: `proposed` | `accepted` (default) | `rejected` | `deprecated` | `superseded`
+    (`superseded` only through the supersede action)
+  - requirement: `draft` (default) | `approved` | `dropped`
+  - task: `todo` (default) | `in_progress` | `done` | `blocked`
+- `priority` (nullable): requirement `must` | `should` | `could`; task `high` | `medium` | `low`;
+  decisions have none
+- Decision only: `why`, `alternatives` (text), `decided_at` (not in the future; set to now when a
+  decision is created as accepted or rejected without one)
+- `superseded_by_id` → MemoryItem (nullable): the decision that replaced this one. Deleting the
+  newer decision makes the older one `accepted` again. A superseded decision can't replace
+  another one, which rules out loops.
+- At most `MEMORY_MAX_ITEMS_PER_KIND` (500) items per kind per project (409 after that).
+- `source`: `user` | `chat` | `agent` (only `user` is written in v0.1)
 - `source_message_id` → Message (nullable), `source_agent_run_id` → AgentRun (nullable)
 - `stage_key` (nullable): the workflow stage it came from
+
+**MemoryDependency**: task `task_id` depends on task `depends_on_id`.
+- `user_id` → User, `project_id` → Project, `task_id` → MemoryItem, `depends_on_id` → MemoryItem
+  (both CASCADE: deleting a task removes its links)
+- Unique `(task_id, depends_on_id)`; a duplicate link is ignored. CHECK `task_id <> depends_on_id`.
+- Both tasks must be in the same project, and a link that would make a cycle (any length) is
+  refused (409). A task is `is_blocked` (computed, not stored) while any dependency isn't `done`;
+  marking a blocked task done is allowed.
+
+**Pinned memory** (not a table): what the ContextBuilder sends as `<pinned_items>`, built by
+`app/modules/projects/pinned.py`. Order: accepted decisions; approved `must` then `should`
+requirements; open tasks (`in_progress`, `todo`, `blocked`, then by priority); inside a group
+`created_at`, then id. At most `PINNED_MAX_DECISIONS` / `_REQUIREMENTS` / `_TASKS` (30 each) and
+`PINNED_MAX_SHARE` (25%) of the context budget; items longer than `PINNED_ITEM_MAX_CHARS` (600)
+end in `[truncated]`. One line per item: `- [kind shortid status priority] title: body | why: ...`.
+Same data gives byte-identical text. Data delimiters and chat-template markers inside items are
+defanged.
 
 ## conversations module
 

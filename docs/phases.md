@@ -74,11 +74,11 @@ different model and ask the 5 decision questions. It answers from memory, with n
 history to rely on, and the "sources used" view lists the memory items.
 
 **Exit criteria:**
-- [ ] Requirements, decisions and tasks can be created, edited, given a status and deleted.
-- [ ] Active decisions and open tasks are added to every prompt as pinned items, inside the token budget.
-- [ ] The "sources used" view lists the memory items that were sent.
+- [x] Requirements, decisions and tasks can be created, edited, given a status and deleted.
+- [x] Active decisions and open tasks are added to every prompt as pinned items, inside the token budget.
+- [ ] The "sources used" view lists the memory items that were sent. (Partly: the handoff preview and `GET /projects/{id}/memory/pinned` list them; per-message `MessageContext` rows and `GET /messages/{id}/context` are not built.)
 - [ ] A new conversation with a different model passes the 5-question check from memory alone.
-- [ ] Memory items never go through vector search.
+- [x] Memory items never go through vector search.
 
 **Postponed:** AI-proposed memory items and their approval (Phase 4), the workflow, agents.
 

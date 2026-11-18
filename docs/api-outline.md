@@ -39,7 +39,11 @@ if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `r
 
 ## Projects and memory (`projects`)
 
-Built so far (`feat/model-switching`, so conversations can be created through the API): `GET /api/v1/projects`, `POST /api/v1/projects`, `GET /api/v1/projects/{id}`. The rest of this table comes with `feat/project-memory`.
+Built: list, create and get projects (`feat/model-switching`), and project memory
+(`feat/project-memory`). Not built yet: project PATCH and DELETE, and approve/reject (they need
+AI-proposed items, Phase 4). Every memory query filters by user and project; another user's or
+another project's item is a 404. Text fields are trimmed and validated (422 names the field).
+Edits are last-write-wins.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -48,12 +52,17 @@ Built so far (`feat/model-switching`, so conversations can be created through th
 | GET | `/api/v1/projects/{id}` | Get one project |
 | PATCH | `/api/v1/projects/{id}` | Update name, description, path, default model; archive |
 | DELETE | `/api/v1/projects/{id}` | Delete a project and all its data |
-| GET | `/api/v1/projects/{id}/memory` | List memory items (filter by `kind`, `status`) |
-| POST | `/api/v1/projects/{id}/memory` | Add a memory item by hand |
-| PATCH | `/api/v1/memory/{item_id}` | Edit an item or change its status |
-| POST | `/api/v1/memory/{item_id}/approve` | Approve a `proposed` item (makes it `active`) |
-| POST | `/api/v1/memory/{item_id}/reject` | Reject a `proposed` item |
-| DELETE | `/api/v1/memory/{item_id}` | Delete an item |
+| GET | `/api/v1/projects/{id}/memory` | List memory items: filter by `kind`, `status`; `limit` (1-100, default 50) and `offset`; ordered by `created_at`, then id. Returns `{items, total, limit, offset}` |
+| POST | `/api/v1/projects/{id}/memory` | Add an item `{kind, title, body?, status?, priority?, why?, alternatives?, decided_at?}`. 409 `memory_limit_reached` past 500 per kind |
+| GET | `/api/v1/memory/{item_id}` | One item, with `depends_on_ids` and `is_blocked` (tasks) and `supersedes_ids` / `superseded_by_id` (decisions) |
+| PATCH | `/api/v1/memory/{item_id}` | Change only the fields sent (`null` clears an optional text field); an empty body is a 422. `superseded` can't be set here; a superseded decision's status is locked (409) |
+| POST | `/api/v1/memory/{item_id}/supersede` | Replace a decision: `{"decision": {...}}` creates the new one, `{"by_id": ...}` uses an existing one. Returns `{superseded, by}`. 409 if already superseded or if it would loop |
+| POST | `/api/v1/memory/{item_id}/dependencies` | The task depends on `{depends_on_id}` (same project, no cycles: 409 `dependency_cycle`). Adding an existing link changes nothing |
+| DELETE | `/api/v1/memory/{item_id}/dependencies/{depends_on_id}` | Remove a dependency |
+| GET | `/api/v1/projects/{id}/memory/pinned?model_id=` | What would be pinned for that model now: the exact text, its tokens, the share limit, and the ids left out with the reason (`kind_cap` or `budget`). No LLM call |
+| POST | `/api/v1/memory/{item_id}/approve` | Approve a `proposed` item. **Not built yet** (Phase 4) |
+| POST | `/api/v1/memory/{item_id}/reject` | Reject a `proposed` item. **Not built yet** (Phase 4) |
+| DELETE | `/api/v1/memory/{item_id}` | Delete an item; its dependency links go too, and a decision it superseded becomes `accepted` again |
 
 ## Conversations and model switching (`conversations`)
 
@@ -75,7 +84,7 @@ A second reply or a switch while a reply is streaming gets 409 `generation_in_pr
 | POST | `/api/v1/messages/{id}/cancel` | Stop a reply that is still streaming. **Not built yet**; closing the stream cancels the reply |
 | GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply. **Not built yet** (comes with retrieval and project memory) |
 | GET | `/api/v1/conversations/{id}/summary` | The current rolling summary, the message `sequence` range it covers, whether a job is running, and the last job error |
-| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | Exactly what would be sent to that model: each section (system, pinned items, summary, recent messages, retrieved context) with its content and tokens, the budget (context window - reserved output - safety margin), the total, what is dropped, `has_key`, and `will_build_summary` with its input tokens. No LLM call; never contains keys |
+| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | Exactly what would be sent to that model: each section (system, pinned items, summary, recent messages, retrieved context) with its content and tokens, the budget (context window - reserved output - safety margin), the total, what is dropped, `pinned` (its tokens, limit, and the item ids left out with the reason), `has_key`, and `will_build_summary` with its input tokens. No LLM call; never contains keys |
 | POST | `/api/v1/conversations/{id}/switch-model` | Switch `{model_id, reason}`. Checks the model exists and the user has a key for its provider. Never calls the old model. If background summaries are off, the NEW model writes the summary now (purpose `switch_summary`, trigger `user`). Creates a ContextHandoff whose `note` (built without an LLM, never sent to a model) lists messages carried verbatim, the summary range and size, pinned items and what was dropped. Returns `{conversation, handoff, preview}` |
 | GET | `/api/v1/conversations/{id}/handoffs` | History of model switches |
 
