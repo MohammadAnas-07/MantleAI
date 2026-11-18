@@ -11,7 +11,9 @@ Working memory for any AI tool and for the developer. Read it before every task.
 ## Current status
 
 Phase 1's core feature works with real models. Phase 2 (project memory) is merged (PR #14,
-`4721577`); 270 tests. The dev database `mantle` is at migration `0004`. Docker is running.
+`4721577`) and recorded in docs (PR #15, `fc37e28`); 270 tests. The dev database `mantle` is at
+migration `0004`. To work: `docker compose up -d` from the project folder, then in `backend`
+`.venv\Scripts\Activate.ps1` and `uvicorn app.main:app --reload`.
 Left for Phase 2: the demo (memory answers in a new conversation on another model) and the
 per-message "sources used" view.
 **Switch demo 2026-11-18: 5/5 PASS twice**, Gemini 3.8 Flash -> Gemini 3.5 Flash Lite. Run 1:
