@@ -136,7 +136,11 @@ async def test_touched_but_identical_file_is_not_re_embedded(
     await index_once(session, world)
     world.fake.calls.clear()
     path = root / "README.md"
-    path.write_bytes(path.read_bytes().replace(b"\n", b"\r\n"))  # CRLF: same normalized text
+    # Flip the line endings (Git may check the fixture out with CRLF or LF): the normalized
+    # text stays the same, only size and mtime change.
+    data = path.read_bytes()
+    flipped = data.replace(b"\r\n", b"\n") if b"\r\n" in data else data.replace(b"\n", b"\r\n")
+    path.write_bytes(flipped)
     run = await index_once(session, world)
     assert embedded_texts(world.fake) == [] and run.files_unchanged >= 15
 

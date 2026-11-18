@@ -10,11 +10,13 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phases 1 and 2 are merged (last: PR #16). Phase 3 is built on `feat/project-indexing-rag`
-(not pushed, no PR yet): indexing, hybrid search and retrieved code in chat, migrations `0005`
-and `0006`, 373 tests, 96% coverage of the new code. The dev database `mantle` is still at `0004`
-until `alembic upgrade head`. Not done yet: a real-key run of `scripts/eval_retrieval.py`, the
-Phase 3 demo with real models, `GET /messages/{id}/context`.
+Phases 1 and 2 are merged; Phase 3 indexing is merged (PR #17, `3f3a2cb`): indexing, hybrid
+search, retrieved code in chat, migrations `0005`/`0006`, 373 tests. The dev database `mantle`
+is at `0006`. Real-key eval on 2026-11-18 (Gemini embedding, sample project, 20 questions):
+recall@5 vector 1.00 / text 0.95 / hybrid 1.00, MRR 0.950 / 0.833 / 0.950; it left a project
+"Retrieval eval" (`376f899f...`) in the dev database. Not done yet: the Phase 3 demo with real
+models, `GET /messages/{id}/context`. `fix/crlf-fixture-test` fixes a test that failed after
+checkout on main (see gotchas).
 To work: `docker compose up -d` from the project folder, then in `backend`
 `.venv\Scripts\Activate.ps1` and `uvicorn app.main:app --reload`.
 Open Phase 1/2 items: a cross-provider switch demo (needs a second working key), the Phase 2
@@ -29,7 +31,7 @@ First demo target: 2026-12-17. Last updated 2026-11-18.
 - 2026-11-18: LLM gateway (PR #7), model switching + context builder + rolling summary (PR #8),
   fixes #9–#12, project memory + pinned items (PR #14, `0004`), memory docs (PRs #15, #16).
   Switch demo 5/5 twice on Gemini 3.8 Flash -> 3.5 Flash Lite (same provider).
-- 2026-11-18: `feat/project-indexing-rag` (in review): `0005` (run states/counters/estimate,
+- 2026-11-18: `feat/project-indexing-rag` (PR #17, merged): `0005` (run states/counters/estimate,
   skipped-file rows, segment metadata, `search_tsv` + GIN), `0006` (`code_context_enabled`,
   message context lines); rag `source`, `scanner`, `secret_scan`, `chunker` (tree-sitter),
   `indexer` (incremental, vector reuse by hash, batches, backoff, cancel, resume, startup
@@ -38,13 +40,13 @@ First demo target: 2026-12-17. Last updated 2026-11-18.
 
 ## In progress
 
-- `feat/project-indexing-rag`: committed locally, waiting for review and push by the developer.
+- `fix/crlf-fixture-test`: one test made line-ending independent; waiting for push and PR.
 
 ## Next
 
 The developer decides. Candidates:
-1. Run `scripts/eval_retrieval.py` with the Gemini key, then the Phase 3 demo (index the Mantle
-   repo, ask "where is the health check timeout set?", switch models, ask again).
+1. The Phase 3 demo (index the Mantle repo, ask "where is the health check timeout set?",
+   switch models, ask again). The eval is done; a bigger eval set would show hybrid's value.
 2. `GET /messages/{id}/context` (rows exist), then the Phase 2 demo script.
 3. `feat/project-profile` (before `feat/teaching-layer`), then `feat/workflow-and-agents`.
 4. Not built from api-outline: message cancel, project update/archive/delete.
@@ -105,6 +107,8 @@ Full decision text: `docs/architecture.md` → Decisions.
   the test's request returns. A restart kills them; startup marks them `failed`/`interrupted`.
 - **`tests/fixtures/sample_project` is data**: excluded from ruff (`extend-exclude`) and pytest
   (`collect_ignore_glob`). Secret-shaped strings in tests are built at runtime.
+- **`core.autocrlf=true` checks the fixture out with CRLF.** Tests must not assume LF in
+  `tests/fixtures` (a test that turned LF into CRLF made CR CR LF and failed on main).
 - **The search endpoint is dev-only** (404 unless `APP_ENV=development`).
 - **Editing files with Python heredocs in Git Bash turned `\n` in code into real newlines** twice;
   use an editor tool for code that contains escape sequences.
