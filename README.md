@@ -179,6 +179,15 @@ prints a score (pass = at least 4 of 5). The turns, questions and expected keywo
 python scripts\switch_demo.py --model-a anthropic/claude-sonnet-5-5 --model-b openai/gpt-5.6
 ```
 
+With only a free Google AI Studio (Gemini) key, use two Gemini models. Which models the free tier
+includes changes over time; if one answers `rate_limited` or `provider_unavailable`, try another.
+
+```powershell
+python scripts\switch_demo.py --model-a gemini/gemini-3.8-flash --model-b gemini/gemini-3.5-flash-lite
+```
+
+New catalog models appear after `python -m app.db.seed` (existing models and keys stay as they are).
+
 ## Configuration
 
 Settings are read from `backend\.env`. This file is for your machine only and is **not** committed to

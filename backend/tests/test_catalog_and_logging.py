@@ -21,6 +21,14 @@ async def test_seed_models_is_idempotent_and_keeps_user_changes(session: AsyncSe
     assert gpt is not None and gpt.context_window == 1234
 
 
+def test_two_google_chat_models_for_a_free_key_demo() -> None:
+    # The switch demo needs two different models; a free Gemini key covers only Google.
+    google_chat = [
+        m.litellm_model for m in DEFAULT_MODELS if m.provider == "google" and m.kind == "chat"
+    ]
+    assert len(google_chat) >= 2
+
+
 @pytest.mark.parametrize(
     "secret",
     [
