@@ -21,7 +21,7 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 
 | Status | Branch | Goal |
 | --- | --- | --- |
-| | `feat/project-memory` | CRUD for requirements, decisions and tasks, fed into the context builder as pinned items. |
+| Done | `feat/project-memory` | CRUD for requirements, decisions and tasks, fed into the context builder as pinned items. |
 
 ## [Phase 3: Answers that cite your code](phases.md#phase-3-answers-that-cite-your-code)
 

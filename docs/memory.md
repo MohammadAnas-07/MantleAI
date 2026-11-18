@@ -10,10 +10,10 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phase 1's core feature works with real models; Phase 2 (project memory) is built on
-`feat/project-memory` (committed, not pushed or merged); 270 tests. Merged to `main`: up to PR #13.
-After the merge, run `alembic upgrade head` (migration `0004`) on the dev database `mantle`
-(now at `0003`). Docker is running (started for this task).
+Phase 1's core feature works with real models. Phase 2 (project memory) is merged (PR #14,
+`4721577`); 270 tests. The dev database `mantle` is at migration `0004`. Docker is running.
+Left for Phase 2: the demo (memory answers in a new conversation on another model) and the
+per-message "sources used" view.
 **Switch demo 2026-11-18: 5/5 PASS twice**, Gemini 3.8 Flash -> Gemini 3.5 Flash Lite. Run 1:
 all 12 messages verbatim. Run 2 (`SUMMARY_TRIGGER_TOKENS=200`): summary of #1-#6 (198 tokens,
 decisions 1-3 with reasons) + #7-#12 verbatim; B still 5/5, so the summary path works with real
@@ -45,7 +45,7 @@ Last updated 2026-11-18.
   endpoint takes `{}` so `/docs` sends JSON); PR #11 `feat/second-gemini-model` (Gemini 3.5 Flash
   Lite + demo results); PR #12 `fix/unwrap-stream-errors` (mid-stream 429 reported as
   `rate_limited`; logs show root type and HTTP status).
-- 2026-11-18: `feat/project-memory` (not merged): migration `0004` (per-kind statuses and
+- 2026-11-18: `feat/project-memory` (PR #14): migration `0004` (per-kind statuses and
   priorities, decision `why`/`alternatives`/`decided_at`/`superseded_by_id`, `memory_dependencies`
   table), `projects/memory_service.py` (validation, item limit, supersede, dependency cycles),
   `projects/schemas.py`, memory routes, `projects/pinned.py` (selection, caps, share of budget,
@@ -59,8 +59,9 @@ Last updated 2026-11-18.
 ## Next
 
 The developer decides what comes next. Candidates:
-1. Merge `feat/project-memory`, then the Phase 2 demo: 3 decisions + 2 tasks as memory, a NEW
-   conversation on another model answers the 5 questions from memory alone.
+1. The Phase 2 demo: 3 decisions + 2 tasks as memory, a NEW conversation on another model answers
+   the 5 questions from memory alone (with the free Gemini key: Gemini 3.8 Flash and 3.5 Flash
+   Lite). No script exists for it yet; `scripts/switch_demo.py` tests a switch, not memory.
 2. A cross-provider switch demo, once a second provider key works (closes Phase 1 fully).
 3. Not built yet from api-outline: `POST /messages/{id}/cancel`, `GET /messages/{id}/context`,
    project update/archive/delete.
