@@ -91,6 +91,10 @@ Full decision text: `docs/architecture.md` → Decisions.
   Voyage (1024 dims) stays disabled at 1536. `pgvector` returns numpy arrays.
 - **Repositories don't check that a parent row belongs to the same user.** Fix before auth.
 - **`litellm` takes ~11 s to import**: lazy import; `LITELLM_LOCAL_MODEL_COST_MAP=True`.
+- **LiteLLM wraps mid-stream errors in `MidStreamFallbackError`** (a ServiceUnavailableError) with
+  the real error in `original_exception`. `map_provider_error` unwraps it and also maps by HTTP
+  status (429, 401/403); logs show `type=... root=... status=...`. The free Gemini tier
+  rate-limits quickly: after ~30 calls in a few minutes, wait before re-running the demo.
 - **Rows created in one transaction share `now()`**: never order by `created_at` to find "newest".
 - **The running app must import every model** (`app/db/session.py` imports `app.db.models`). Tests
   import everything, so they hid a missing import once: the first usage row failed on
