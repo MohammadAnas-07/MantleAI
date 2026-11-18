@@ -16,3 +16,8 @@ dist/
 
 # Editors
 .idea/
+
+# Coverage data (pytest --cov)
+.coverage
+.coverage.*
+htmlcov/
