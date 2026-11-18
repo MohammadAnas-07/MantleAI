@@ -23,6 +23,20 @@ class Settings(BaseSettings):
     # HNSW supports at most 2000 dimensions for the `vector` type.
     embedding_dimensions: int = Field(default=1536, ge=1, le=2000)
 
+    # Context builder. Budget = context window - reserved output - safety margin (a share of the
+    # context window, because token counts are estimates and tokenizers differ).
+    context_reserved_output_tokens: int = Field(default=4096, ge=1)
+    context_safety_margin: float = Field(default=0.10, ge=0, lt=1)
+    # The latest user message and this many turns before it are never dropped.
+    context_keep_recent_turns: int = Field(default=2, ge=0)
+
+    # Rolling summary: runs when messages not yet covered pass this many tokens.
+    summary_trigger_tokens: int = Field(default=2000, ge=1)
+    summary_max_output_tokens: int = Field(default=1024, ge=1)
+
+    # A generation or summary lock older than this is treated as stale (crashed job).
+    conversation_lock_timeout_seconds: int = Field(default=600, ge=1)
+
 
 @lru_cache
 def get_settings() -> Settings:

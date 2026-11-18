@@ -39,6 +39,8 @@ if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `r
 
 ## Projects and memory (`projects`)
 
+Built so far (`feat/model-switching`, so conversations can be created through the API): `GET /api/v1/projects`, `POST /api/v1/projects`, `GET /api/v1/projects/{id}`. The rest of this table comes with `feat/project-memory`.
+
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/projects` | List projects |
@@ -55,6 +57,12 @@ if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `r
 
 ## Conversations and model switching (`conversations`)
 
+Built in `feat/model-switching`. The conversation in Mantle's database is the source of truth;
+messages are stored provider-neutral with a `sequence` number. Mantle never switches models by
+itself: `context_too_long` (413) and `rate_limited` errors carry `details.suggested_models`
+(enabled chat models the user has a key for: bigger context window, or another provider).
+A second reply or a switch while a reply is streaming gets 409 `generation_in_progress`.
+
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/projects/{id}/conversations` | List the project's conversations |
@@ -62,13 +70,13 @@ if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `r
 | GET | `/api/v1/conversations/{id}` | Get a conversation and its current model |
 | PATCH | `/api/v1/conversations/{id}` | Rename |
 | DELETE | `/api/v1/conversations/{id}` | Delete |
-| GET | `/api/v1/conversations/{id}/messages` | List messages (paged) |
-| POST | `/api/v1/conversations/{id}/messages` | Send a message. The response is an SSE stream: `context`, `token`, `done`, `error` |
-| POST | `/api/v1/messages/{id}/cancel` | Stop a reply that is still streaming |
-| GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply |
-| GET | `/api/v1/conversations/{id}/summary` | The current rolling summary and which messages it covers |
-| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | What would carry over to that model (summary, raw messages kept, token counts), and whether the switch will make a summary call, with estimated tokens |
-| POST | `/api/v1/conversations/{id}/switch-model` | Switch `{model_id, reason}`, creating a ContextHandoff. Never calls the old model. Builds the summary now if background summaries are off |
+| GET | `/api/v1/conversations/{id}/messages` | List messages by `sequence` (paged with `after_sequence`, `limit`) |
+| POST | `/api/v1/conversations/{id}/messages` | Send `{content}`. The response is an SSE stream: `message_start`, `delta` (text), then `message_end` (with usage) or `error` (with `suggested_models` for rate limits and context limits). The reply is saved when the stream ends; if the client disconnects, the upstream call is cancelled and the partial text is saved with status `cancelled`. Purpose `chat`, trigger `user`. The first message sets the title (first 60 characters; no LLM call) |
+| POST | `/api/v1/messages/{id}/cancel` | Stop a reply that is still streaming. **Not built yet**; closing the stream cancels the reply |
+| GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply. **Not built yet** (comes with retrieval and project memory) |
+| GET | `/api/v1/conversations/{id}/summary` | The current rolling summary, the message `sequence` range it covers, whether a job is running, and the last job error |
+| GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | Exactly what would be sent to that model: each section (system, pinned items, summary, recent messages, retrieved context) with its content and tokens, the budget (context window - reserved output - safety margin), the total, what is dropped, `has_key`, and `will_build_summary` with its input tokens. No LLM call; never contains keys |
+| POST | `/api/v1/conversations/{id}/switch-model` | Switch `{model_id, reason}`. Checks the model exists and the user has a key for its provider. Never calls the old model. If background summaries are off, the NEW model writes the summary now (purpose `switch_summary`, trigger `user`). Creates a ContextHandoff whose `note` (built without an LLM, never sent to a model) lists messages carried verbatim, the summary range and size, pinned items and what was dropped. Returns `{conversation, handoff, preview}` |
 | GET | `/api/v1/conversations/{id}/handoffs` | History of model switches |
 
 ## RAG (`rag`)

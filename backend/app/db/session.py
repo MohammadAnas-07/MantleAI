@@ -7,7 +7,12 @@ from collections.abc import AsyncIterator
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+import app.db.models  # noqa: F401  (register EVERY table, see below)
 from app.core.config import settings
+
+# Every model must be registered before the first flush: foreign keys such as
+# usage_records.agent_run_id point at tables of modules the app may not have imported yet
+# (workflow, rag, teaching). Without this, the first usage row fails in the running app.
 
 logger = logging.getLogger(__name__)
 

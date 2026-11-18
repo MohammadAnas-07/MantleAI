@@ -48,13 +48,13 @@ and the new model continues with the earlier context.
 - [x] Dependencies have version ranges, and `backend/requirements.lock` exists.
 - [x] Alembic migrations create all v0.1 tables and downgrade cleanly; the seed script creates the default local user.
 - [x] Keys are stored encrypted; the API shows only the last 4 characters.
-- [ ] Streaming chat works with at least two providers.
-- [ ] Every message records its model, and every LLM call writes a usage record with `trigger`.
-- [ ] The rolling summary runs in the background and can be turned off; when off, the summary is built at switch time.
-- [ ] The handoff preview shows what carries over; the switch never calls the old model.
-- [ ] A rate-limit or context-limit error shows a "switch model" suggestion.
-- [ ] The demo switch passes the 5-question check (at least 4 of 5).
-- [ ] All tests pass without API keys.
+- [ ] Streaming chat works with at least two providers. (Built and tested with FakeProvider; not yet run against real providers.)
+- [x] Every message records its model, and every LLM call writes a usage record with `trigger`.
+- [x] The rolling summary runs in the background and can be turned off; when off, the summary is built at switch time.
+- [x] The handoff preview shows what carries over; the switch never calls the old model.
+- [x] A rate-limit or context-limit error shows a "switch model" suggestion.
+- [ ] The demo switch passes the 5-question check (at least 4 of 5). Run `python scripts/switch_demo.py --model-a ... --model-b ...` with real keys.
+- [x] All tests pass without API keys.
 
 **Postponed:** any UI, project memory, indexing, workflow, teaching.
 

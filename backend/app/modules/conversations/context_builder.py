@@ -1,0 +1,340 @@
+"""ContextBuilder: what we send to a target model, within its token budget.
+
+Sections, most important first:
+  1. system prompt (Mantle rules + short project summary), from a versioned prompt file
+  2. pinned items (decisions, requirements, open tasks) from the projects module
+  3. the rolling conversation summary
+  4. recent messages, verbatim
+  5. retrieved context (an empty slot until RAG exists)
+
+Budget = context window - reserved output tokens - safety margin (a share of the window).
+When the total is over budget, the lowest-priority content goes first: retrieved context, then the
+oldest recent messages, then the summary, then pinned items (tasks, then requirements, then
+decisions). The system prompt, the latest user message and the last few turns are never dropped;
+if even those don't fit, ContextTooLong is raised.
+
+Pinned items, the summary and retrieved text are untrusted data: they are wrapped in tags and the
+system prompt says they are not instructions. This module makes no LLM call and has no I/O.
+"""
+
+import json
+import math
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
+
+from app.core.config import settings
+from app.modules.conversations.prompts import SYSTEM_PROMPT, load_prompt
+from app.modules.llm.service import ChatMessages, ContextTooLong, ModelInfo
+from app.modules.projects.service import PinnedItem, ProjectInfo
+
+TokenCounter = Callable[[ChatMessages], int]
+
+_DATA_TAGS = ("pinned_items", "conversation_summary", "retrieved_context")
+
+
+@dataclass(frozen=True)
+class HistoryMessage:
+    sequence: int
+    role: str  # user | assistant | system | tool
+    content: list[dict[str, Any]]  # provider-neutral parts
+
+
+@dataclass(frozen=True)
+class SummaryInput:
+    text: str
+    from_sequence: int
+    to_sequence: int
+
+
+@dataclass(frozen=True)
+class ContextInputs:
+    project: ProjectInfo
+    pinned: list[PinnedItem]
+    summary: SummaryInput | None
+    # Messages NOT covered by the summary, oldest first. The last one is the latest user message.
+    history: list[HistoryMessage]
+    retrieved: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class BudgetSettings:
+    reserved_output_tokens: int
+    safety_margin: float
+    keep_recent_turns: int
+
+    @classmethod
+    def from_settings(cls) -> "BudgetSettings":
+        return cls(
+            reserved_output_tokens=settings.context_reserved_output_tokens,
+            safety_margin=settings.context_safety_margin,
+            keep_recent_turns=settings.context_keep_recent_turns,
+        )
+
+
+@dataclass
+class SectionReport:
+    name: str  # system | pinned_items | conversation_summary | recent_messages | retrieved_context
+    included: bool
+    tokens: int
+    content: str | ChatMessages
+    items_total: int = 0
+    items_included: int = 0
+
+
+@dataclass
+class BuiltContext:
+    model: ModelInfo
+    messages: ChatMessages
+    context_window: int
+    reserved_output_tokens: int
+    safety_margin_tokens: int
+    budget: int
+    total_tokens: int
+    sections: list[SectionReport]
+    dropped: list[str]
+    messages_verbatim: int
+    first_verbatim_sequence: int | None
+    summary_range: tuple[int, int] | None
+    summary_tokens: int
+    pinned_included: int
+
+
+# ---- tool history conversion -----------------------------------------------------------------
+
+
+def _text(parts: list[dict[str, Any]]) -> str:
+    return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
+
+
+def to_chat_messages(message: HistoryMessage, supports_tools: bool) -> ChatMessages:
+    """One stored message in the target model's format. For models without tool support,
+    tool calls and tool results become plain text."""
+    parts = message.content
+    text = _text(parts)
+    calls = [p for p in parts if p.get("type") == "tool_call"]
+    results = [p for p in parts if p.get("type") == "tool_result"]
+
+    if supports_tools:
+        if message.role == "tool":
+            return [
+                {"role": "tool", "tool_call_id": r["tool_call_id"], "content": r["content"]}
+                for r in results
+            ]
+        out: dict[str, Any] = {"role": message.role, "content": text}
+        if calls:
+            out["tool_calls"] = [
+                {
+                    "id": c["id"],
+                    "type": "function",
+                    "function": {
+                        "name": c["name"],
+                        "arguments": json.dumps(c.get("arguments", {})),
+                    },
+                }
+                for c in calls
+            ]
+        return [out]
+
+    lines = [text] if text else []
+    for c in calls:
+        args = json.dumps(c.get("arguments", {}), sort_keys=True)
+        lines.append(f"[Tool call {c['name']}({args}), id {c['id']}]")
+    for r in results:
+        error = " (error)" if r.get("is_error") else ""
+        lines.append(f"[Tool result for {r['tool_call_id']}{error}: {r['content']}]")
+    role = "assistant" if message.role == "tool" else message.role
+    return [{"role": role, "content": "\n".join(lines)}]
+
+
+# ---- section text ----------------------------------------------------------------------------
+
+
+def _neutralize(text: str) -> str:
+    """Stop data from closing our delimiter tags early."""
+    for tag in _DATA_TAGS:
+        text = text.replace(f"</{tag}", f"&lt;/{tag}")
+    return text
+
+
+def system_text(project: ProjectInfo) -> str:
+    description = (project.description or "").strip()[:500]
+    return (
+        load_prompt(SYSTEM_PROMPT)
+        .format(project_name=project.name, project_description=description)
+        .strip()
+    )
+
+
+def pinned_text(items: list[PinnedItem]) -> str:
+    if not items:
+        return ""
+    lines = [f"- [{i.kind}] {i.title}" + (f": {i.body}" if i.body else "") for i in items]
+    return "<pinned_items>\n" + _neutralize("\n".join(lines)) + "\n</pinned_items>"
+
+
+def summary_text(summary: SummaryInput | None) -> str:
+    if summary is None:
+        return ""
+    covers = f"messages {summary.from_sequence}-{summary.to_sequence}"
+    return (
+        f'<conversation_summary covers="{covers}">\n'
+        + _neutralize(summary.text.strip())
+        + "\n</conversation_summary>"
+    )
+
+
+def retrieved_text(blocks: list[str]) -> str:
+    if not blocks:
+        return ""
+    return "<retrieved_context>\n" + _neutralize("\n\n".join(blocks)) + "\n</retrieved_context>"
+
+
+# ---- the builder -----------------------------------------------------------------------------
+
+
+def compute_budget(model: ModelInfo, budget: BudgetSettings) -> tuple[int, int, int]:
+    """(budget, reserved output, safety margin) in tokens."""
+    reserved = budget.reserved_output_tokens
+    if model.max_output_tokens:
+        reserved = min(reserved, model.max_output_tokens)
+    margin = math.ceil(model.context_window * budget.safety_margin)
+    return model.context_window - reserved - margin, reserved, margin
+
+
+def required_start(history: list[HistoryMessage], keep_recent_turns: int) -> int:
+    """Index of the first message that must be kept: the latest user message plus
+    `keep_recent_turns` user turns before it, with everything after them."""
+    user_positions = [i for i, m in enumerate(history) if m.role == "user"]
+    if not user_positions:
+        return max(len(history) - 1, 0)
+    keep = user_positions[-(keep_recent_turns + 1) :]
+    return keep[0]
+
+
+class ContextBuilder:
+    def __init__(self, count: TokenCounter, budget: BudgetSettings | None = None) -> None:
+        self.count = count
+        self.budget_settings = budget or BudgetSettings.from_settings()
+
+    def build(self, model: ModelInfo, inputs: ContextInputs) -> BuiltContext:
+        budget, reserved, margin = compute_budget(model, self.budget_settings)
+
+        converted = [to_chat_messages(m, model.supports_tools) for m in inputs.history]
+        msg_tokens = [self.count(msgs) if msgs else 0 for msgs in converted]
+        required = required_start(inputs.history, self.budget_settings.keep_recent_turns)
+
+        base = system_text(inputs.project)
+        use_retrieved = bool(inputs.retrieved)
+        use_summary = inputs.summary is not None
+        pinned_kept = len(inputs.pinned)
+        first_kept = 0  # index of the oldest history message still included
+        dropped: list[str] = []
+
+        def system_message() -> str:
+            blocks = [
+                base,
+                pinned_text(inputs.pinned[:pinned_kept]),
+                summary_text(inputs.summary) if use_summary else "",
+                retrieved_text(inputs.retrieved) if use_retrieved else "",
+            ]
+            return "\n\n".join(b for b in blocks if b)
+
+        def assemble() -> ChatMessages:
+            messages: ChatMessages = [{"role": "system", "content": system_message()}]
+            for msgs in converted[first_kept:]:
+                messages.extend(msgs)
+            return messages
+
+        def estimate() -> int:
+            system_tokens = self.count([{"role": "system", "content": system_message()}])
+            return system_tokens + sum(msg_tokens[first_kept:])
+
+        def drop_next() -> bool:
+            nonlocal use_retrieved, use_summary, pinned_kept, first_kept
+            if use_retrieved:
+                use_retrieved = False
+                dropped.append("retrieved_context")
+                return True
+            if first_kept < required:
+                dropped.append(f"message #{inputs.history[first_kept].sequence}")
+                first_kept += 1
+                return True
+            if use_summary:
+                use_summary = False
+                dropped.append("conversation_summary")
+                return True
+            if pinned_kept > 0:
+                pinned_kept -= 1
+                item = inputs.pinned[pinned_kept]
+                dropped.append(f"pinned {item.kind}: {item.title}")
+                return True
+            return False
+
+        # Fast pass on per-section estimates, then confirm with a real count of the whole request.
+        total = estimate()
+        while True:
+            while total > budget:
+                if not drop_next():
+                    raise ContextTooLong(
+                        "Even the system prompt and the latest messages don't fit this model.",
+                        details={
+                            "model_id": str(model.id),
+                            "budget": budget,
+                            "required_tokens": total,
+                        },
+                    )
+                total = estimate()
+            messages = assemble()
+            total = self.count(messages)
+            if total <= budget:
+                break
+
+        sections = self._report(inputs, base, use_retrieved, use_summary, pinned_kept,
+                                converted[first_kept:])  # fmt: skip
+        included = inputs.history[first_kept:]
+        summary = inputs.summary if use_summary else None
+        return BuiltContext(
+            model=model,
+            messages=messages,
+            context_window=model.context_window,
+            reserved_output_tokens=reserved,
+            safety_margin_tokens=margin,
+            budget=budget,
+            total_tokens=total,
+            sections=sections,
+            dropped=dropped,
+            messages_verbatim=len(included),
+            first_verbatim_sequence=included[0].sequence if included else None,
+            summary_range=(summary.from_sequence, summary.to_sequence) if summary else None,
+            summary_tokens=next(s.tokens for s in sections if s.name == "conversation_summary"),
+            pinned_included=pinned_kept,
+        )
+
+    def _report(
+        self,
+        inputs: ContextInputs,
+        base: str,
+        use_retrieved: bool,
+        use_summary: bool,
+        pinned_kept: int,
+        recent: list[ChatMessages],
+    ) -> list[SectionReport]:
+        def tokens(text: str) -> int:
+            return self.count([{"role": "system", "content": text}]) if text else 0
+
+        pinned = pinned_text(inputs.pinned[:pinned_kept])
+        summary = summary_text(inputs.summary) if use_summary else ""
+        retrieved = retrieved_text(inputs.retrieved) if use_retrieved else ""
+        recent_flat = [m for msgs in recent for m in msgs]
+        return [
+            SectionReport("system", True, tokens(base), base),
+            SectionReport("pinned_items", pinned_kept > 0, tokens(pinned), pinned,
+                          len(inputs.pinned), pinned_kept),
+            SectionReport("conversation_summary", use_summary, tokens(summary), summary,
+                          1 if inputs.summary else 0, 1 if use_summary else 0),
+            SectionReport("recent_messages", bool(recent), self.count(recent_flat) if recent else 0,
+                          recent_flat, len(inputs.history), len(recent)),
+            SectionReport("retrieved_context", use_retrieved, tokens(retrieved), retrieved,
+                          len(inputs.retrieved), len(inputs.retrieved) if use_retrieved else 0),
+        ]  # fmt: skip
