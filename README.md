@@ -167,6 +167,18 @@ Database tests use a separate database, `mantle_test`, which they create if it's
 never touch `mantle`. If PostgreSQL is down, those tests are skipped and the rest still pass.
 `ruff format .` reformats the code.
 
+## Switch demo (real models)
+
+`backend\scripts\switch_demo.py` measures the Phase 1 success metric with **real, paid** calls.
+It plays 5 decisions to model A, switches to model B, asks 5 questions about those decisions and
+prints a score (pass = at least 4 of 5). The turns, questions and expected keywords are in
+`backend\scripts\switch_demo.yaml`. First save a key for both providers
+(`POST /api/v1/credentials`), then from `backend`:
+
+```powershell
+python scripts\switch_demo.py --model-a anthropic/claude-sonnet-5-5 --model-b openai/gpt-5.6
+```
+
 ## Configuration
 
 Settings are read from `backend\.env`. This file is for your machine only and is **not** committed to

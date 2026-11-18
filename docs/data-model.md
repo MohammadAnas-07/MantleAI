@@ -82,11 +82,17 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 
 **Conversation**
 - `user_id` → User, `project_id` → Project
-- `title`
-- `current_model_id` → ModelConfig
+- `title`: set from the first 60 characters of the first message when empty (no LLM call)
+- `current_model_id` → ModelConfig: a switch changes only this
+- `generating_since` (nullable): lock, one reply or switch at a time (409 otherwise)
+- `summary_started_at` (nullable): lock, one rolling-summary job at a time
+- `summary_error` (nullable): error code of the last failed summary job
+- A lock older than `CONVERSATION_LOCK_TIMEOUT_SECONDS` (600) is stale and can be taken over.
 
 **Message**
 - `user_id` → User, `conversation_id` → Conversation
+- `sequence`: 1, 2, 3, ... per conversation (unique with `conversation_id`); the conversation's
+  order, independent of timestamps
 - `role`: `user` | `assistant` | `system` | `tool`
 - `content` (JSON): a provider-neutral list of parts, validated by
   `app/modules/conversations/schemas.py`:
@@ -94,16 +100,20 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
   `{"type": "tool_result", "tool_call_id", "content", "is_error"}`. v0.1 agents have no tools, so
   only text parts are written for now; the format is ready for tools later.
 - `model_id` → ModelConfig: the model that produced it (nullable for user messages)
-- `status`: `complete` | `streaming` | `error` | `cancelled`
+- `status`: `complete` | `streaming` | `error` | `cancelled` (`cancelled` = incomplete: the client disconnected and the partial text was kept)
 - `error_code` (nullable)
 - `token_count`: tokens of this message's own content (for fitting history into a window)
 - `input_tokens`, `output_tokens` (nullable): provider-reported usage of the call that produced it
 
 **ConversationSummary**: the rolling summary, built in the background, or at switch time when
-background summaries are off. A new row is added each time it's updated; the newest row is the
-current one.
+background summaries are off. A new row is added each time it's updated; the current one is the
+row with the highest `to_sequence`. It is incremental: previous summary + messages after its
+`to_sequence`. The latest user message and the last `CONTEXT_KEEP_RECENT_TURNS` turns are never
+summarized.
 - `user_id` → User, `conversation_id` → Conversation
-- `summary` (text): goals, decisions, code state, open issues
+- `from_sequence`, `to_sequence`: the messages it covers
+- `summary` (text): decisions and why, constraints and preferences, files, errors, open questions
+  (prompt `app/modules/conversations/prompts/summary_v1.txt`)
 - `up_to_message_id` → Message: the last message this summary covers
 - `model_id` → ModelConfig: the model that wrote it
 - `built_at`: `background` | `switch`
@@ -114,8 +124,11 @@ current one.
 - `from_model_id`, `to_model_id` → ModelConfig
 - `reason`: `user_choice` | `rate_limit` | `context_limit` | `provider_error`
 - `conversation_summary_id` → ConversationSummary (nullable: none for short conversations)
-- `first_raw_message_id` → Message: the oldest message carried over as-is
-- `tokens_before`, `tokens_after`
+- `first_raw_message_id` → Message (nullable): the oldest message carried over as-is; null when
+  none is carried
+- `tokens_before`, `tokens_after`: estimated context size on the old and the new model
+- `note` (JSON): the handoff note shown to the user, built without an LLM and never sent to a
+  model: messages carried verbatim, summary range and tokens, pinned items, what was dropped
 
 **MessageContext**: what was used to answer one message.
 - `user_id` → User, `message_id` → Message
