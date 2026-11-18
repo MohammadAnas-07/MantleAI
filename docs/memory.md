@@ -12,9 +12,15 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 Phase 1 is almost done. Database layer (PR #5), LLM gateway (PR #7) and model switching (PR #8,
 `be9b599`) are merged; 185 tests. The dev database `mantle` is migrated to `0003`. Left for
-Phase 1: run `scripts/switch_demo.py` with real keys and pass 4 of 5. The developer has no paid
-provider key; a free Google AI Studio (Gemini) key works for chat, but the catalog has only one
-Gemini model, so the demo needs a second Gemini model added (small change) or a second key.
+Phase 1: run `scripts/switch_demo.py` with real keys and pass 4 of 5. Real calls verified on
+2026-11-18: Gemini 3.8 Flash streams fine (6 demo turns); the developer's OpenAI key is valid but
+returns `rate_limited` (no credit). `feat/second-gemini-model` adds Gemini 3.5 Flash Lite so the
+demo can run Gemini -> Gemini with the free key (then `python -m app.db.seed`).
+**Switch demo 2026-11-18: 5/5 PASS twice**, Gemini 3.8 Flash -> Gemini 3.5 Flash Lite. Run 1:
+all 12 messages verbatim. Run 2 (`SUMMARY_TRIGGER_TOKENS=200`): summary of #1-#6 (198 tokens,
+decisions 1-3 with reasons) + #7-#12 verbatim; B still 5/5, so the summary path works with real
+models; the next summary was incremental and kept all reasons. Limit: one provider only (the
+docs' demo is cross-provider, e.g. Claude -> GPT); needs a second working key.
 First demo target: 2026-12-17.
 Last updated 2026-11-18.
 
@@ -42,8 +48,9 @@ Last updated 2026-11-18.
 
 ## Next
 
-1. Run the switch demo with real keys (last Phase 1 exit criterion); with only a free Gemini key,
-   first add a second Gemini chat model to the catalog. The developer decides what comes next.
+1. Merge `feat/second-gemini-model`, run `python -m app.db.seed`, then the switch demo:
+   `--model-a gemini/gemini-3.8-flash --model-b gemini/gemini-3.5-flash-lite` (last Phase 1 exit
+   criterion). The developer decides what comes next.
 2. `feat/project-memory` (Phase 2): memory CRUD; pinned items already flow into the context.
 3. Not built yet from api-outline: `POST /messages/{id}/cancel`, `GET /messages/{id}/context`,
    project update/archive/delete.
@@ -98,6 +105,10 @@ Full decision text: `docs/architecture.md` → Decisions.
 - **Under Starlette/anyio, cancellation hits every later `await`.** Writes after a client
   disconnect (usage row, partial reply, lock release) run inside `anyio.CancelScope(shield=True)`.
 - Tests run Alembic in a separate thread (`env.py` calls `asyncio.run()`).
+- **Every write endpoint needs a JSON body** (even `{}`), or `/docs` sends no Content-Type and
+  gets 415 (fixed for the key test in PR #10; `tests/test_app_wiring.py` guards it).
+- **Swagger's "Example Value" is not the real answer**; the real one is under "Server response".
+- OpenAI: `auth_failed` = wrong or partial key; `rate_limited` on a tiny test = no credit.
 - **What FakeProvider tests can't prove:** real summary quality, real token counts, real
   streaming/usage chunks from each provider. Only `scripts/switch_demo.py` with real keys does.
 

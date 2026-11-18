@@ -47,6 +47,9 @@ DEFAULT_MODELS: list[CatalogEntry] = [
                  922_000, 128_000, True, _d("0.2"), _d("1.2")),
     CatalogEntry("google", "gemini/gemini-3.8-flash", "Gemini 3.8 Flash", CHAT,
                  1_048_576, 65_536, True, _d("0.75"), _d("3.75")),
+    # A second Google chat model, so the switch demo can run with only a free Gemini key.
+    CatalogEntry("google", "gemini/gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite", CHAT,
+                 1_048_576, 65_536, True, _d("0.3"), _d("2.5")),
     CatalogEntry("openai", "openai/text-embedding-3-small", "OpenAI text-embedding-3-small", EMBED,
                  8_191, None, False, _d("0.02"), _d("0"), embedding_dimensions=1536),
     CatalogEntry("voyage", "voyage/voyage-4-lite", "Voyage 4 Lite", EMBED,
