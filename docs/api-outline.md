@@ -17,12 +17,19 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 
 ## LLM gateway (`llm`)
 
+Built in `feat/llm-gateway`. Write requests without `Content-Type: application/json` get 415.
+No response ever contains an API key; credentials show `key_hint` (last 4 characters). Models
+come from a default catalog added by `python -m app.db.seed`; an embedding model is enabled only
+if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `rate_limited`
+(429), `context_too_long` (413), `auth_failed` (401), `provider_unavailable` (503),
+`no_credential` and `model_unavailable` (422).
+
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/providers` | List supported providers, whether a key is set, and whether the provider can do embeddings |
 | GET | `/api/v1/credentials` | List saved keys (label, provider, last 4 characters only) |
 | POST | `/api/v1/credentials` | Save a key `{provider, label, api_key}` (encrypted, never returned) |
-| POST | `/api/v1/credentials/{id}/test` | Make a tiny test call with this key |
+| POST | `/api/v1/credentials/{id}/test` | Make a tiny test call with this key (1 output token, logged as `key_test`); returns `{ok, error_code, model_id, tested_at}` |
 | DELETE | `/api/v1/credentials/{id}` | Delete a key |
 | GET | `/api/v1/models` | List models (`kind`, context window, enabled) |
 | PATCH | `/api/v1/models/{id}` | Enable or disable a model, override its context window |

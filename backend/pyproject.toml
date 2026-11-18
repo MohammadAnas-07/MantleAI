@@ -16,6 +16,7 @@ dependencies = [
     "alembic>=1.20.1,<2",
     "cryptography>=50.0.2,<51",
     "pgvector>=0.4.2,<0.5",
+    "litellm>=1.110.0,<1.111",
 ]
 
 [project.optional-dependencies]

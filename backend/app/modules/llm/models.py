@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import ForeignKey, LargeBinary, Numeric, String, true
+from sqlalchemy import ForeignKey, LargeBinary, Numeric, String, false, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Entity, UserOwnedEntity, fk, str_enum
@@ -23,6 +23,7 @@ class UsagePurpose(StrEnum):
     EMBEDDING = "embedding"
     AGENT = "agent"
     TEACHING = "teaching"
+    KEY_TEST = "key_test"  # the tiny call made by "test key"
 
 
 class UsageTrigger(StrEnum):
@@ -61,6 +62,8 @@ class ModelConfig(Entity):
     context_window: Mapped[int]
     max_output_tokens: Mapped[int | None]
     embedding_dimensions: Mapped[int | None]
+    # Whether the model accepts tool calls. When false, tool history is sent as plain text.
+    supports_tools: Mapped[bool] = mapped_column(default=False, server_default=false())
     input_cost_per_mtok: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
     output_cost_per_mtok: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
     enabled: Mapped[bool] = mapped_column(default=True, server_default=true())

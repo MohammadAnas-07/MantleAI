@@ -1,4 +1,4 @@
-"""Create the default local user. Safe to run any number of times.
+"""Create the default local user and the default model catalog. Safe to run any number of times.
 
 Run from backend/:  python -m app.db.seed
 """
@@ -29,17 +29,20 @@ async def seed_default_user(session: AsyncSession) -> bool:
 
 async def main() -> None:
     from app.db.session import SessionLocal, engine
+    from app.modules.llm.service import seed_default_models
 
     try:
         async with SessionLocal() as session:
             created = await seed_default_user(session)
+            models_created = await seed_default_models(session)
             await session.commit()
     finally:
         await engine.dispose()
     if created:
         logger.info("Created the default local user (%s).", DEFAULT_LOCAL_USER_ID)
     else:
-        logger.info("Default local user already exists; nothing to do.")
+        logger.info("Default local user already exists.")
+    logger.info("Added %d catalog model(s); existing models were left unchanged.", models_created)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,11 @@
 """Repositories for the llm module. Every query on user data filters by user_id."""
 
+import uuid
+from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
+
+from sqlalchemy import func, select
 
 from app.db.repository import Repository, UserScopedRepository
 from app.modules.llm.crypto import encrypt_secret, key_hint
@@ -23,6 +28,23 @@ class ProviderCredentialRepository(UserScopedRepository[ProviderCredential]):
     async def add(self, **values: Any) -> ProviderCredential:
         raise TypeError("Use add_key(); a credential must be created from a plaintext key.")
 
+    async def latest_for_provider(self, provider: str) -> ProviderCredential | None:
+        stmt = (
+            self._select()
+            .where(ProviderCredential.provider == provider)
+            .order_by(ProviderCredential.created_at.desc(), ProviderCredential.id.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
+    async def providers_with_keys(self) -> set[str]:
+        stmt = (
+            select(ProviderCredential.provider)
+            .where(ProviderCredential.user_id == self.user_id)
+            .distinct()
+        )
+        return set((await self.session.execute(stmt)).scalars().all())
+
 
 class ModelConfigRepository(Repository[ModelConfig]):
     """Shared catalog, not user data, so not scoped by user."""
@@ -44,3 +66,33 @@ class UserModelSettingsRepository(UserScopedRepository[UserModelSettings]):
 
 class UsageRecordRepository(UserScopedRepository[UsageRecord]):
     model = UsageRecord
+
+    async def totals(
+        self,
+        *,
+        project_id: uuid.UUID | None = None,
+        model_id: uuid.UUID | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> Sequence[Any]:
+        """One row per (purpose, trigger, model): calls, tokens and cost."""
+        stmt = select(
+            UsageRecord.purpose,
+            UsageRecord.trigger,
+            UsageRecord.model_id,
+            func.count().label("calls"),
+            func.coalesce(func.sum(UsageRecord.input_tokens), 0).label("input_tokens"),
+            func.coalesce(func.sum(UsageRecord.output_tokens), 0).label("output_tokens"),
+            func.sum(UsageRecord.cost_usd).label("cost_usd"),
+        ).where(UsageRecord.user_id == self.user_id)
+        if project_id is not None:
+            stmt = stmt.where(UsageRecord.project_id == project_id)
+        if model_id is not None:
+            stmt = stmt.where(UsageRecord.model_id == model_id)
+        if since is not None:
+            stmt = stmt.where(UsageRecord.created_at >= since)
+        if until is not None:
+            stmt = stmt.where(UsageRecord.created_at < until)
+        stmt = stmt.group_by(UsageRecord.purpose, UsageRecord.trigger, UsageRecord.model_id)
+        stmt = stmt.order_by(UsageRecord.purpose, UsageRecord.trigger)
+        return (await self.session.execute(stmt)).all()

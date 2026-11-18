@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api.errors import JsonOnlyMiddleware, install_error_handlers
+from app.api.router import api_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.db.session import check_database, engine
@@ -21,6 +23,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Mantle AI", version="0.1.0", lifespan=lifespan)
+app.add_middleware(JsonOnlyMiddleware)
+install_error_handlers(app)
+app.include_router(api_router)
 
 
 @app.get("/health")

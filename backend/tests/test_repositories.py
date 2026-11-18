@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.repositories import UserRepository
@@ -176,6 +176,12 @@ async def test_message_content_is_provider_neutral(session: AsyncSession, graph_
 async def test_latest_summary(session: AsyncSession, graph_a: Graph) -> None:
     first = graph_a.rows[ConversationSummaryRepository]
     repo = ConversationSummaryRepository(session, graph_a.user_id)
+    # One test transaction means one now(); age the first row so "newest" is well defined.
+    await session.execute(
+        text("UPDATE conversation_summaries SET created_at = now() - interval '1 minute' "
+             "WHERE id = :id"),
+        {"id": first.id},
+    )  # fmt: skip
     newer = await repo.add(
         conversation_id=first.conversation_id,
         summary="Newer.",

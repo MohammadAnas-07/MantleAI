@@ -135,6 +135,7 @@ current one.
 **ModelConfig**: shared catalog, not user data (no `user_id`).
 - `provider`, `litellm_model` (for example `openai/text-embedding-3-small`), `display_name`
 - `kind`: `chat` | `embedding`
+- `supports_tools` (bool): when false, tool-call history is sent to the model as plain text
 - `context_window`, `max_output_tokens`, `embedding_dimensions` (embedding models only)
 - `input_cost_per_mtok`, `output_cost_per_mtok` (nullable)
 - `enabled`
@@ -151,6 +152,7 @@ current one.
 - `user_id` → User
 - `model_id` → ModelConfig
 - `purpose`: `chat` | `rolling_summary` | `switch_summary` | `embedding` | `agent` | `teaching`
+  | `key_test` (the tiny call made by "test key")
 - `trigger`: `user` (the user directly asked) | `background` (they didn't). The usage view shows
   each `background` purpose as its own line. **Every LLM call writes a row; no exceptions.**
 - `project_id`, `conversation_id`, `message_id`, `agent_run_id` (all nullable)
