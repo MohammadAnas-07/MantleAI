@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 
 import { Button } from "./Button";
 
@@ -34,7 +34,7 @@ export function Dialog({ title, open, onClose, children }: DialogProps) {
 
   if (!open) return null;
 
-  const onKeyDown = (event: React.KeyboardEvent) => {
+  const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.stopPropagation();
       onClose();

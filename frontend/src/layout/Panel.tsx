@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
-import { useId, type KeyboardEvent, type ReactNode } from "react";
+import { useId, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
 import { Tape } from "../components/ui/Feedback";
 
@@ -76,10 +76,10 @@ export function ResizeHandle({
     else return;
     event.preventDefault();
   };
-  const onPointerDown = (event: React.PointerEvent) => {
+  const onPointerDown = (event: PointerEvent) => {
     const startX = event.clientX;
     const start = value;
-    const move = (e: PointerEvent) => {
+    const move = (e: globalThis.PointerEvent) => {
       const delta = (e.clientX - startX) * (invert ? -1 : 1);
       onChange(clamp(start + delta));
     };
