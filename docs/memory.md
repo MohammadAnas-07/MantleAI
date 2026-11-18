@@ -10,11 +10,12 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phase 1 is almost done. Database layer (PR #5) and LLM gateway (PR #7) are merged.
-`feat/model-switching` is built and committed (5 commits, not pushed or merged): ContextBuilder,
-rolling summary, conversation + switch endpoints with SSE, switch demo script, 185 tests. After it
-merges: `alembic upgrade head` (migration `0003`) on the dev database. Left for Phase 1: run
-`scripts/switch_demo.py` with two real keys and pass 4 of 5. First demo target: 2026-12-17.
+Phase 1 is almost done. Database layer (PR #5), LLM gateway (PR #7) and model switching (PR #8,
+`be9b599`) are merged; 185 tests. The dev database `mantle` is migrated to `0003`. Left for
+Phase 1: run `scripts/switch_demo.py` with real keys and pass 4 of 5. The developer has no paid
+provider key; a free Google AI Studio (Gemini) key works for chat, but the catalog has only one
+Gemini model, so the demo needs a second Gemini model added (small change) or a second key.
+First demo target: 2026-12-17.
 Last updated 2026-11-18.
 
 ## Done
@@ -27,7 +28,7 @@ Last updated 2026-11-18.
   on error/cancel), `litellm_backend.py` (only litellm importer, lazy), `fake.py` (FakeProvider,
   call log), typed errors, seeded model catalog, migration `0002` (`supports_tools`), `app/api/`
   (error shape, JSON-only middleware, `/me`), llm endpoints, key-masking log filter.
-- 2026-11-18: `feat/model-switching` (not merged): `conversations/context_builder.py` (budget =
+- 2026-11-18: `feat/model-switching` (PR #8): `conversations/context_builder.py` (budget =
   window - reserved output - 10% margin; drop order retrieved → oldest messages → summary → pinned),
   `prompts/system_v1.txt` + `summary_v1.txt`, `summary.py` (incremental, lock, error stored),
   `suggestions.py`, `service.py` + `router.py` (conversations, SSE messages, summary,
@@ -41,7 +42,8 @@ Last updated 2026-11-18.
 
 ## Next
 
-1. Merge `feat/model-switching`, then run the switch demo with real keys (Phase 1 exit criterion).
+1. Run the switch demo with real keys (last Phase 1 exit criterion); with only a free Gemini key,
+   first add a second Gemini chat model to the catalog. The developer decides what comes next.
 2. `feat/project-memory` (Phase 2): memory CRUD; pinned items already flow into the context.
 3. Not built yet from api-outline: `POST /messages/{id}/cancel`, `GET /messages/{id}/context`,
    project update/archive/delete.
