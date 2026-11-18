@@ -18,6 +18,7 @@ from contextlib import aclosing
 from dataclasses import dataclass
 from decimal import Decimal
 
+import anyio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
@@ -177,18 +178,21 @@ class Gateway:
                     if text
                     else 0,
                 )
-            record_id = await self._record(
-                session,
-                user_id,
-                model,
-                purpose=purpose,
-                trigger=trigger,
-                usage=usage,
-                started=started,
-                status=status,
-                error_code=error_code,
-                links=links,
-            )
+            # Shielded: under Starlette/anyio a cancelled request cancels every later await, and
+            # the usage row must still be written (rule 35).
+            with anyio.CancelScope(shield=True):
+                record_id = await self._record(
+                    session,
+                    user_id,
+                    model,
+                    purpose=purpose,
+                    trigger=trigger,
+                    usage=usage,
+                    started=started,
+                    status=status,
+                    error_code=error_code,
+                    links=links,
+                )
         yield ChatDone(
             text=text,
             model_id=model.id,
