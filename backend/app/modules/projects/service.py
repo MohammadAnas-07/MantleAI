@@ -27,11 +27,13 @@ __all__ = [
     "PinnedSelection",
     "ProjectInfo",
     "create_project",
+    "delete_project",
     "get_project",
     "list_projects",
     "pinned_block",
     "pinned_selection",
     "set_root_path",
+    "update_project",
 ]
 
 
@@ -41,10 +43,13 @@ class ProjectInfo:
     name: str
     description: str | None
     root_path: str | None = None  # the indexed folder; validated by the rag module
+    default_model_id: uuid.UUID | None = None  # checked by the caller (projects calls no module)
 
 
 def _info(project: Project) -> ProjectInfo:
-    return ProjectInfo(project.id, project.name, project.description, project.root_path)
+    return ProjectInfo(
+        project.id, project.name, project.description, project.root_path, project.default_model_id
+    )
 
 
 async def get_project(
@@ -66,6 +71,27 @@ async def create_project(
 async def list_projects(session: AsyncSession, user_id: uuid.UUID) -> list[ProjectInfo]:
     rows = await ProjectRepository(session, user_id).list(archived_at=None, limit=500)
     return [_info(p) for p in rows]
+
+
+async def update_project(
+    session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID, **changes: object
+) -> ProjectInfo:
+    """Change `name` and/or `default_model_id` (None clears it). The caller has checked that
+    the model exists; this module calls no other module."""
+    unknown = set(changes) - {"name", "default_model_id"}
+    if unknown:
+        raise ValueError(f"can't change {sorted(unknown)}")
+    await get_project(session, user_id, project_id)
+    project = await ProjectRepository(session, user_id).update(project_id, **changes)
+    assert project is not None
+    return _info(project)
+
+
+async def delete_project(session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID) -> None:
+    """Delete the project; the database cascades to its memory, conversations, index and
+    runs. Usage rows stay (their project link is set to null)."""
+    await get_project(session, user_id, project_id)
+    await ProjectRepository(session, user_id).delete(project_id)
 
 
 async def set_root_path(

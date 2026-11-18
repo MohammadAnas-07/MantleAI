@@ -62,6 +62,7 @@ __all__ = [
     "delete_index",
     "estimate_index",
     "get_run",
+    "has_active_run",
     "index_status",
     "index_status_many",
     "list_documents",
@@ -253,6 +254,11 @@ async def list_runs(
         .limit(limit)
     )
     return rows.all()
+
+
+async def has_active_run(session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID) -> bool:
+    """True while an index run of the project is queued or running."""
+    return await active_run(session, user_id, project_id) is not None
 
 
 async def cancel_run(session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> IndexRun:
