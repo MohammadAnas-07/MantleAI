@@ -53,17 +53,11 @@ class MemoryItemRepository(UserScopedRepository[MemoryItem]):
         return int(await self.session.scalar(stmt) or 0)
 
     async def in_project(
-        self,
-        project_id: uuid.UUID,
-        *,
-        ids: Collection[uuid.UUID] | None = None,
-        kinds: Collection[MemoryItemKind] | None = None,
+        self, project_id: uuid.UUID, *, ids: Collection[uuid.UUID] | None = None
     ) -> Sequence[MemoryItem]:
         stmt = self._select().where(MemoryItem.project_id == project_id)
         if ids is not None:
             stmt = stmt.where(MemoryItem.id.in_(list(ids)))
-        if kinds is not None:
-            stmt = stmt.where(MemoryItem.kind.in_(list(kinds)))
         stmt = stmt.order_by(MemoryItem.created_at, MemoryItem.id)
         return (await self.session.execute(stmt)).scalars().all()
 

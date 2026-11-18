@@ -170,6 +170,66 @@ async def test_decided_at_cannot_be_in_the_future(
         assert good["decided_at"].startswith(past[:10])
 
 
+@pytest.mark.parametrize(
+    ("method", "body", "field"),
+    [
+        ("post", {"kind": "task", "title": "x", "status": "nonsense"}, "status"),
+        ("post", {"kind": "task", "title": "x", "priority": "urgent"}, "priority"),
+        ("patch", {"status": None}, "status"),
+    ],
+)
+async def test_unknown_or_null_values_name_the_field(
+    session: AsyncSession, gateway: Gateway, owner: dict, method: str, body: dict, field: str
+) -> None:
+    async with api_client(session, gateway, owner["user"]) as client:
+        task = await create(client, owner["p1"], kind="task", title="T")
+        if method == "post":
+            response = await client.post(f"/api/v1/projects/{owner['p1']}/memory", json=body)
+        else:
+            response = await client.patch(f"/api/v1/memory/{task['id']}", json=body)
+    assert response.status_code == 422
+    assert error(response)["details"]["field"] == field
+
+
+async def test_patch_null_title_and_body(
+    session: AsyncSession, gateway: Gateway, owner: dict
+) -> None:
+    async with api_client(session, gateway, owner["user"]) as client:
+        task = await create(client, owner["p1"], kind="task", title="T", body="notes")
+        no_title = await client.patch(f"/api/v1/memory/{task['id']}", json={"title": None})
+        assert no_title.status_code == 422
+        assert error(no_title)["details"]["errors"][0]["loc"][-1] == "title"
+        cleared = await client.patch(f"/api/v1/memory/{task['id']}", json={"body": None})
+    assert cleared.json()["body"] == ""
+
+
+async def test_supersede_needs_decisions_on_both_sides(
+    session: AsyncSession, gateway: Gateway, owner: dict
+) -> None:
+    async with api_client(session, gateway, owner["user"]) as client:
+        task = await create(client, owner["p1"], kind="task", title="T")
+        dec = await create(client, owner["p1"], kind="decision", title="D")
+        on_task = await client.post(f"/api/v1/memory/{task['id']}/supersede",
+                                    json={"decision": {"title": "x"}})  # fmt: skip
+        by_task = await client.post(f"/api/v1/memory/{dec['id']}/supersede",
+                                    json={"by_id": task["id"]})  # fmt: skip
+        no_zone = {"decision": {"title": "E", "decided_at": "2026-01-02T03:04:05"}}
+        naive = await client.post(f"/api/v1/memory/{dec['id']}/supersede", json=no_zone)
+    assert error(on_task)["code"] == error(by_task)["code"] == "invalid_supersede"
+    assert naive.status_code == 201
+    assert naive.json()["by"]["decided_at"].startswith("2026-01-02T03:04:05")  # read as UTC
+
+
+async def test_create_and_list_projects(
+    session: AsyncSession, gateway: Gateway, owner: dict
+) -> None:
+    async with api_client(session, gateway, owner["user"]) as client:
+        made = await client.post("/api/v1/projects", json={"name": "Third", "description": "d"})
+        assert made.status_code == 201
+        names = [p["name"] for p in (await client.get("/api/v1/projects")).json()]
+    assert "Third" in names
+
+
 # ---- lists ----------------------------------------------------------------------------------
 
 

@@ -26,6 +26,7 @@ dev = [
     "httpx>=0.28.1,<0.29",
     "ruff>=0.17.5,<0.18",
     "pyyaml>=6.0.3,<7",
+    "pytest-cov>=7.1.0,<8",
 ]
 
 # Only package the "app" folder (not tests/ or anything else).

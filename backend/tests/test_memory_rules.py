@@ -87,6 +87,10 @@ async def test_long_cycle_is_rejected(session: AsyncSession, ctx: dict) -> None:
     assert code(info) == (409, "dependency_cycle")
     # A diamond is fine: T0 -> T5 adds no cycle.
     assert await depend(session, ctx, tasks[0], tasks[5]) is True
+    # With the diamond in place the search meets T5 twice; still a cycle back to T0 is found.
+    with pytest.raises(AppError) as again:
+        await depend(session, ctx, tasks[8], tasks[0])
+    assert code(again) == (409, "dependency_cycle")
 
 
 async def test_duplicate_link_is_ignored(session: AsyncSession, ctx: dict) -> None:
