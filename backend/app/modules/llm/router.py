@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUserId, DbSession
@@ -33,6 +33,7 @@ from app.modules.llm.schemas import (
     ProviderOut,
     UsageLine,
     UsageOut,
+    UsageRecordOut,
 )
 from app.modules.llm.service import get_gateway
 
@@ -238,3 +239,16 @@ async def usage_totals(
         total_output_tokens=sum(line.output_tokens for line in lines),
         total_cost_usd=sum((line.cost_usd or Decimal(0) for line in lines), Decimal(0)),
     )
+
+
+@router.get("/usage/records")
+async def list_usage_records(
+    session: DbSession,
+    user_id: CurrentUserId,
+    since: datetime | None = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> list[UsageRecordOut]:
+    """Single calls, newest first (for the activity log): model, purpose, trigger, tokens, cost,
+    status. Never prompts or replies."""
+    rows = await UsageRecordRepository(session, user_id).recent(since=since, limit=limit)
+    return [UsageRecordOut.model_validate(r) for r in rows]

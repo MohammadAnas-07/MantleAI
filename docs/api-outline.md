@@ -1,6 +1,6 @@
 # API outline
 
-REST + JSON, under `/api/v1`, except `/health`. Streaming uses server-sent events (SSE). There is
+REST + JSON, under `/api/v1`, except `/health`. Every operation has a tag and an `operationId` equal to the route function's name (for example `list_projects`), so generated clients get stable names; `backend/scripts/export_openapi.py` writes the schema without a server. Streaming uses server-sent events (SSE). There is
 no auth in v0.1: every request runs as the default local user, and every query filters by that
 user's `user_id` (see `docs/security.md`). Every write request must send
 `Content-Type: application/json`.
@@ -36,6 +36,7 @@ if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `r
 | GET | `/api/v1/settings/models` | The utility model (null = the active model), the embedding model, and `background_summary_enabled` |
 | PATCH | `/api/v1/settings/models` | Change any of the three (changing the embedding model means re-indexing; turning background summaries off stops all background LLM calls) |
 | GET | `/api/v1/usage` | Token and cost totals (filter by project, model, date), grouped by `purpose` and `trigger`, so each background purpose is its own line |
+| GET | `/api/v1/usage/records` | Single calls, newest first (`since`, `limit` 1-500, default 100): model, purpose, trigger, status, error code, tokens, cost, latency, project and conversation ids. Metadata only, never prompts or replies. Used by the frontend's activity log |
 
 ## Projects and memory (`projects`)
 

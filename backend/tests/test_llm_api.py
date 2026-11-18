@@ -1,6 +1,7 @@
 """llm endpoint tests: FakeProvider gateway, test database, no keys, no network."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -233,3 +234,27 @@ async def test_current_user_is_the_seeded_default_user(
         me = await client.get("/api/v1/me")
         assert me.status_code == 200
         assert me.json()["is_local_default"] is True
+
+
+async def test_usage_records_list_single_calls(session: AsyncSession) -> None:
+    await seed_default_models(session)
+    user_id = await make_user(session, "Records")
+    await ProviderCredentialRepository(session, user_id).add_key(
+        provider="google", api_key="test-google-key-0000"
+    )
+    model = await ModelConfigRepository(session).get_by_litellm_model("gemini/gemini-embedding-001")
+    assert model is not None
+    gateway = Gateway(FakeProvider())
+    for _ in range(3):
+        await gateway.embed(session, user_id, model.id, ["secret words"],
+                            trigger=UsageTrigger.USER, purpose=UsagePurpose.EMBEDDING)  # fmt: skip
+    async with api_client(session, gateway, user_id) as client:
+        r = await client.get("/api/v1/usage/records", params={"limit": 2})
+        assert r.status_code == 200
+        rows = r.json()
+        assert len(rows) == 2 and rows[0]["purpose"] == "embedding"
+        assert "secret words" not in r.text
+        future = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+        r = await client.get("/api/v1/usage/records", params={"since": future})
+        assert r.json() == []
+        assert (await client.get("/api/v1/usage/records", params={"limit": 0})).status_code == 422
