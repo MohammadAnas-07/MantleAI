@@ -143,11 +143,18 @@ async def fail(
     run.finished_at = now()
 
 
-async def get_run(session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> AgentRun:
-    """One of the user's runs; 404 for another user's run."""
-    run = await session.scalar(
-        select(AgentRun).where(AgentRun.user_id == user_id, AgentRun.id == run_id)
-    )
+async def get_run(
+    session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID, *, lock: bool = False
+) -> AgentRun:
+    """One of the user's runs; 404 for another user's run.
+
+    With `lock`, the row is locked (SELECT ... FOR UPDATE) until the transaction ends and
+    re-read from the database, so a second request that decides the same run waits and then
+    sees the first one's result."""
+    stmt = select(AgentRun).where(AgentRun.user_id == user_id, AgentRun.id == run_id)
+    if lock:
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+    run = await session.scalar(stmt)
     if run is None:
         raise NotFound("Agent run not found.")
     return run

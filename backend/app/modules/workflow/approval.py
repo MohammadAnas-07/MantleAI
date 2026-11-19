@@ -1,9 +1,10 @@
 """The user's decision on a plan run: save all or some proposed items, or reject the run.
 
-This is the only path from agent output to project memory. Edited text goes through the same
-checks as manual input (in the projects module), and the save is one transaction: every chosen
-item or none. Tasks are saved as todo and decisions as proposed, never accepted. A dependency on
-a task the user didn't choose is left out, with a warning.
+This is the only path from agent output to project memory. The run row is locked first, so of
+two decisions on one run at the same moment the second waits, then gets 409. Edited text goes
+through the same checks as manual input (in the projects module), and the save is one
+transaction: every chosen item or none. Tasks are saved as todo and decisions as proposed, never
+accepted. A dependency on a task the user didn't choose is left out, with a warning.
 """
 
 import logging
@@ -75,7 +76,7 @@ async def approve_run(
     session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID, body: ApproveRunIn
 ) -> Approval:
     """Save the chosen drafts of a waiting plan run; 409 unless it is waiting for approval."""
-    run = await get_run(session, user_id, run_id)
+    run = await get_run(session, user_id, run_id, lock=True)
     _waiting(run)
     plan = Plan.model_validate(run.result["plan"])
     if body.all:
@@ -131,7 +132,7 @@ async def reject_run(
     session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID, reason: str
 ) -> AgentRun:
     """Close the run without saving anything."""
-    run = await get_run(session, user_id, run_id)
+    run = await get_run(session, user_id, run_id, lock=True)
     _waiting(run)
     run.status, run.decided_at, run.decision_reason = RunStatus.REJECTED, now(), reason
     run.finished_at = run.finished_at or run.decided_at
