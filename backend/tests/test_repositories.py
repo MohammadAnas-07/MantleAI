@@ -59,7 +59,7 @@ def test_every_user_table_has_a_repository_under_test() -> None:
     user_tables = {t.name for t in Base.metadata.tables.values() if "user_id" in t.columns}
     tested = {repo.model.__tablename__ for repo in ALL_USER_REPOSITORIES}
     assert tested == user_tables
-    assert len(user_tables) == 21
+    assert len(user_tables) == 22
 
 
 @pytest.mark.parametrize("repo", ALL_USER_REPOSITORIES, ids=repo_id)

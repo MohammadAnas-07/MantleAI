@@ -80,7 +80,8 @@ history to rely on, and the "sources used" view lists the memory items.
 - [ ] A new conversation with a different model passes the 5-question check from memory alone.
 - [x] Memory items never go through vector search.
 
-**Postponed:** AI-proposed memory items and their approval (Phase 4), the workflow, agents.
+**Postponed:** AI-proposed memory items and their approval (Phase 4, done in
+`feat/workflow-and-agents`), the workflow, agents.
 
 ## Phase 3: Answers that cite your code
 
@@ -118,14 +119,19 @@ code context.
 **Branches:** `feat/workflow-and-agents`, `feat/project-profile`, `feat/teaching-layer`.
 
 **Demo:** run the five stages for a small feature. The Planner drafts and the Reviewer flags
-risks. Approving a stage turns its proposed decisions into memory. Then ask "why did we choose
-this?" and get a teaching note.
+risks. Approving the agent run saves the chosen tasks (`todo`) and decisions (`proposed`) to
+memory. Then ask "why did we choose this?" and get a teaching note.
 
 **Exit criteria:**
-- [ ] The five stages run in order, each with approve, request-changes and skip.
-- [ ] Planner and Reviewer produce text only and change nothing without approval.
-- [ ] AI-proposed memory items stay `proposed` until you approve them.
+- [x] The five stages run in order, each with approve, skip and reopen (reopen replaced
+  request-changes on 2026-11-19; sending a plan back is "reject the run" with a reason).
+  Backend in `feat/workflow-and-agents`; the workflow screen comes later.
+- [x] Planner and Reviewer produce text only and change nothing without approval (plain Python
+  state machine, no LangGraph: ADR 0004). A gap finder lists missing steps and risks on request.
+- [x] AI-proposed memory items stay `proposed` until you approve them (decisions are saved as
+  `proposed`; you accept them in the memory panel).
 - [ ] Teaching notes are created only on request; the concepts list uses rules only (no usage record).
+- [ ] The demo above with a real model (`scripts/agent_demo.py` runs the Planner and Reviewer).
 
 **Postponed:** more agents, LLM-based concept suggestions.
 
@@ -141,7 +147,7 @@ switch models, approve a workflow stage, open a teaching note, check usage.
 **Built so far** (`feat/frontend-workspace`, 2026-11-18): settings (keys, models, usage),
 projects, the index panel, memory, conversations with streaming, the context preview, model
 switching and the activity log. The workflow and teaching screens come later, with their
-backend (Phase 4), which is not built yet.
+backend (Phase 4). The workflow and agent backend is built (`feat/workflow-and-agents`); teaching is not.
 
 **Exit criteria:**
 - [ ] Every "v0.1 is finished when" item in `docs/mvp-scope.md` is true. (Not yet: workflow and

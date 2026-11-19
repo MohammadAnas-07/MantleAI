@@ -45,7 +45,6 @@ from app.modules.conversations.repository import (
     MessageContextRepository,
     MessageRepository,
 )
-from app.modules.conversations.suggestions import suggest_models
 from app.modules.conversations.summary import (
     SessionFactory,
     build_summary,
@@ -69,6 +68,7 @@ from app.modules.llm.service import (
     get_chat_model,
     get_model_settings,
     providers_with_keys,
+    suggest_models,
 )
 from app.modules.projects.service import (
     DroppedPin,

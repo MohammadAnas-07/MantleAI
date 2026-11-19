@@ -1,6 +1,7 @@
 # ADR 0004: Use LangGraph selectively
 
-Status: Accepted (decision D7 in `docs/architecture.md`, 2026-11-17)
+Status: Accepted (decision D7 in `docs/architecture.md`, 2026-11-17). Amended 2026-11-19 in
+`feat/workflow-and-agents`: v0.1 uses no LangGraph.
 
 ## Context
 
@@ -9,25 +10,47 @@ approval. `vision.md` suggests LangGraph for stateful agent workflows, but says 
 core architecture and must not create agents "for the sake of calling something an AI agent."
 Our rule: we never import `langchain*`; only `langgraph`.
 
-## Decision
+The original note said: if Planner and Reviewer can be built as plain Python (a small state
+machine over our own tables), skip LangGraph, and decide this at the start of
+`feat/workflow-and-agents`.
 
-> **Note:** if Planner and Reviewer can be built as plain Python (a small state machine over our
-> own tables), skip LangGraph. Decide this at the start of `feat/workflow-and-agents`,
-> and only add LangGraph if the plain version gets messy.
+## Decision (2026-11-19)
 
-- LangGraph is used **only inside `modules/workflow`**, to run the agent steps of one stage
-  (Planner drafts → Reviewer critiques → Planner revises once → stop).
-- Graph nodes are plain Python functions that call **our** LLM gateway. We never use LangChain
-  chat models, prompts, retrievers or memory classes.
-- **Our tables** (StageState, AgentRun) are the source of truth for stage status and approval.
-  Human approval happens through our API, between graph runs. A LangGraph checkpointer isn't
-  needed in v0.1.
-- Chat, model switching, RAG and teaching are plain Python with no LangGraph.
+**No LangGraph in v0.1.** The flow is short and fixed: Planner, then Reviewer, then a pause for
+the user's approval. There is no revision loop: the Planner does not revise its plan after the
+review; the user decides.
+
+- `app/modules/workflow/runs.py` is a plain Python state machine:
+  `queued -> running -> waiting_for_approval -> approved | rejected` for a plan run,
+  `queued -> running -> completed` for a review-only run, and `failed` or `cancelled` from any
+  active state.
+- Every state and every step (agent, prompt version, model, tokens, cost, latency, output,
+  error) is saved in PostgreSQL (`agent_runs`, `agent_run_steps`). The run commits after each
+  step, so polling shows progress and a restart loses at most the step in flight; startup marks
+  queued and running runs failed ("interrupted").
+- Steps call **our** LLM gateway. Agents have no tools. Their output is a validated draft; only
+  the user's approval writes project memory.
+- `langgraph` is not a dependency, so `langchain-core` isn't installed either.
+
+This also removes the need for a second database driver and a checkpointer: our tables already
+hold the state between the run and the human decision.
+
+## When to revisit
+
+Add LangGraph (still only inside `modules/workflow`, still never `langchain*`) when one of these
+arrives and the plain loop starts to get messy:
+
+- **Loops:** an agent that revises its own output after review, or retries with a critic, more
+  than once.
+- **Parallel agents:** several agents working on one stage at the same time and merging results.
+- **Long-running, branching flows:** flows that pause for people in more than one place, branch
+  on results, or must resume mid-step after a restart.
 
 ## Alternatives considered
 
-- **No framework (a hand-written state machine):** enough for two agents, and we may still choose
-  it. LangGraph pays off once there are more agents, branches and retries.
+- **LangGraph now:** pays off with more agents, branches and retries. For two fixed steps it adds a
+  dependency (and `langchain-core`), a checkpointer or a second source of truth, and more to learn
+  for no gain.
 - **LangChain agents:** this would put LangChain at the centre of the app, which goes against the
   vision and our rule.
 - **Other agent frameworks (CrewAI, AutoGen):** more autonomous by design, which is the opposite of
@@ -35,7 +58,9 @@ Our rule: we never import `langchain*`; only `langgraph`.
 
 ## Consequences
 
-- The use of LangGraph is contained, so it can be removed by rewriting one module.
-- `langgraph` installs `langchain-core` as a dependency. That's accepted, but our code must never
-  import any `langchain*` package (enforced by review, and later by a lint rule).
-- Adding agents later means adding nodes to the graph, not changing other modules.
+- The agent flow is one file of plain Python (`runs.py`) that any contributor can read and test with
+  FakeProvider.
+- Adding a step means adding a call in `runs.py` and a prompt file; adding loops or parallel
+  agents is the point where we reconsider this ADR.
+- The rule "only `langgraph`, only in `modules/workflow`, never `langchain*`" stays in force for
+  when LangGraph is added.

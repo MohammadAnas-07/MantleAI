@@ -23,12 +23,13 @@ inputs always give the same output.
 
 import json
 import math
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.core.config import settings
+from app.core.prompt_data import defang as defang_markers
+from app.core.prompt_data import defang_attr
 from app.modules.conversations.prompts import SYSTEM_PROMPT, load_prompt
 from app.modules.llm.service import ChatMessages, ContextTooLong, ModelInfo
 from app.modules.projects.service import DroppedPin, PinnedItem, ProjectInfo, pinned_block
@@ -36,15 +37,9 @@ from app.modules.rag.service import RetrievedBlock
 
 TokenCounter = Callable[[ChatMessages], int]
 
-# Our data tags (open and close, also the bare word "retrieved") and common chat-template
-# boundaries. Inside data they could end a block early or fake a new turn.
-_MARKERS = re.compile(
-    r"</?\s*(pinned_items|conversation_summary|retrieved_context|retrieved|source)\b"
-    r"|<\||\|>"
-    r"|\[/?INST\]"
-    r"|<</?SYS>>",
-    re.IGNORECASE,
-)
+# Our data tags (open and close, also the bare word "retrieved"). Chat-template boundaries are
+# always included by app.core.prompt_data.
+_TAGS = ("pinned_items", "conversation_summary", "retrieved_context", "retrieved", "source")
 
 
 @dataclass(frozen=True)
@@ -184,18 +179,12 @@ def to_chat_messages(message: HistoryMessage, supports_tools: bool) -> ChatMessa
 
 
 def defang(text: str) -> str:
-    """Make tags and chat-template markers inside data harmless: `</source>` becomes
-    `&lt;/source&gt;`, `<|im_start|>` becomes `&lt;|im_start|&gt;`, `[INST]` becomes
-    `&#91;INST]`. The text stays readable; it just can't close or open a block."""
-
-    def escape(match: re.Match[str]) -> str:
-        return match.group(0).replace("<", "&lt;").replace(">", "&gt;").replace("[", "&#91;")
-
-    return _MARKERS.sub(escape, text)
+    """Make our tags and chat-template markers inside data harmless (app.core.prompt_data)."""
+    return defang_markers(text, _TAGS)
 
 
 def _attr(value: str) -> str:
-    return defang(value).replace("&", "&amp;").replace('"', "&quot;").replace("\n", " ")
+    return defang_attr(value, _TAGS)
 
 
 def system_text(project: ProjectInfo) -> str:

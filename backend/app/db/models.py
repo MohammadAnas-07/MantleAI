@@ -17,10 +17,11 @@ from app.modules.llm.models import ModelConfig, ProviderCredential, UsageRecord,
 from app.modules.projects.models import MemoryDependency, MemoryItem, Project
 from app.modules.rag.models import Chunk, Document, IndexRun, ProjectProfile
 from app.modules.teaching.models import ConceptSuggestion, TeachingNote
-from app.modules.workflow.models import AgentRun, StageState, WorkflowRun
+from app.modules.workflow.models import AgentRun, AgentRunStep, ProjectWorkflow, WorkflowEvent
 
 __all__ = [
     "AgentRun",
+    "AgentRunStep",
     "AuditEvent",
     "Base",
     "Chunk",
@@ -37,11 +38,11 @@ __all__ = [
     "ModelConfig",
     "Project",
     "ProjectProfile",
+    "ProjectWorkflow",
     "ProviderCredential",
-    "StageState",
     "TeachingNote",
     "UsageRecord",
     "User",
     "UserModelSettings",
-    "WorkflowRun",
+    "WorkflowEvent",
 ]

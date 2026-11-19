@@ -437,7 +437,7 @@ async def test_app_start_fails_interrupted_runs(
     run = await start_index(session, world.user_id, world.project_id)
     await session.commit()
     monkeypatch.setattr(app.main, "SessionLocal", session_factory(session))
-    await app.main.fail_interrupted_index_runs()
+    await app.main.fail_interrupted_runs()
     await session.refresh(run)
     assert (run.status, run.error) == ("failed", "interrupted")
 
@@ -451,8 +451,8 @@ async def test_app_start_survives_a_database_that_is_down(
         raise OSError("connection refused")
 
     monkeypatch.setattr(app.main, "SessionLocal", down)
-    await app.main.fail_interrupted_index_runs()
-    assert "interrupted index runs" in caplog.text
+    await app.main.fail_interrupted_runs()
+    assert "could not check for interrupted runs" in caplog.text
 
 
 async def test_indexed_file_that_gains_a_secret_loses_its_chunks(

@@ -8,9 +8,11 @@ Concurrent edits are last-write-wins: there is no version check.
 import logging
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -375,3 +377,114 @@ async def describe(
                 updated_at=item.updated_at,
             )
     return [out[item.id] for item in items]
+
+
+# ---- drafts approved from an agent run --------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DraftTask:
+    title: str
+    body: str
+    priority: str | None
+    depends_on: tuple[int, ...] = ()  # indexes into the same list of drafts
+
+
+@dataclass(frozen=True)
+class DraftDecision:
+    title: str
+    body: str
+    why: str = ""
+    alternatives: str = ""
+
+
+@dataclass
+class SavedDrafts:
+    task_ids: list[uuid.UUID] = field(default_factory=list)
+    decision_ids: list[uuid.UUID] = field(default_factory=list)
+
+
+def _draft_error(kind: str, index: int, exc: ValidationError) -> AppError:
+    errors = [{"field": ".".join(str(p) for p in e["loc"]), "message": e["msg"]}
+              for e in exc.errors()]  # fmt: skip
+    return AppError(
+        f"Proposed {kind} {index} is not valid: {errors[0]['field']}: {errors[0]['message']}",
+        code="invalid_draft", status_code=422,
+        details={"kind": kind, "index": index, "errors": errors},
+    )  # fmt: skip
+
+
+async def add_agent_drafts(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    *,
+    agent_run_id: uuid.UUID,
+    stage_key: str | None,
+    tasks: Sequence[DraftTask],
+    decisions: Sequence[DraftDecision],
+) -> SavedDrafts:
+    """Save drafts the user approved, all or nothing (one savepoint).
+
+    Each draft goes through the same checks as an item typed by hand (MemoryItemCreate, the
+    per-kind limit). Tasks start as todo and decisions as proposed (the user accepts them later).
+    Every item records the run it came from. Task dependencies are given as indexes into
+    `tasks` and become links between the new ids.
+    """
+    await _check_project(session, user_id, project_id)
+    limit = settings.memory_max_items_per_kind
+    items = MemoryItemRepository(session, user_id)
+    saved = SavedDrafts()
+    async with session.begin_nested():
+        for kind, wanted in ((MemoryItemKind.TASK, tasks), (MemoryItemKind.DECISION, decisions)):
+            if wanted and await items.count(project_id, kind) + len(wanted) > limit:
+                raise conflict(
+                    "memory_limit_reached",
+                    f"Saving these would pass the limit of {limit} {kind.value}s.",
+                    kind=kind.value, limit=limit,
+                )  # fmt: skip
+        for index, task in enumerate(tasks):
+            try:
+                data = MemoryItemCreate(
+                    kind="task", title=task.title, body=task.body or None,
+                    priority=task.priority, status=MemoryItemStatus.TODO.value,
+                )  # fmt: skip
+            except ValidationError as exc:
+                raise _draft_error("task", index, exc) from None
+            _check_fields(MemoryItemKind.TASK, data.model_dump(exclude={"kind"}), creating=True)
+            row = await items.add(
+                project_id=project_id, kind=MemoryItemKind.TASK, status=MemoryItemStatus.TODO,
+                title=data.title, body=data.body or "", priority=data.priority,
+                source=MemoryItemSource.AGENT, source_agent_run_id=agent_run_id,
+                stage_key=stage_key,
+            )  # fmt: skip
+            saved.task_ids.append(row.id)
+        for index, decision in enumerate(decisions):
+            try:
+                data = MemoryItemCreate(
+                    kind="decision", title=decision.title, body=decision.body or None,
+                    why=decision.why or None, alternatives=decision.alternatives or None,
+                    status=MemoryItemStatus.PROPOSED.value,
+                )  # fmt: skip
+            except ValidationError as exc:
+                raise _draft_error("decision", index, exc) from None
+            values = data.model_dump(exclude={"kind"})
+            _check_fields(MemoryItemKind.DECISION, values, creating=True)
+            row = await items.add(
+                project_id=project_id, kind=MemoryItemKind.DECISION,
+                status=MemoryItemStatus.PROPOSED, title=data.title, body=data.body or "",
+                why=data.why, alternatives=data.alternatives, source=MemoryItemSource.AGENT,
+                source_agent_run_id=agent_run_id, stage_key=stage_key,
+            )  # fmt: skip
+            saved.decision_ids.append(row.id)
+        links = MemoryDependencyRepository(session, user_id)
+        for index, task in enumerate(tasks):
+            for dep in task.depends_on:
+                if dep == index or not 0 <= dep < len(tasks):
+                    raise AppError(f"Proposed task {index} has an invalid dependency.",
+                                   code="invalid_draft", status_code=422)  # fmt: skip
+                await links.add(project_id=project_id, task_id=saved.task_ids[index],
+                                depends_on_id=saved.task_ids[dep])  # fmt: skip
+    logger.info("agent drafts saved run=%s tasks=%d decisions=%d", agent_run_id,
+                len(saved.task_ids), len(saved.decision_ids))  # fmt: skip
+    return saved

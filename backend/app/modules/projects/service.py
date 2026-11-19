@@ -11,6 +11,12 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
+from app.modules.projects.memory_service import (
+    DraftDecision,
+    DraftTask,
+    SavedDrafts,
+    add_agent_drafts,
+)
 from app.modules.projects.models import Project
 from app.modules.projects.pinned import (
     DroppedPin,
@@ -22,14 +28,20 @@ from app.modules.projects.pinned import (
 from app.modules.projects.repository import MemoryItemRepository, ProjectRepository
 
 __all__ = [
+    "DraftDecision",
+    "DraftTask",
     "DroppedPin",
+    "MemoryRef",
     "PinnedItem",
     "PinnedSelection",
     "ProjectInfo",
+    "SavedDrafts",
+    "add_agent_drafts",
     "create_project",
     "delete_project",
     "get_project",
     "list_projects",
+    "memory_refs",
     "pinned_block",
     "pinned_selection",
     "set_root_path",
@@ -44,6 +56,23 @@ class ProjectInfo:
     description: str | None
     root_path: str | None = None  # the indexed folder; validated by the rag module
     default_model_id: uuid.UUID | None = None  # checked by the caller (projects calls no module)
+
+
+@dataclass(frozen=True)
+class MemoryRef:
+    """A memory item as other modules may see it (read-only)."""
+
+    id: uuid.UUID
+    kind: str
+    status: str
+    priority: str | None
+    title: str
+    body: str
+
+    @property
+    def short_id(self) -> str:
+        """The 8-character id shown in pinned memory lines."""
+        return self.id.hex[:8]
 
 
 def _info(project: Project) -> ProjectInfo:
@@ -118,3 +147,22 @@ async def pinned_selection(
     await get_project(session, user_id, project_id)
     rows = await MemoryItemRepository(session, user_id).in_project(project_id)
     return select_pinned(rows, max_tokens=max_tokens, count=count)
+
+
+async def memory_refs(
+    session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID
+) -> list[MemoryRef]:
+    """Every memory item of the project, oldest first. 404 for another user's project."""
+    await get_project(session, user_id, project_id)
+    rows = await MemoryItemRepository(session, user_id).in_project(project_id)
+    return [
+        MemoryRef(
+            id=r.id,
+            kind=str(r.kind),
+            status=str(r.status),
+            priority=str(r.priority) if r.priority else None,
+            title=r.title,
+            body=r.body or "",
+        )
+        for r in rows
+    ]

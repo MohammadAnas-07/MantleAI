@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 from functools import cache
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +54,8 @@ class ModelInfo:
     context_window: int
     max_output_tokens: int | None
     supports_tools: bool
+    input_cost_per_mtok: Decimal | None = None
+    output_cost_per_mtok: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -83,6 +86,8 @@ def _info(model: ModelConfig) -> ModelInfo:
         context_window=model.context_window,
         max_output_tokens=model.max_output_tokens,
         supports_tools=model.supports_tools,
+        input_cost_per_mtok=model.input_cost_per_mtok,
+        output_cost_per_mtok=model.output_cost_per_mtok,
     )
 
 
@@ -101,6 +106,35 @@ async def list_chat_models(session: AsyncSession) -> list[ModelInfo]:
 
 async def providers_with_keys(session: AsyncSession, user_id: uuid.UUID) -> set[str]:
     return await ProviderCredentialRepository(session, user_id).providers_with_keys()
+
+
+async def suggest_models(
+    session: AsyncSession, user_id: uuid.UUID, current: ModelInfo, reason: str
+) -> list[dict[str, Any]]:
+    """Models the user could switch to; Mantle never switches by itself (assumption 6).
+
+    `reason` is `context_too_long` (a bigger context window), or `rate_limited` or
+    `quota_exhausted` (another provider). Only enabled chat models whose provider the user has
+    a key for are listed.
+    """
+    with_keys = await providers_with_keys(session, user_id)
+    candidates = [
+        m for m in await list_chat_models(session) if m.id != current.id and m.provider in with_keys
+    ]
+    if reason == "context_too_long":
+        picked = [m for m in candidates if m.context_window > current.context_window]
+    else:
+        picked = [m for m in candidates if m.provider != current.provider]
+    picked.sort(key=lambda m: (-m.context_window, m.display_name))
+    return [
+        {
+            "model_id": str(m.id),
+            "display_name": m.display_name,
+            "provider": m.provider,
+            "context_window": m.context_window,
+        }
+        for m in picked
+    ]
 
 
 async def get_model_settings(session: AsyncSession, user_id: uuid.UUID) -> ModelSettings:
@@ -191,6 +225,7 @@ __all__ = [
     "list_chat_models",
     "providers_with_keys",
     "seed_default_models",
+    "suggest_models",
     "validate_master_key",
 ]
 

@@ -100,3 +100,13 @@ First-time setup is in `README.md`.
 - Never commit `.env`.
 - Never use the word "chunk" in branch names, commit messages or PR titles.
 - docs/memory.md is updated in the same branch as the work, in its own commit, before the pull request is opened. Do not record PR numbers or merge commit hashes there. Do not create a separate branch just to update memory. Only a pure documentation catch-up that was missed may use its own docs/ branch.
+
+## Branch hygiene
+
+- One feature, one branch. Small fixes that belong to the feature go in that branch; a separate
+  fix branch is only for something unrelated or urgent.
+- Never create a branch just for memory, status or reports. `docs/memory.md` is updated in the
+  feature branch.
+- Only one Claude Code session works in a folder at a time.
+- Merged branches are deleted with `git branch -d` (never `-D`).
+- The user opens and merges pull requests.

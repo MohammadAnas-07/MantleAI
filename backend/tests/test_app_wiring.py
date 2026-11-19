@@ -23,7 +23,7 @@ def test_running_app_registers_every_table() -> None:
         "import app.main; from app.db.base import Base; "
         "print(len(Base.metadata.tables), 'agent_runs' in Base.metadata.tables)"
     )
-    assert out == "23 True"
+    assert out == "24 True"
 
 
 def test_every_write_endpoint_takes_a_json_body() -> None:
