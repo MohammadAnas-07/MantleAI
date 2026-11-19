@@ -45,7 +45,7 @@ First demo target: 2026-12-17. Last updated 2026-11-19.
 
 - `test/retrieval-eval-large`: `eval_retrieval.py` takes `--project-path`, `--questions` and
   `--estimate-only` (no model call); 25 click questions (behaviour, exact name, two files;
-  recall@5, all@5, MRR per kind). The developer runs it with the Gemini key.
+  recall@5, all@5, MRR per kind). Run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
 
