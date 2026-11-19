@@ -165,3 +165,25 @@ async def test_runs_list_shows_only_plan_and_review(
     await session.flush()
     r = await client.get(f"/api/v1/projects/{world.project_id}/agent-runs")
     assert r.json()["items"] == []
+
+
+async def test_drafts_respect_the_memory_limit_and_valid_dependencies(
+    session: AsyncSession, world: AgentWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.projects.repository import MemoryItemRepository
+    from app.modules.projects.service import DraftTask, add_agent_drafts
+
+    async def save(tasks: list[DraftTask]) -> None:
+        await add_agent_drafts(session, world.user_id, world.project_id, agent_run_id=None,
+                               stage_key=None, tasks=tasks, decisions=[])  # type: ignore[arg-type]  # fmt: skip
+
+    before = len(await MemoryItemRepository(session, world.user_id).in_project(world.project_id))
+    with pytest.raises(AppError) as info:
+        await save([DraftTask("A", "", "high", (5,))])
+    assert info.value.code == "invalid_draft"
+    monkeypatch.setattr(settings, "memory_max_items_per_kind", 1)  # the project has 1 task
+    with pytest.raises(AppError) as info:
+        await save([DraftTask("B", "", "low")])
+    assert info.value.code == "memory_limit_reached"
+    after = len(await MemoryItemRepository(session, world.user_id).in_project(world.project_id))
+    assert after == before
