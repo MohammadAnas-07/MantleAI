@@ -10,23 +10,24 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phases 1-3 are merged, and Phase 5's first UI too (`frontend/`, 48 tests; CORS, Host check,
-project PATCH/DELETE, `GET /usage/records`; 407 backend tests). All checks pass on `main`. Dev database `mantle` at `0007` (quota fix branch).
-Phase 3 real-key eval (2026-11-18, sample project): recall@5 vector 1.00 / text 0.95 / hybrid
-1.00. A harder eval on click 8.5.1 (25 questions) is ready but not run yet. Not done: the Phase 3
-demo with real models, `GET /messages/{id}/context`, Phase 4 (workflow, teaching).
+On `main`: Phases 1-3, the first UI (Phase 5) and the daily quota fix. On
+`feat/workflow-and-agents` (not merged yet): the workflow backend (5 stages from YAML, gates,
+events), the gap finder, Planner + Reviewer runs, and approval of drafts into memory. No UI for
+it yet. Branch tests: 549 backend (workflow module 99% covered), 49 frontend.
+Dev database `mantle` at `0007`; the branch adds `0008` (`alembic upgrade head`).
+Not built: workflow and teaching screens, teaching notes, project profile,
+`GET /messages/{id}/context`. Not run with a real model: the click eval, `scripts/agent_demo.py`.
+Branches: 2 local (`main`, `feat/workflow-and-agents`); remote branches untouched.
 To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev` (http://127.0.0.1:5173).
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-19 (quota fix).
+First demo target: 2026-12-17. Last updated 2026-11-19 (workflow and agents).
 
 ## Done
 
-- 2026-11-17: scaffold, Docker Postgres on 5433, docs, pinned deps + `requirements.lock`, all
-  v0.1 tables (`0001`), repositories bound to `user_id`, Fernet helper, seed script.
-- 2026-11-18: LLM gateway, model switching + context builder + rolling summary, four small
-  fixes, project memory + pinned items (`0004`), memory docs.
-  Switch demo 5/5 twice on Gemini 3.8 Flash -> 3.5 Flash Lite (same provider).
+- 2026-11-17/18: scaffold, Docker Postgres 5433, docs, `requirements.lock`, tables (`0001`),
+  Fernet, seed; LLM gateway, model switching, context builder, rolling summary, project memory
+  (`0004`). Switch demo 5/5 twice on Gemini 3.8 Flash -> 3.5 Flash Lite.
 - 2026-11-18: `feat/project-indexing-rag` (merged): `0005`, `0006`; rag `scanner`, `secret_scan`,
   `chunker` (tree-sitter), `indexer` (incremental, vector reuse, batches, backoff, cancel, resume,
   recovery), `search` (RRF k=60); retrieved context; SSE `warning`; `scripts/eval_retrieval.py`;
@@ -35,11 +36,15 @@ First demo target: 2026-12-17. Last updated 2026-11-19 (quota fix).
   projects, index, memory, chat with SSE streaming, context preview, switching, activity log);
   backend CORS + Host check, project PATCH/DELETE, operation ids, `/usage/records`,
   `scripts/export_openapi.py`; frontend rules in `CLAUDE.md` and `rules.md` (77-84).
+- 2026-11-19: `fix/index-daily-quota-message` (merged): `quota_exhausted` never retried, run
+  `daily_quota_exhausted`, Retry-After, total wait cap, `usage_records.error_detail` (`0007`).
 
 ## In progress
 
-- `fix/index-daily-quota-message`: `quota_exhausted` (never retried) -> run `daily_quota_exhausted`;
-  Retry-After, total wait cap; `usage_records.error_detail` (`0007`). 434/49 tests; no real quota.
+- `feat/workflow-and-agents`: `0008` (`project_workflows`, `workflow_events`, `agent_runs`,
+  `agent_run_steps`); `workflow/stages.yaml`, `state.py`, `gap_finder.py`, `runs.py` (plain state
+  machine), `approval.py`, prompts `*_v1.txt`; `app/core/prompt_data.py`; `suggest_models` moved
+  to llm; purpose `agent_run`; rules 85-90 (branch hygiene). Next: open the PR, run the demo.
 - Click eval (`eval_retrieval.py --project-path --questions --estimate-only`, 25 questions): run 1
   stopped at 926/1,429 segments (Gemini daily limit); resume.
 
@@ -49,8 +54,9 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 1. Run the click eval (clone command in the YAML header; ~348k tokens, ~$0.05 with Gemini), then
    the Phase 3 demo (index the Mantle repo, ask, switch models, ask again).
 2. `GET /messages/{id}/context` (rows exist), then the Phase 2 demo script.
-3. `feat/project-profile` (before `feat/teaching-layer`), then `feat/workflow-and-agents`.
-4. Not built: message cancel, project description/archive, typed models for `dict` responses.
+3. Run `scripts/agent_demo.py` with Gemini; then the workflow screen (frontend branch).
+4. `feat/project-profile` (before `feat/teaching-layer`).
+5. Not built: message cancel, project description/archive, typed models for `dict` responses.
 
 ## Decisions
 
@@ -72,20 +78,18 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 | 2026-11-18 | Segment vectors are reused by sha256(path + symbol + text) and model; a file's hash is set only when all its segments are stored | Cheap edits; resume after a failure | `data-model.md` |
 | 2026-11-18 | `INDEX_COST_LIMIT_USD` (1.00) is an app setting; it moves to user settings with auth | One user in v0.1 | `security.md` |
 | 2026-11-18 | Handoff preview reuses the code of the newest reply (message contexts), so it makes no embedding call | Preview stays free | `api-outline.md` |
-| 2026-11-18 | Project profile not built here; own branch `feat/project-profile` before `feat/teaching-layer` | One topic per branch | `roadmap.md` |
 | 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4); app design "grunge-lite" | User's choice | `design-app.md` |
-| 2026-11-18 | TypeScript 5.9 (not 7): openapi-typescript and typescript-eslint support only up to 6.x/5.x | Toolchain support | `frontend/package.json` |
-| 2026-11-18 | API types generated from OpenAPI and committed; `gen:api:check` guards them; operationId = route function name | Builds without a backend; stable names | `api-outline.md` |
+| 2026-11-18 | TypeScript 5.9 (toolchain support); API types generated from OpenAPI and committed, `gen:api:check` guards them, operationId = route function name | Builds without a backend | `api-outline.md` |
 | 2026-11-19 | Used-up quota = per-day quota id or requested wait > 10 min; anything else stays `rate_limited`; `error_detail` keeps only sanitized structured fields | No guessing; provider text can echo prompts | rule 51 |
+| 2026-11-19 | No LangGraph: Planner -> Reviewer -> user approval as a plain state machine in PostgreSQL; no revision loop; reopen replaces request-changes; gap finder is an analysis call, not a third agent; purpose `agent_run` | User's choice; two fixed steps | 0004 |
+| 2026-11-19 | Workflow GET writes nothing (state stored on first change); approve/skip take `stage_id`; drafts saved only on approval, tasks `todo`, decisions `proposed` | Rule 28; one of two racing approvals must lose | `api-outline.md` |
 | 2026-11-18 | Allowed hosts localhost/127.0.0.1 any port (400 `invalid_host`); CORS only the dev origins; project default model lives in project settings | DNS rebinding; user's choice | `security.md` |
 
 ## Known issues and gotchas
 
-- **PostgreSQL 17 Windows service listens on 5432.** Keep Docker on 5433 (`role "mantle" does not exist` = wrong server).
-- **First DB connection after a container (re)start can take over 2 s**; `/health` may say `"down"` briefly.
-- **Docker Desktop can hang; the DB container can stop by itself** (`Exited (255)`). Then
-  `alembic` fails with `WinError 1225`. Run `docker compose ps` and `docker compose up -d`.
-- **A Fernet key is 44 characters and ends with `=`.** The API won't start without a valid one.
+- **PostgreSQL 17 Windows service listens on 5432**; keep Docker on 5433. The first DB connection
+  after a restart can take over 2 s. The container can stop by itself (`Exited (255)`, then
+  `WinError 1225`): `docker compose ps`, `docker compose up -d`. A Fernet key is 44 chars, ends `=`.
 - **PowerShell commands don't work in Git Bash** (use `source .venv/Scripts/activate`). Python
   and pytest start slowly here (6-16 s); the backend suite takes 1-2 minutes.
 - **`requirements.lock` was made on Windows with Python 3.14**; regenerate with `python -m pip freeze --exclude-editable > requirements.lock`.
@@ -104,23 +108,24 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
   disconnect run inside `anyio.CancelScope(shield=True)`.
 - Tests run Alembic in a separate thread. **Every write endpoint needs a JSON body** (even `{}`),
   or `/docs` and the frontend get 415. Swagger's "Example Value" is not the real answer.
-- **Index jobs are in-process `BackgroundTasks`**: in tests they finish before the request
-  returns; a restart kills them (startup marks them `interrupted`). Search is dev-only.
+- **Index jobs and agent runs are in-process `BackgroundTasks`**: in tests they finish before the
+  request returns; a restart kills them (startup marks them `interrupted`). Search is dev-only.
 - **`tests/fixtures/sample_project` is data** (excluded from ruff and pytest). The click repo for
   the large eval is outside the repo: `C:\Users\admin\Desktop\click-sample` (8.5.1).
 - **`core.autocrlf=true` checks the fixture out with CRLF.** Tests must not assume LF in
   `tests/fixtures` (a test that turned LF into CRLF made CR CR LF and failed on main).
 - **Editing files with Python heredocs in Git Bash turned `\n` in code into real newlines** twice;
   use an editor tool for code that contains escape sequences.
-- **Windows lets several uvicorns listen on port 8000; the oldest answers.** An old one without
-  CORS makes the UI say "Can't reach the API". Keep one; check `netstat -ano | findstr :8000`.
-- **An unhandled 500 has no CORS headers** (Starlette's error middleware sits outside CORS), so
-  the browser shows a network error. Happens on the slow first DB connection after a restart.
+- **Several uvicorns can listen on 8000; the oldest answers** (`netstat -ano | findstr :8000`).
+  An unhandled 500 has no CORS headers, so the browser shows "Can't reach the API".
+- **Leaving a nested `api_client` clears ALL dependency overrides**: the outer client then hits
+  the real dev DB. Switch `get_current_user_id` instead. Concurrency tests commit to `mantle_test`
+  and clean up. `defang` turns `</source>` into `&lt;/source>` (the `>` stays).
 - **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`** (the old name is ignored). Backend
   tests use `base_url="http://localhost"`: the Host check refuses other names.
-- **What FakeProvider tests can't prove:** real summary quality, real token counts, real
-  streaming chunks, and real retrieval quality (fake embeddings are bag-of-words). Only
-  `scripts/switch_demo.py` and `scripts/eval_retrieval.py` with real keys do.
+- **What FakeProvider tests can't prove:** real summary, plan and review quality, real token
+  counts and streaming, retrieval quality (fake embeddings are bag-of-words). Only the scripts
+  (`switch_demo.py`, `eval_retrieval.py`, `agent_demo.py`) with real keys do.
 
 ## Environment notes
 
@@ -134,13 +139,9 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 ## Archive
 
 - Detail for Phases 1–2 is in `git log` and the pull request descriptions.
-- Older decisions, condensed (2026-11-17/18): Docker Postgres on 5433, `/health` DB check 2 s;
-  API refuses to start without a valid `MASTER_ENCRYPTION_KEY`; gateway first on its own branch,
-  `LiteLLMBackend` vs `FakeProvider` via `get_gateway`; catalog hardcoded from LiteLLM 1.110.0
-  data; purpose `key_test`; JSON-only writes (pure ASGI); usage names `chat`+`user`,
-  `rolling_summary`+`background`, `switch_summary`+`user`; switch = `POST .../switch-model`, note
-  in `context_handoffs.note`, partial reply = status `cancelled`; background summaries off → the
-  NEW model writes the summary at switch time; supersede accepts a new or existing decision and a
-  superseded decision can't replace another (no loops); duplicate dependency links are ignored;
-  success metric ≥ 4 of 5 questions after a switch (`docs/prd.md`); MIT later, 6 phases, 3
-  evenings per week (`docs/phases.md`).
+- Older decisions, condensed (2026-11-17/18): `/health` DB check 2 s; no start without a valid
+  `MASTER_ENCRYPTION_KEY`; `LiteLLMBackend` vs `FakeProvider` via `get_gateway`; catalog from
+  LiteLLM 1.110.0; JSON-only writes; switch = `POST .../switch-model` (note in
+  `context_handoffs.note`, partial reply `cancelled`; summaries off -> the NEW model summarises);
+  supersede can't loop; duplicate links ignored; success metric >= 4 of 5 after a switch; MIT
+  later, 6 phases, 3 evenings per week.
