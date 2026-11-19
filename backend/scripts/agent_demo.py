@@ -99,6 +99,18 @@ def print_review(result: dict[str, Any]) -> None:
             print(wrap(f"suggestion: {finding['suggestion']}", "      "))
 
 
+def print_steps(run: dict[str, Any]) -> None:
+    """One line per step: attempts (2 = one retry after an invalid answer), tokens, cost."""
+    print("\nSTEPS")
+    for step in run["steps"]:
+        retries = step["attempts"] - 1
+        print(f"  {step['agent']} ({step['prompt_version']}): {step['status']}, "
+              f"{retries} retr{'y' if retries == 1 else 'ies'}, "
+              f"{step['input_tokens']} in / {step['output_tokens']} out tokens, "
+              f"${step['cost_usd']}, {step['latency_ms']} ms"
+              + (f", error {step['error']}" if step["error"] else ""))  # fmt: skip
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--model", required=True, help="litellm model name or model id")
@@ -137,6 +149,7 @@ def main() -> None:
             run = call(client, "GET", f"/api/v1/agent-runs/{run['id']}")
             print(f"  status {run['status']}, steps done: {len(run['steps'])}")
 
+        print_steps(run)
         if run["status"] == "failed":
             raise SystemExit(f"Run failed: {run['error']}: {run['error_message']}")
         print_plan(run["result"])
