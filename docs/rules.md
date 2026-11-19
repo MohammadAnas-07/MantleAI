@@ -116,6 +116,15 @@ docs/memory.md is updated in the same branch as the work, in its own commit, bef
 83. Tests never reach a real API: MSW fails the run on an unhandled request.
 84. `npm run typecheck`, `lint`, `format:check`, `test` and `build` pass in `frontend` before every commit that touches it.
 
+## Branch hygiene
+
+85. One feature has one branch, and small fixes that belong to it are committed in that branch.
+86. A separate fix branch is opened only for something unrelated to the current feature or urgent.
+87. No branch is created only for memory, status or reports; `docs/memory.md` changes in the feature branch.
+88. Only one Claude Code session works in a project folder at a time.
+89. A merged branch is deleted with `git branch -d`, never `git branch -D`.
+90. Only the user opens and merges pull requests.
+
 ## Definition of done
 
 71. The task does what its roadmap item says and nothing more.
