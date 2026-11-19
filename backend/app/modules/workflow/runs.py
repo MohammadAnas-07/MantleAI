@@ -3,7 +3,12 @@
 
     queued -> running -> (plan)   Planner, Reviewer -> waiting_for_approval -> approved | rejected
                       -> (review) Reviewer          -> completed
-    any step can end in failed; a cancel request ends in cancelled before the next step.
+    any step can end in failed; an accepted cancel always ends in cancelled.
+
+The job and the cancel endpoint run at the same time, so every status change is a conditional
+UPDATE that only moves from the expected status: the job claims a run only while it is queued,
+and writes its final status only while the run is running and nobody asked to cancel. The cancel
+flag is also checked before every model call and before each result is saved.
 
 The user starts a run; it then executes as an in-process background task and is polled by
 status. The run commits after each step, so a poll shows progress and a crash loses at most the
@@ -57,22 +62,18 @@ from app.modules.workflow.run_setup import (
     chat_model_with_key,
     check_cost,
     create_run,
+    error_fields,
     estimate,
-    fail,
     get_run,
     now,
 )
 from app.modules.workflow.state import StageView, current_stage, view
-from app.modules.workflow.steps import run_step
+from app.modules.workflow.steps import RunCancelled, run_step
 
 logger = logging.getLogger(__name__)
 
 # Upper bound for code context in the estimate: blocks x the largest segment (~4 chars/token).
 _CODE_TOKENS_PER_BLOCK = settings.chunk_max_chars // 4 + 50
-
-
-class _Cancelled(Exception):
-    pass
 
 
 def planner_system_prompt() -> str:
@@ -197,9 +198,44 @@ async def start_run(
 
 
 async def _check_cancel(session: AsyncSession, run: AgentRun) -> None:
-    await session.refresh(run, ["cancel_requested_at"])
-    if run.cancel_requested_at is not None:
-        raise _Cancelled
+    """Raise RunCancelled if the user asked to cancel. Reads the database, not the session's
+    copy of the run."""
+    requested = await session.scalar(
+        select(AgentRun.cancel_requested_at).where(
+            AgentRun.user_id == run.user_id, AgentRun.id == run.id
+        )
+    )
+    if requested is not None:
+        raise RunCancelled
+
+
+def _conditional(run: AgentRun, *, expect: RunStatus) -> Any:
+    """An UPDATE of this run that matches only while it has status `expect`."""
+    return (
+        update(AgentRun)
+        .where(AgentRun.user_id == run.user_id, AgentRun.id == run.id, AgentRun.status == expect)
+        .execution_options(synchronize_session=False)
+    )
+
+
+async def _finish(session: AsyncSession, run: AgentRun, to: RunStatus, **values: Any) -> None:
+    """Write the final status of a running run. If a cancel was accepted meanwhile, the run
+    ends cancelled instead, whatever `to` was. Commits."""
+    await session.flush()  # results, tokens and warnings first; they never touch the status
+    stamp = {} if to == RunStatus.WAITING_FOR_APPROVAL else {"finished_at": now()}
+    result = await session.execute(
+        _conditional(run, expect=RunStatus.RUNNING)
+        .where(AgentRun.cancel_requested_at.is_(None))
+        .values(status=to, **stamp, **values)
+    )
+    if result.rowcount != 1:
+        await session.execute(
+            _conditional(run, expect=RunStatus.RUNNING).values(
+                status=RunStatus.CANCELLED, finished_at=now()
+            )
+        )
+    await session.commit()
+    await session.refresh(run)
 
 
 async def _stage_of(session: AsyncSession, user_id: uuid.UUID, run: AgentRun) -> StageView:
@@ -242,9 +278,15 @@ def _existing_tasks(memory: list[MemoryRef]) -> dict[str, uuid.UUID]:
 
 async def _execute(
     session: AsyncSession, gateway: Gateway, run: AgentRun, model: ModelInfo
-) -> None:
+) -> RunStatus:
+    """Run the steps and return the status the run should end in. Never writes the status;
+    raises RunCancelled when the user cancelled."""
     user_id = run.user_id
-    await _check_cancel(session, run)
+
+    async def check_cancel() -> None:
+        await _check_cancel(session, run)
+
+    await check_cancel()
     stage = await _stage_of(session, user_id, run)
     inputs = await _inputs(session, gateway, user_id, run.project_id, model, stage, run.input)
     if inputs.memory_dropped:
@@ -260,28 +302,27 @@ async def _execute(
         plan = await run_step(
             session, gateway, run, agent=AgentName.PLANNER, prompt_version=PLANNER_PROMPT,
             position=position, model=model, prompt=prompt, prompt_tokens=tokens, schema=Plan,
-            check=check_plan,
+            check=check_plan, before_call=check_cancel,
         )  # fmt: skip
         flag_duplicates(plan, _existing_tasks(inputs.memory))
+        await check_cancel()
         run.result = {"plan": plan.model_dump(mode="json")}
         await session.commit()
         position += 1
-        await _check_cancel(session, run)
 
     prompt = reviewer_prompt(inputs, plan)
     tokens = await check_fits(session, gateway, user_id, model, prompt)
     review = await run_step(
         session, gateway, run, agent=AgentName.REVIEWER, prompt_version=REVIEWER_PROMPT,
         position=position, model=model, prompt=prompt, prompt_tokens=tokens, schema=Review,
+        before_call=check_cancel,
     )  # fmt: skip
     refs = References.build(memory_ids, plan)
     warnings = check_references((("findings", f) for f in review.findings), refs)
+    await check_cancel()
     run.warnings = [*run.warnings, *warnings]
     run.result = {**run.result, "review": review.model_dump(mode="json")}
-    if run.run_type == RunType.PLAN:
-        run.status = RunStatus.WAITING_FOR_APPROVAL
-    else:
-        run.status, run.finished_at = RunStatus.COMPLETED, now()
+    return RunStatus.WAITING_FOR_APPROVAL if run.run_type == RunType.PLAN else RunStatus.COMPLETED
 
 
 async def run_agent_job(
@@ -289,29 +330,39 @@ async def run_agent_job(
 ) -> None:
     """The background task. Never raises: the outcome is stored on the run (rule 55)."""
     async with session_factory() as session:
-        run = await session.scalar(
-            select(AgentRun).where(AgentRun.user_id == user_id, AgentRun.id == run_id)
-        )
-        if run is None or run.status != RunStatus.QUEUED:
-            return
-        run.status, run.started_at = RunStatus.RUNNING, now()
+        claimed = await session.execute(
+            update(AgentRun)
+            .where(AgentRun.user_id == user_id, AgentRun.id == run_id,
+                   AgentRun.status == RunStatus.QUEUED)
+            .values(status=RunStatus.RUNNING, started_at=now())
+            .execution_options(synchronize_session=False)
+        )  # fmt: skip
         await session.commit()
+        if claimed.rowcount != 1:
+            return  # cancelled before it started, or already picked up
+        run = await session.scalar(
+            select(AgentRun)
+            .where(AgentRun.user_id == user_id, AgentRun.id == run_id)
+            .execution_options(populate_existing=True)
+        )
+        assert run is not None
         model: ModelInfo | None = None
         try:
             model = await chat_model_with_key(session, user_id, run.model_id)
-            await _execute(session, gateway, run, model)
-        except _Cancelled:
-            run.status, run.finished_at = RunStatus.CANCELLED, now()
+            final = await _execute(session, gateway, run, model)
+            await _finish(session, run, final)
+        except RunCancelled:
+            await _finish(session, run, RunStatus.CANCELLED)
         except AppError as exc:  # a failed step or a typed gateway error
-            await fail(session, run, exc, model)
+            fields = await error_fields(session, user_id, exc, model)
+            await _finish(session, run, RunStatus.FAILED, **fields)
         except Exception as exc:
             # Type only: a message could quote memory text or model output.
             logger.error("agent run crashed run=%s type=%s", run_id, type(exc).__name__)
             await session.rollback()
-            await session.refresh(run)
-            run.status, run.finished_at = RunStatus.FAILED, now()
-            run.error, run.error_message = "internal_error", "The run stopped on an internal error."
-        await session.commit()
+            await session.refresh(run)  # the rollback expired it
+            await _finish(session, run, RunStatus.FAILED, error="internal_error",
+                          error_message="The run stopped on an internal error.")  # fmt: skip
         logger.info("agent run finished run=%s status=%s input_tokens=%d output_tokens=%d",
                     run_id, RunStatus(run.status).value,
                     run.input_tokens, run.output_tokens)  # fmt: skip
@@ -321,16 +372,29 @@ async def run_agent_job(
 
 
 async def request_cancel(session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> AgentRun:
-    """Queued: cancelled now. Running: stops before its next step. Otherwise 409."""
+    """Queued: cancelled now. Running: the job stops at its next check and ends cancelled.
+    Anything else (finished, waiting for approval) is 409, and so is a gap finder run: it runs
+    inside its own request and can't be stopped. Both updates are conditional, so a cancel never
+    overwrites a status the job wrote meanwhile."""
     run = await get_run(session, user_id, run_id)
-    if run.status == RunStatus.QUEUED:
-        run.status, run.finished_at = RunStatus.CANCELLED, now()
-    elif run.status == RunStatus.RUNNING:
-        run.cancel_requested_at = now()
-    else:
-        raise AppError(f"A run that is {run.status} can't be cancelled.",
-                       code="agent_run_not_active", status_code=409)  # fmt: skip
-    await session.flush()
+    if run.run_type == RunType.GAP_FINDER:
+        raise AppError("A gap finder run can't be cancelled.", code="agent_run_not_cancellable",
+                       status_code=409)  # fmt: skip
+    stamp = now()
+    queued = await session.execute(
+        _conditional(run, expect=RunStatus.QUEUED).values(
+            status=RunStatus.CANCELLED, finished_at=stamp, cancel_requested_at=stamp
+        )
+    )
+    if queued.rowcount != 1:
+        running = await session.execute(
+            _conditional(run, expect=RunStatus.RUNNING).values(cancel_requested_at=stamp)
+        )
+        if running.rowcount != 1:
+            await session.refresh(run)
+            raise AppError(f"A run that is {run.status} can't be cancelled.",
+                           code="agent_run_not_active", status_code=409)  # fmt: skip
+    await session.refresh(run)
     return run
 
 

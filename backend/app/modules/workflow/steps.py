@@ -11,7 +11,7 @@ Logs hold ids, counts, tokens and timings only: never prompts, memory text or ou
 import asyncio
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from decimal import Decimal
 
@@ -38,6 +38,10 @@ RETRY_NOTE = (
     "Your previous answer could not be used: {error} "
     "Answer again with one JSON object that follows the format exactly."
 )
+
+
+class RunCancelled(Exception):
+    """The user cancelled the run; raised by the `before_call` check."""
 
 
 class StepFailed(AppError):
@@ -76,8 +80,10 @@ async def run_step[M: BaseModel](
     prompt_tokens: int,
     schema: type[M],
     check: Callable[[M], None] | None = None,
+    before_call: Callable[[], Awaitable[None]] | None = None,
 ) -> M:
     """Call the model (at most twice), validate, store the step and add its usage to the run.
+    `before_call` runs before every model call (the cancel check) and may raise RunCancelled.
     Raises StepFailed, or an LLMError from the gateway."""
     usage = StepUsage()
     step = AgentRunStep(
@@ -89,6 +95,8 @@ async def run_step[M: BaseModel](
     attempt_prompt = prompt
     try:
         for attempt in (1, 2):
+            if before_call is not None:
+                await before_call()
             step.attempts = attempt
             done = await asyncio.wait_for(
                 gateway.complete(
@@ -122,6 +130,9 @@ async def run_step[M: BaseModel](
             step.output = result.model_dump(mode="json")
             return result
         raise AssertionError("unreachable")
+    except RunCancelled:
+        step.status, step.error = "cancelled", "cancelled"
+        raise
     except TimeoutError:
         step.error = "step_timeout"
         raise StepFailed(

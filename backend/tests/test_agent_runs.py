@@ -218,7 +218,78 @@ async def test_cancel_between_steps(
     assert body["status"] == "cancelled" and body["cancel_requested_at"] is not None
     assert [s["agent"] for s in body["steps"]] == ["planner"]  # the Reviewer never ran
     assert world.script.calls("reviewer") == 0
-    assert body["result"]["plan"]["tasks"]  # the finished step is kept
+    # The cancel came before the plan was saved as the run's result; the step keeps it.
+    assert "plan" not in body["result"]
+    assert body["steps"][0]["output"]["tasks"]
+
+
+async def test_cancel_before_a_retry_stops_the_model_call(
+    client: httpx.AsyncClient, session: AsyncSession, world: AgentWorld,
+) -> None:  # fmt: skip
+    """A cancel that lands while the Planner's first answer is being checked stops the run
+    before the retry call."""
+    runs_seen: list[AgentRun] = []
+    real_reply = world.script
+
+    def invalid_then_cancel(messages: Any) -> str:
+        reply = real_reply(messages)
+        runs_seen[-1].cancel_requested_at = runs.now()  # what the cancel endpoint writes
+        return reply
+
+    world.fake.set_reply(world.model_name, invalid_then_cancel)
+    original = runs._execute
+
+    async def remember(session_: AsyncSession, gateway: Any, run: AgentRun, model: Any) -> Any:
+        runs_seen.append(run)
+        return await original(session_, gateway, run, model)
+
+    world.script.say("planner", "not json", plan())
+    import app.modules.workflow.runs as runs_module
+
+    runs_module._execute = remember  # type: ignore[assignment]
+    try:
+        body = await get(client, (await start(client, world)).json()["id"])
+    finally:
+        runs_module._execute = original  # type: ignore[assignment]
+    assert body["status"] == "cancelled"
+    assert world.script.calls("planner") == 1  # no retry call after the cancel
+    assert world.script.calls("reviewer") == 0
+
+
+async def test_cancel_after_the_last_step_still_cancels(
+    client: httpx.AsyncClient, world: AgentWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cancel accepted while the Reviewer runs must end the run as cancelled, not as
+    waiting_for_approval with a cancel flag nobody honoured."""
+    original = runs.run_step
+
+    async def reviewer_then_user_cancels(
+        session_: AsyncSession, gateway: Any, run: AgentRun, **kwargs: Any
+    ) -> Any:
+        result = await original(session_, gateway, run, **kwargs)
+        if kwargs["agent"] == AgentName.REVIEWER:
+            await runs.request_cancel(session_, run.user_id, run.id)
+        return result
+
+    monkeypatch.setattr(runs, "run_step", reviewer_then_user_cancels)
+    world.script.say("planner", plan())
+    world.script.say("reviewer", review())
+    body = await get(client, (await start(client, world)).json()["id"])
+    assert body["status"] == "cancelled"
+    r = await client.post(f"/api/v1/agent-runs/{body['id']}/approve", json={"all": True})
+    assert r.status_code == 409
+
+
+async def test_a_gap_finder_run_cannot_be_cancelled(
+    client: httpx.AsyncClient, session: AsyncSession, world: AgentWorld
+) -> None:
+    run = AgentRun(user_id=world.user_id, project_id=world.project_id,
+                   run_type=RunType.GAP_FINDER, status=RunStatus.RUNNING,
+                   model_id=world.model_id, prompt_version="gap_finder_v1")  # fmt: skip
+    session.add(run)
+    await session.flush()
+    r = await client.post(f"/api/v1/agent-runs/{run.id}/cancel", json={})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "agent_run_not_cancellable"
 
 
 async def test_startup_recovery(session: AsyncSession, world: AgentWorld) -> None:

@@ -2,13 +2,15 @@
 
 import asyncio
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import pytest
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.modules.projects.models import MemoryItem
-from app.modules.workflow.models import RunStatus
+from app.modules.workflow.models import AgentRun, RunStatus, RunType
 from tests.committed_helpers import committed_world
 
 pytestmark = pytest.mark.db
@@ -42,3 +44,31 @@ async def test_two_decisions_at_once_one_wins(engine: AsyncEngine, second: str) 
             assert len(run.saved_item_ids) == 4
         else:
             assert run.status == RunStatus.REJECTED and saved == 0
+
+
+async def test_cancel_while_the_job_picks_up_a_queued_run(engine: AsyncEngine) -> None:
+    """The job has read the run as queued; the cancel commits before the job marks it
+    running. The cancel must win."""
+    from app.modules.llm.fake import FakeProvider
+    from app.modules.llm.gateway import Gateway
+    from app.modules.workflow import runs
+
+    async with committed_world(engine) as world:
+        run_id = await world.add_run(RunStatus.QUEUED, RunType.REVIEW)
+        fake = FakeProvider()
+        async with world.session() as job_session:
+            # What the job saw when it started: the run, still queued.
+            stale = await job_session.get(AgentRun, run_id)
+            assert stale is not None and stale.status == RunStatus.QUEUED
+            async with world.client() as c:
+                r = await c.post(f"/api/v1/agent-runs/{run_id}/cancel", json={})
+                assert r.status_code == 200 and r.json()["status"] == "cancelled"
+
+            @asynccontextmanager
+            async def same_session() -> AsyncIterator[AsyncSession]:
+                yield job_session
+
+            await runs.run_agent_job(same_session, Gateway(fake), world.user_id, run_id)
+        final = await world.run_status(run_id)
+        assert final.status == RunStatus.CANCELLED
+        assert fake.calls == []

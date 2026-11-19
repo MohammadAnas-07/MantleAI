@@ -130,17 +130,26 @@ async def create_run(
     return run
 
 
+async def error_fields(
+    session: AsyncSession, user_id: uuid.UUID, error: AppError, model: ModelInfo | None
+) -> dict[str, Any]:
+    """The columns that say why a run failed. Rate limit and context errors carry suggested
+    models (also added to `error.details`, for the response)."""
+    details = dict(error.details)
+    if model is not None and error.code in _SUGGEST_FOR and "suggested_models" not in details:
+        details["suggested_models"] = await suggest_models(session, user_id, model, error.code)
+        error.details["suggested_models"] = details["suggested_models"]
+    return {"error": error.code, "error_message": error.message, "error_details": details}
+
+
 async def fail(
     session: AsyncSession, run: AgentRun, error: AppError, model: ModelInfo | None
 ) -> None:
-    """Store why the run failed. Rate limit and context errors carry suggested models."""
-    details = dict(error.details)
-    if model is not None and error.code in _SUGGEST_FOR and "suggested_models" not in details:
-        details["suggested_models"] = await suggest_models(session, run.user_id, model, error.code)
-        error.details["suggested_models"] = details["suggested_models"]
-    run.status = RunStatus.FAILED
-    run.error, run.error_message, run.error_details = error.code, error.message, details
-    run.finished_at = now()
+    """Mark a gap finder run failed. It runs inside one request, so nothing else writes its
+    status meanwhile; background runs use conditional updates instead (runs.py)."""
+    for name, value in (await error_fields(session, run.user_id, error, model)).items():
+        setattr(run, name, value)
+    run.status, run.finished_at = RunStatus.FAILED, now()
 
 
 async def get_run(
