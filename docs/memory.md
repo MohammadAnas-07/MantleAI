@@ -10,17 +10,15 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phases 1-3 are merged, and Phase 5's first UI too: `frontend/` (React,
-Vite, TS strict, Tailwind, grunge-lite design), 48 frontend tests; backend CORS, Host check,
-project PATCH and DELETE, operation ids, `GET /usage/records`; 407 backend tests. All checks
-pass on `main` after the merge. Dev database `mantle` at `0006`.
+Phases 1-3 are merged, and Phase 5's first UI too (`frontend/`, 48 tests; CORS, Host check,
+project PATCH/DELETE, `GET /usage/records`; 407 backend tests). All checks pass on `main`. Dev database `mantle` at `0007` (quota fix branch).
 Phase 3 real-key eval (2026-11-18, sample project): recall@5 vector 1.00 / text 0.95 / hybrid
 1.00. A harder eval on click 8.5.1 (25 questions) is ready but not run yet. Not done: the Phase 3
 demo with real models, `GET /messages/{id}/context`, Phase 4 (workflow, teaching).
 To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev` (http://127.0.0.1:5173).
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-19.
+First demo target: 2026-12-17. Last updated 2026-11-19 (quota fix).
 
 ## Done
 
@@ -29,13 +27,10 @@ First demo target: 2026-12-17. Last updated 2026-11-19.
 - 2026-11-18: LLM gateway, model switching + context builder + rolling summary, four small
   fixes, project memory + pinned items (`0004`), memory docs.
   Switch demo 5/5 twice on Gemini 3.8 Flash -> 3.5 Flash Lite (same provider).
-- 2026-11-18: `feat/project-indexing-rag` (merged): `0005` (run states/counters/estimate,
-  skipped-file rows, segment metadata, `search_tsv` + GIN), `0006` (`code_context_enabled`,
-  message context lines); rag `source`, `scanner`, `secret_scan`, `chunker` (tree-sitter),
-  `indexer` (incremental, vector reuse by hash, batches, backoff, cancel, resume, startup
-  recovery), `search` (RRF k=60); `app/api/projects.py`; ContextBuilder retrieved section;
-  SSE `warning`; Gemini embedding with task types; `scripts/eval_retrieval.py`; ADRs 0006, 0007.
-  `fix/crlf-fixture-test`: the identical-file test is line-ending independent.
+- 2026-11-18: `feat/project-indexing-rag` (merged): `0005`, `0006`; rag `scanner`, `secret_scan`,
+  `chunker` (tree-sitter), `indexer` (incremental, vector reuse, batches, backoff, cancel, resume,
+  recovery), `search` (RRF k=60); retrieved context; SSE `warning`; `scripts/eval_retrieval.py`;
+  ADRs 0006, 0007. `fix/crlf-fixture-test`: identical-file test is line-ending independent.
 - 2026-11-18: `feat/frontend-workspace` (merged): `docs/design-app.md`; frontend (settings,
   projects, index, memory, chat with SSE streaming, context preview, switching, activity log);
   backend CORS + Host check, project PATCH/DELETE, operation ids, `/usage/records`,
@@ -43,9 +38,10 @@ First demo target: 2026-12-17. Last updated 2026-11-19.
 
 ## In progress
 
-- `test/retrieval-eval-large`: `eval_retrieval.py` takes `--project-path`, `--questions` and
-  `--estimate-only` (no model call); 25 click questions (behaviour, exact name, two files;
-  recall@5, all@5, MRR per kind). Run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
+- `fix/index-daily-quota-message`: `quota_exhausted` (never retried) -> run `daily_quota_exhausted`;
+  Retry-After, total wait cap; `usage_records.error_detail` (`0007`). 434/49 tests; no real quota.
+- Click eval (`eval_retrieval.py --project-path --questions --estimate-only`, 25 questions): run 1
+  stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
 
@@ -80,6 +76,7 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 | 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4); app design "grunge-lite" | User's choice | `design-app.md` |
 | 2026-11-18 | TypeScript 5.9 (not 7): openapi-typescript and typescript-eslint support only up to 6.x/5.x | Toolchain support | `frontend/package.json` |
 | 2026-11-18 | API types generated from OpenAPI and committed; `gen:api:check` guards them; operationId = route function name | Builds without a backend; stable names | `api-outline.md` |
+| 2026-11-19 | Used-up quota = per-day quota id or requested wait > 10 min; anything else stays `rate_limited`; `error_detail` keeps only sanitized structured fields | No guessing; provider text can echo prompts | rule 51 |
 | 2026-11-18 | Allowed hosts localhost/127.0.0.1 any port (400 `invalid_host`); CORS only the dev origins; project default model lives in project settings | DNS rebinding; user's choice | `security.md` |
 
 ## Known issues and gotchas
@@ -98,8 +95,8 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
   mismatch. Voyage (1024 dims) stays disabled at 1536. `pgvector` returns numpy arrays.
 - **Repositories don't check a parent row's user** (fix before auth); `litellm` imports lazily (~11 s).
 - **LiteLLM wraps mid-stream errors in `MidStreamFallbackError`**; `map_provider_error` unwraps
-  it and maps by HTTP status too. The free Gemini tier rate-limits after ~30 calls in a few
-  minutes; indexing backs off (`EMBED_RATE_LIMIT_BACKOFF_SECONDS`, doubling, `EMBED_MAX_RETRIES`).
+  it. Free Gemini rate-limits after ~30 calls in minutes. **For a Gemini 429 LiteLLM drops headers
+  and body** (JSON only in the message); `provider_errors.py` reads `quotaId`/`retryDelay` there.
 - **Rows in one transaction share `now()`** (never order by `created_at` for "newest"). **The
   running app must import every model** (`app/db/session.py` imports `app.db.models`);
   `tests/test_app_wiring.py` checks it in a fresh interpreter.
