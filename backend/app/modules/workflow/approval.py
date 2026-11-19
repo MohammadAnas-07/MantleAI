@@ -74,6 +74,7 @@ def _decision_draft(decision: ProposedDecision, edit: DecisionEdit) -> DraftDeci
 async def approve_run(
     session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID, body: ApproveRunIn
 ) -> Approval:
+    """Save the chosen drafts of a waiting plan run; 409 unless it is waiting for approval."""
     run = await get_run(session, user_id, run_id)
     _waiting(run)
     plan = Plan.model_validate(run.result["plan"])

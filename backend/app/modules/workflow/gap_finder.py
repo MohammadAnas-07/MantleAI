@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 def trimmed_warning(dropped: int) -> list[dict[str, object]]:
+    """A warning when memory had to be cut to fit the budget."""
     if not dropped:
         return []
     return [{"code": "memory_trimmed", "count": dropped,
@@ -102,6 +103,7 @@ async def run_gap_finder(
 async def list_gap_runs(
     session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID, *, limit: int = 50
 ) -> list[AgentRun]:
+    """Past gap finder runs of the project, newest first. 404 for another user's project."""
     await get_project(session, user_id, project_id)
     rows = await session.scalars(
         select(AgentRun)

@@ -56,6 +56,7 @@ class StepUsage:
     cost_usd: Decimal | None = None
 
     def add(self, input_tokens: int, output_tokens: int, cost: Decimal | None) -> None:
+        """Add one attempt's tokens and cost."""
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
         if cost is not None:

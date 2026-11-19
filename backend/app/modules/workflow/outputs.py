@@ -108,6 +108,7 @@ class GapReport(_Out):
     scalability_concerns: list[Finding] = Field(default_factory=list, max_length=20)
 
     def findings(self) -> Iterable[tuple[str, Finding]]:
+        """Every finding with the name of its list."""
         for name in ("missing_steps", "risks", "technical_debt", "scalability_concerns"):
             for finding in getattr(self, name):
                 yield name, finding
@@ -235,6 +236,7 @@ class References:
 
     @classmethod
     def build(cls, memory_ids: Iterable[uuid.UUID], plan: Plan | None = None) -> "References":
+        """References for these memory ids and, for a plan run, the plan's items."""
         refs = cls()
         for item_id in memory_ids:
             refs.memory[str(item_id)] = item_id
@@ -245,6 +247,7 @@ class References:
         return refs
 
     def resolve(self, ref: str) -> str | None:
+        """The full id for a reference, or None when the project has no such item."""
         key = ref.strip().lower()
         if key in self.plan_items:
             return key

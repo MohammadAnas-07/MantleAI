@@ -40,15 +40,18 @@ TAGS = (
 
 
 def safe(text: str) -> str:
+    """Defang our tags and chat-template markers inside untrusted text."""
     return defang(text, TAGS)
 
 
 def output_reserve(model: ModelInfo) -> int:
+    """Tokens kept free for the reply: AGENT_MAX_OUTPUT_TOKENS, or less if the model allows less."""
     limit = settings.agent_max_output_tokens
     return min(limit, model.max_output_tokens) if model.max_output_tokens else limit
 
 
 def input_budget(model: ModelInfo) -> int:
+    """Tokens the prompt may use for this model."""
     margin = math.ceil(model.context_window * settings.context_safety_margin)
     budget = model.context_window - output_reserve(model) - margin
     return max(min(budget, settings.agent_max_input_tokens), 0)
@@ -68,6 +71,7 @@ class AgentInputs:
 
 
 def project_text(project: ProjectInfo, memory: list[MemoryRef]) -> str:
+    """The project's name, description and memory counts."""
     counts = Counter(f"{m.kind}:{m.status}" for m in memory)
     summary = ", ".join(f"{n} {key}" for key, n in sorted(counts.items())) or "no memory items"
     lines = [f"name: {project.name}"]
@@ -78,6 +82,7 @@ def project_text(project: ProjectInfo, memory: list[MemoryRef]) -> str:
 
 
 def stage_text(stage: StageView) -> str:
+    """The stage goal, its checklist with ticks, and the artifact rules with counts."""
     d = stage.definition
     lines = [f"id: {d.id}", f"title: {d.title}", f"goal: {d.goal}", "checklist:"]
     for item in d.checklist:
@@ -92,10 +97,12 @@ def stage_text(stage: StageView) -> str:
 
 
 def requirement_text(text: str) -> str:
+    """The requirement the Planner works on."""
     return "<requirement>\n" + safe(text.strip()) + "\n</requirement>"
 
 
 def plan_text(plan: Plan) -> str:
+    """The draft plan for the Reviewer, with items numbered as task:N and decision:N."""
     data = plan.model_dump(exclude={"tasks": {"__all__": {"possible_duplicate_of"}}})
     numbered = {
         "tasks": {f"task:{i}": t for i, t in enumerate(data["tasks"])},
@@ -108,6 +115,7 @@ def plan_text(plan: Plan) -> str:
 
 
 def code_text(blocks: list[RetrievedBlock]) -> str:
+    """Retrieved code blocks as `<source>` data, or nothing."""
     if not blocks:
         return ""
     parts = [

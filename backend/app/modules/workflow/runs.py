@@ -127,10 +127,12 @@ def _base_sections(inputs: AgentInputs) -> list[str]:
 
 
 def planner_prompt(inputs: AgentInputs) -> ChatMessages:
+    """System prompt and data for the Planner."""
     return messages(planner_system_prompt(), _base_sections(inputs))
 
 
 def reviewer_prompt(inputs: AgentInputs, plan: Plan | None) -> ChatMessages:
+    """System prompt and data for the Reviewer, with the plan when there is one."""
     sections = _base_sections(inputs)
     if plan is not None:
         sections.append(plan_text(plan))
@@ -311,7 +313,7 @@ async def run_agent_job(
             run.error, run.error_message = "internal_error", "The run stopped on an internal error."
         await session.commit()
         logger.info("agent run finished run=%s status=%s input_tokens=%d output_tokens=%d",
-                    run_id, run.status.value if isinstance(run.status, RunStatus) else run.status,
+                    run_id, RunStatus(run.status).value,
                     run.input_tokens, run.output_tokens)  # fmt: skip
 
 

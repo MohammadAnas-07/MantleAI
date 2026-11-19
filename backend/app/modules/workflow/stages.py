@@ -54,6 +54,7 @@ class MemoryCountRule(_Strict):
         return value
 
     def unknown_statuses(self) -> list[str]:
+        """Statuses in the rule that the kind doesn't have."""
         return [s for s in self.statuses if s not in MEMORY_STATUSES[self.kind]]
 
 
@@ -65,6 +66,7 @@ class StageDefinition(_Strict):
     artifacts: tuple[MemoryCountRule, ...] = ()
 
     def item(self, item_id: str) -> ChecklistItem | None:
+        """The checklist item with this id, or None."""
         return next((i for i in self.checklist if i.id == item_id), None)
 
 
@@ -80,16 +82,20 @@ class StageList:
         self._by_id = {s.id: s for s in stages}
 
     def get(self, stage_id: str | None) -> StageDefinition | None:
+        """The stage with this id, or None."""
         return self._by_id.get(stage_id) if stage_id else None
 
     def index(self, stage_id: str) -> int:
+        """Position of a known stage id."""
         return next(i for i, s in enumerate(self.stages) if s.id == stage_id)
 
     @property
     def first(self) -> StageDefinition:
+        """The first stage."""
         return self.stages[0]
 
     def after(self, stage_id: str) -> StageDefinition | None:
+        """The stage after this one, or None for the last stage."""
         position = self.index(stage_id) + 1
         return self.stages[position] if position < len(self.stages) else None
 

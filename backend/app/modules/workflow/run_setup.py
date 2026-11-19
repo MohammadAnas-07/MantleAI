@@ -28,12 +28,14 @@ _SUGGEST_FOR = {"context_too_long", "rate_limited", "quota_exhausted"}
 
 
 def now() -> datetime:
+    """The current time in UTC."""
     return datetime.now(UTC)
 
 
 async def chat_model_with_key(
     session: AsyncSession, user_id: uuid.UUID, model_id: uuid.UUID
 ) -> ModelInfo:
+    """An enabled chat model the user has a key for; 422 otherwise."""
     model = await get_chat_model(session, model_id)
     if model.provider not in await providers_with_keys(session, user_id):
         raise NoCredential(
@@ -66,6 +68,7 @@ def estimate(model: ModelInfo, prompt_tokens: list[int]) -> dict[str, Any]:
 
 
 def check_cost(run_estimate: dict[str, Any], force: bool) -> None:
+    """409 cost_limit_exceeded when the estimate is over the limit and force is off."""
     cost = run_estimate["cost_usd"]
     if force or cost is None or Decimal(cost) <= settings.agent_run_cost_limit_usd:
         return
@@ -81,6 +84,7 @@ def check_cost(run_estimate: dict[str, Any], force: bool) -> None:
 async def active_run(
     session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID
 ) -> AgentRun | None:
+    """The project's queued or running run, if any."""
     return await session.scalar(
         select(AgentRun).where(
             AgentRun.user_id == user_id,
@@ -140,6 +144,7 @@ async def fail(
 
 
 async def get_run(session: AsyncSession, user_id: uuid.UUID, run_id: uuid.UUID) -> AgentRun:
+    """One of the user's runs; 404 for another user's run."""
     run = await session.scalar(
         select(AgentRun).where(AgentRun.user_id == user_id, AgentRun.id == run_id)
     )

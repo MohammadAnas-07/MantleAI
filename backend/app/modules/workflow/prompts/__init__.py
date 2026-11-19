@@ -13,4 +13,5 @@ REVIEWER_PROMPT = "reviewer_v1"
 
 @cache
 def load_prompt(name: str) -> str:
+    """The text of a prompt file, read once."""
     return (PROMPTS_DIR / f"{name}.txt").read_text(encoding="utf-8")
