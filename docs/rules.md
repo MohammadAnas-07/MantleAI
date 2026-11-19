@@ -103,6 +103,8 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 69. `docs/memory.md` is updated at the end of every task.
 70. Docs use plain English, short sentences and no filler.
 
+docs/memory.md is updated in the same branch as the work, in its own commit, before the pull request is opened. Do not record PR numbers or merge commit hashes there. Do not create a separate branch just to update memory. Only a pure documentation catch-up that was missed may use its own docs/ branch.
+
 ## Frontend
 
 77. TypeScript runs in strict mode and `any` is a lint error; use `unknown` and narrow it.
