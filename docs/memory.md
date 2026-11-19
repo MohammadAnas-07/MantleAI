@@ -10,7 +10,7 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-Phases 1-3 are merged, and Phase 5's first UI too (PR #19, `a5c9738`): `frontend/` (React,
+Phases 1-3 are merged, and Phase 5's first UI too: `frontend/` (React,
 Vite, TS strict, Tailwind, grunge-lite design), 48 frontend tests; backend CORS, Host check,
 project PATCH and DELETE, operation ids, `GET /usage/records`; 396 backend tests. All checks
 pass on `main` after the merge. Dev database `mantle` at `0006`.
@@ -24,18 +24,18 @@ First demo target: 2026-12-17. Last updated 2026-11-19.
 ## Done
 
 - 2026-11-17: scaffold, Docker Postgres on 5433, docs, pinned deps + `requirements.lock`, all
-  v0.1 tables (`0001`), repositories bound to `user_id`, Fernet helper, seed script (PRs #1–#5).
-- 2026-11-18: LLM gateway (PR #7), model switching + context builder + rolling summary (PR #8),
-  fixes #9–#12, project memory + pinned items (PR #14, `0004`), memory docs (PRs #15, #16).
+  v0.1 tables (`0001`), repositories bound to `user_id`, Fernet helper, seed script.
+- 2026-11-18: LLM gateway, model switching + context builder + rolling summary, four small
+  fixes, project memory + pinned items (`0004`), memory docs.
   Switch demo 5/5 twice on Gemini 3.8 Flash -> 3.5 Flash Lite (same provider).
-- 2026-11-18: `feat/project-indexing-rag` (PR #17, merged): `0005` (run states/counters/estimate,
+- 2026-11-18: `feat/project-indexing-rag` (merged): `0005` (run states/counters/estimate,
   skipped-file rows, segment metadata, `search_tsv` + GIN), `0006` (`code_context_enabled`,
   message context lines); rag `source`, `scanner`, `secret_scan`, `chunker` (tree-sitter),
   `indexer` (incremental, vector reuse by hash, batches, backoff, cancel, resume, startup
   recovery), `search` (RRF k=60); `app/api/projects.py`; ContextBuilder retrieved section;
   SSE `warning`; Gemini embedding with task types; `scripts/eval_retrieval.py`; ADRs 0006, 0007.
-  PR #18: the identical-file test is line-ending independent.
-- 2026-11-18: `feat/frontend-workspace` (PR #19, merged): `docs/design-app.md`; frontend (settings,
+  `fix/crlf-fixture-test`: the identical-file test is line-ending independent.
+- 2026-11-18: `feat/frontend-workspace` (merged): `docs/design-app.md`; frontend (settings,
   projects, index, memory, chat with SSE streaming, context preview, switching, activity log);
   backend CORS + Host check, project PATCH/DELETE, operation ids, `/usage/records`,
   `scripts/export_openapi.py`; frontend rules in `CLAUDE.md` and `rules.md` (77-84).
@@ -136,7 +136,7 @@ Full decision text: `docs/architecture.md` → Decisions.
 
 ## Archive
 
-- PR-by-PR detail for Phases 1–2 is in `git log` and the PR descriptions (#1–#16).
+- Detail for Phases 1–2 is in `git log` and the pull request descriptions.
 - Older decisions, condensed (2026-11-17/18): Docker Postgres on 5433, `/health` DB check 2 s;
   API refuses to start without a valid `MASTER_ENCRYPTION_KEY`; gateway first on its own branch,
   `LiteLLMBackend` vs `FakeProvider` via `get_gateway`; catalog hardcoded from LiteLLM 1.110.0
