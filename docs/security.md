@@ -30,6 +30,7 @@ A basic threat model for v0.1: one user, running locally, using their own API ke
 | --- | --- |
 | Risk | Text in a file or message tells the model to ignore its instructions, leak data or take an action. |
 | MVP | Agents and chat have **no tools** in v0.1. The worst result is bad text, never an action. Anything that changes state (memory items, stage approval) needs a human click. The system prompt says that retrieved content is data, not instructions. |
+| Agents (`feat/workflow-and-agents`) | The gap finder, Planner and Reviewer get memory, the requirement, a draft plan and optional code inside tags (`<project>`, `<stage>`, `<project_memory>`, `<requirement>`, `<plan>`, `<retrieved_context>`), with those tags and chat-template markers defanged by `app/core/prompt_data.py`. Their prompts say that data is never an instruction. Their output is parsed as JSON and validated with Pydantic: unknown fields are dropped, ids are checked against the project (unknown ones removed, with a warning), plans are checked for size, valid dependencies and cycles. The result is a draft: it changes no memory, stage or status. Only `POST /agent-runs/{id}/approve` saves items, through the same checks as manual input, as tasks `todo` and decisions `proposed`. Stage changes have no model involvement at all. Nothing in model output is ever executed or followed. Logs hold ids, counts, tokens and timings only. |
 | Later | Tool-call authorization per tool, an allow-list of tools per agent, and checks on tool arguments before anything runs. |
 
 ### 3. Untrusted retrieved content

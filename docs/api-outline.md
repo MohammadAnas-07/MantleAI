@@ -121,17 +121,41 @@ or running run per project (409 `index_in_progress`); a server restart marks a l
 
 ## Workflow and agents (`workflow`)
 
+Built in `feat/workflow-and-agents` (replaces the earlier `/stages/{stage_id}/...` sketch). Stages
+come from `app/modules/workflow/stages.yaml`, checked at startup. A project without a stored
+workflow (made before this feature) reads as the first stage; GET writes nothing, and the first
+change stores it with a `created` event. Every transition is saved as an append-only event and
+uses a version check; approve and skip also take the `stage_id` the user means. Of two requests
+at the same moment one wins, the other gets 409 `workflow_changed`. Reasons are trimmed, required and at most `WORKFLOW_REASON_MAX_LENGTH` (500).
+If the stored stage no longer exists in the YAML, every call except reset answers 409
+`unknown_stage` with `details.reset_path`.
+
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/v1/workflow/stages` | The fixed list of stages and what each one produces |
-| POST | `/api/v1/projects/{id}/workflow` | Start a workflow run |
-| GET | `/api/v1/projects/{id}/workflow` | The current run and the status of every stage |
-| POST | `/api/v1/stages/{stage_id}/agent-runs` | Run an agent `{agent: planner \| reviewer, model_id, instructions}` |
-| GET | `/api/v1/agent-runs/{id}` | Agent run status and output |
-| PATCH | `/api/v1/stages/{stage_id}` | Edit the draft output by hand |
-| POST | `/api/v1/stages/{stage_id}/approve` | Approve the stage (`{note}`), move to the next one |
-| POST | `/api/v1/stages/{stage_id}/request-changes` | Send it back `{note}` |
-| POST | `/api/v1/stages/{stage_id}/skip` | Skip the stage `{note}` |
+| GET | `/api/v1/workflow/stages` | The stage definitions in order: id, title, goal, checklist, artifact rules |
+| GET | `/api/v1/projects/{id}/workflow` | Status (`active` \| `completed`), current stage, version, every stage with its checklist (`done`), artifact rules (`have`, `need`, `met`), `unmet` and `ready`, and the events |
+| POST | `/api/v1/projects/{id}/workflow/checklist` | Tick or untick `{stage_id, item_id, done}`. 422 for an unknown stage or item |
+| POST | `/api/v1/projects/{id}/workflow/approve` | Approve the current stage and move to the next `{stage_id?, force?, reason?}`. 409 `stage_gate_unmet` with `details.unmet` (required checklist items, artifact rules with `have`/`need`) unless `force=true` with a reason. The last stage completes the workflow; then 409 `workflow_completed` |
+| POST | `/api/v1/projects/{id}/workflow/skip` | Skip the current stage `{reason, stage_id?}` (no gate) |
+| POST | `/api/v1/projects/{id}/workflow/reopen` | Go back to an earlier stage `{stage_id, reason}`; it and later stages become pending, ticks stay. 409 `not_an_earlier_stage` |
+| POST | `/api/v1/projects/{id}/workflow/reset` | Back to the first stage `{reason}`; statuses cleared, ticks of existing stages kept |
+| POST | `/api/v1/projects/{id}/gap-finder` | Run the gap finder now `{model_id, force?}` (one call, at most one retry, purpose `agent_run`). Returns the saved run with `result` (`missing_steps`, `risks`, `technical_debt`, `scalability_concerns`) and `warnings`. A failed run is saved and its error returned (502 `invalid_output` or `step_timeout`, or the gateway error) with `details.run_id` |
+| GET | `/api/v1/projects/{id}/gap-finder` | Past gap finder runs, newest first |
+| POST | `/api/v1/projects/{id}/agent-runs` | 202: start `{run_type: plan \| review, model_id, requirement_id? \| requirement_text?, use_code_context?, force?}` in the background. A plan run needs exactly one requirement; a review run none. The response has the `estimate` |
+| GET | `/api/v1/projects/{id}/agent-runs` | Plan and review runs, newest first |
+| GET | `/api/v1/agent-runs/{id}` | Status, estimate, result (`plan`, `review`), warnings, error, tokens, cost and `steps` |
+| POST | `/api/v1/agent-runs/{id}/cancel` | Queued: cancelled now; running: stops before the next step. 409 `agent_run_not_active` |
+| POST | `/api/v1/agent-runs/{id}/approve` | `{all: true}` or `{tasks: [{index, title?, description?, priority?}], decisions: [{index, title?, what?, why?, alternatives?}]}`. Saves the chosen items in one transaction: tasks `todo`, decisions `proposed`, `source = agent`, `source_agent_run_id`, `stage_key`; dependencies between chosen tasks become links. Returns the new ids and warnings (`dependency_not_saved`). 422 `invalid_draft` / `invalid_selection`; 409 `agent_run_not_waiting` |
+| POST | `/api/v1/agent-runs/{id}/reject` | `{reason}`. Saves nothing |
+
+Agent and gap finder starts check, before any model call: the project (404), the model and its
+key (422 `model_unavailable`, `no_credential`), the prompt size (413 `context_too_long` with
+`details.suggested_models`), one queued or running run per project (409
+`agent_run_in_progress`) and the estimate against `AGENT_RUN_COST_LIMIT_USD` (0.50; 409
+`cost_limit_exceeded` with `details.estimate`, unless `force=true`). Run statuses: `queued`,
+`running`, `waiting_for_approval`, `approved`, `rejected`, `completed` (review and gap finder),
+`failed`, `cancelled`. At startup, queued and running runs become `failed` with `error` =
+`interrupted`.
 
 ## Teaching (`teaching`)
 

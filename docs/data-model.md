@@ -69,8 +69,8 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 - `default_model_id` → ModelConfig (nullable)
 - `archived_at` (nullable)
 
-**MemoryItem**: requirements, decisions and tasks in one table. Written only by the user
-through the API (no LLM). Statuses and priorities are per kind, checked in
+**MemoryItem**: requirements, decisions and tasks in one table. Written by the user through the
+API, or saved from an agent run's drafts when the user approves them (never by an LLM alone). Statuses and priorities are per kind, checked in
 `app/modules/projects/memory_service.py`. Edits are last-write-wins (no version check).
 - `user_id` → User, `project_id` → Project
 - `kind`: `requirement` | `decision` | `task`
@@ -90,7 +90,7 @@ through the API (no LLM). Statuses and priorities are per kind, checked in
   newer decision makes the older one `accepted` again. A superseded decision can't replace
   another one, which rules out loops.
 - At most `MEMORY_MAX_ITEMS_PER_KIND` (500) items per kind per project (409 after that).
-- `source`: `user` | `chat` | `agent` (only `user` is written in v0.1)
+- `source`: `user` | `chat` | `agent` (`agent` only for drafts the user approved from an agent run)
 - `source_message_id` → Message (nullable), `source_agent_run_id` → AgentRun (nullable)
 - `stage_key` (nullable): the workflow stage it came from
 
@@ -202,8 +202,8 @@ summarized.
 **UsageRecord**
 - `user_id` → User
 - `model_id` → ModelConfig
-- `purpose`: `chat` | `rolling_summary` | `switch_summary` | `embedding` | `agent` | `teaching`
-  | `key_test` (the tiny call made by "test key")
+- `purpose`: `chat` | `rolling_summary` | `switch_summary` | `embedding` | `agent_run` |
+  `teaching` | `key_test` (the tiny call made by "test key"); `agent` is an old, unused value
 - `trigger`: `user` (the user directly asked) | `background` (they didn't). The usage view shows
   each `background` purpose as its own line. **Every LLM call writes a row; no exceptions.**
 - `project_id`, `conversation_id`, `message_id`, `agent_run_id` (all nullable)
@@ -286,26 +286,59 @@ size is 3072). A project whose chunks were made with another model is `needs_rei
 
 ## workflow module
 
-**WorkflowRun**
-- `user_id` → User, `project_id` → Project
-- `status`: `active` | `completed` | `abandoned`
-- `current_stage_key`
+Migration `0008` replaced the unused `workflow_runs` and `stage_states` tables of `0001` and
+reshaped `agent_runs` (its old rows could not be mapped to a project and were deleted).
 
-**StageState**: one row per stage per run. The stage list is fixed in code: `requirements`,
-`architecture`, `technical_decisions`, `task_breakdown`, `implementation_plan`.
-- `user_id` → User, `workflow_run_id` → WorkflowRun
-- `stage_key`, `position`
-- `status`: `not_started` | `drafting` | `awaiting_approval` | `approved` | `changes_requested` | `skipped`
-- `output` (markdown, the current draft)
-- `decision_note` (the user's comment), `decided_at`
+**ProjectWorkflow** (`project_workflows`): one row per project, stored on the first change
+(until then a project reads as the first stage; GET writes nothing).
+- `user_id` → User, `project_id` → Project (unique, CASCADE)
+- `status`: `active` | `completed`
+- `current_stage_id` (null once completed; may name a stage removed from `stages.yaml`, which
+  the API reports as 409 `unknown_stage`)
+- `stage_statuses` (JSON: stage id → `approved` | `skipped`; any other stage is pending, or
+  current)
+- `checklist` (JSON: stage id → ticked item ids)
+- `version` (int): every transition updates only the version it read, then adds 1
 
-**AgentRun**
-- `user_id` → User, `stage_state_id` → StageState
-- `agent`: `planner` | `reviewer`
-- `model_id` → ModelConfig
-- `input_summary`, `output` (markdown)
-- `status`: `running` | `done` | `failed`
-- `finished_at`
+Stage definitions are not a table: `app/modules/workflow/stages.yaml` (id, title, goal,
+checklist items with `required`, artifact rules `min_memory_items` with `kind`, optional
+`statuses` and `min`), checked at startup.
+
+**WorkflowEvent** (`workflow_events`): append-only. The ORM refuses updates and a trigger
+(`workflow_events_no_update`) refuses `UPDATE` in the database; rows go only with their project.
+- `user_id`, `project_id`, `workflow_id` → ProjectWorkflow
+- `seq` (identity): the sort order (events of one transaction share `created_at`)
+- `action`: `created` | `tick` | `untick` | `approve` | `skip` | `reopen` | `reset` | `completed`
+- `stage_id`, `item_id`, `actor` (`user`), `reason`, `forced`, `details` (JSON, for example the
+  unmet gate items a forced approval passed over)
+
+**AgentRun** (`agent_runs`): one Planner + Reviewer run, one Reviewer-only run, or one gap
+finder run.
+- `user_id`, `project_id` → Project (CASCADE), `model_id` → ModelConfig
+- `run_type`: `plan` | `review` | `gap_finder`
+- `status`: `queued` | `running` | `waiting_for_approval` | `approved` | `rejected` |
+  `completed` | `failed` | `cancelled`. At most one `queued` or `running` run per project:
+  partial unique index `uq_agent_runs_project_id_active`
+- `stage_id` (the stage when it started), `prompt_version` (for example
+  `planner_v1,reviewer_v1`)
+- `input` (JSON: `requirement_id` or `requirement_text`, `use_code_context`, `force`),
+  `estimate` (JSON: steps, tokens, cost, limit)
+- `result` (JSON: the validated `plan` and `review`, or the gap report; drafts, not memory),
+  `warnings` (JSON list: dropped references, trimmed memory, code context problems)
+- `error`, `error_message`, `error_details` (JSON, for example `suggested_models`)
+- `input_tokens`, `output_tokens`, `cost_usd` (sums of the steps)
+- `cancel_requested_at`, `started_at`, `finished_at`, `decided_at`, `decision_reason`
+- `saved_item_ids` (JSON list): memory items created when the user approved it
+
+**AgentRunStep** (`agent_run_steps`): one model call (with at most one retry).
+- `user_id`, `run_id` → AgentRun (CASCADE), `model_id` → ModelConfig
+- `position`, `agent`: `planner` | `reviewer` | `gap_finder`, `prompt_version`
+- `status`: `succeeded` | `failed`, `attempts`, `input_tokens_estimate`
+- `output` (JSON, validated), `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`, `error`
+
+Approved drafts become MemoryItems with `source = agent`, `source_agent_run_id` and `stage_key`
+(columns from `0001`): tasks `todo`, decisions `proposed`. Every model call of a run writes a
+UsageRecord with `purpose = agent_run`, `trigger = user` and `agent_run_id`.
 
 ## teaching module
 
