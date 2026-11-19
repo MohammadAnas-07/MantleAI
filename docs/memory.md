@@ -12,10 +12,11 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 Phases 1-3 are merged, and Phase 5's first UI too: `frontend/` (React,
 Vite, TS strict, Tailwind, grunge-lite design), 48 frontend tests; backend CORS, Host check,
-project PATCH and DELETE, operation ids, `GET /usage/records`; 396 backend tests. All checks
+project PATCH and DELETE, operation ids, `GET /usage/records`; 407 backend tests. All checks
 pass on `main` after the merge. Dev database `mantle` at `0006`.
-Phase 3 real-key eval (2026-11-18): recall@5 vector 1.00 / text 0.95 / hybrid 1.00. Not done:
-the Phase 3 demo with real models, `GET /messages/{id}/context`, Phase 4 (workflow, teaching).
+Phase 3 real-key eval (2026-11-18, sample project): recall@5 vector 1.00 / text 0.95 / hybrid
+1.00. A harder eval on click 8.5.1 (25 questions) is ready but not run yet. Not done: the Phase 3
+demo with real models, `GET /messages/{id}/context`, Phase 4 (workflow, teaching).
 To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev` (http://127.0.0.1:5173).
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
@@ -42,17 +43,18 @@ First demo target: 2026-12-17. Last updated 2026-11-19.
 
 ## In progress
 
-- Nothing.
+- `test/retrieval-eval-large`: `eval_retrieval.py` takes `--project-path`, `--questions` and
+  `--estimate-only` (no model call); 25 click questions (behaviour, exact name, two files;
+  recall@5, all@5, MRR per kind). The developer runs it with the Gemini key.
 
 ## Next
 
-The developer decides. Candidates:
-1. The Phase 3 demo (index the Mantle repo, ask "where is the health check timeout set?",
-   switch models, ask again). The eval is done; a bigger eval set would show hybrid's value.
+The developer decides (full decision text: `docs/architecture.md`). Candidates:
+1. Run the click eval (clone command in the YAML header; ~348k tokens, ~$0.05 with Gemini), then
+   the Phase 3 demo (index the Mantle repo, ask, switch models, ask again).
 2. `GET /messages/{id}/context` (rows exist), then the Phase 2 demo script.
 3. `feat/project-profile` (before `feat/teaching-layer`), then `feat/workflow-and-agents`.
-4. Not built: message cancel, project description/archive; API gaps from the UI work (typed
-   models for `dict` responses, CORS on 500s) are listed in the frontend PR description.
+4. Not built: message cancel, project description/archive, typed models for `dict` responses.
 
 ## Decisions
 
@@ -79,8 +81,6 @@ The developer decides. Candidates:
 | 2026-11-18 | TypeScript 5.9 (not 7): openapi-typescript and typescript-eslint support only up to 6.x/5.x | Toolchain support | `frontend/package.json` |
 | 2026-11-18 | API types generated from OpenAPI and committed; `gen:api:check` guards them; operationId = route function name | Builds without a backend; stable names | `api-outline.md` |
 | 2026-11-18 | Allowed hosts localhost/127.0.0.1 any port (400 `invalid_host`); CORS only the dev origins; project default model lives in project settings | DNS rebinding; user's choice | `security.md` |
-
-Full decision text: `docs/architecture.md` → Decisions.
 
 ## Known issues and gotchas
 
@@ -109,8 +109,8 @@ Full decision text: `docs/architecture.md` → Decisions.
   or `/docs` and the frontend get 415. Swagger's "Example Value" is not the real answer.
 - **Index jobs are in-process `BackgroundTasks`**: in tests they finish before the request
   returns; a restart kills them (startup marks them `interrupted`). Search is dev-only.
-- **`tests/fixtures/sample_project` is data**: excluded from ruff (`extend-exclude`) and pytest
-  (`collect_ignore_glob`). Secret-shaped strings in tests are built at runtime.
+- **`tests/fixtures/sample_project` is data** (excluded from ruff and pytest). The click repo for
+  the large eval is outside the repo: `C:\Users\admin\Desktop\click-sample` (8.5.1).
 - **`core.autocrlf=true` checks the fixture out with CRLF.** Tests must not assume LF in
   `tests/fixtures` (a test that turned LF into CRLF made CR CR LF and failed on main).
 - **Editing files with Python heredocs in Git Bash turned `\n` in code into real newlines** twice;
