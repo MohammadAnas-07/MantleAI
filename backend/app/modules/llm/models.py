@@ -117,3 +117,6 @@ class UsageRecord(UserOwnedEntity):
     latency_ms: Mapped[int | None]
     status: Mapped[UsageStatus] = mapped_column(str_enum(UsageStatus))
     error_code: Mapped[str | None] = mapped_column(String(64))
+    # Sanitized structured fields of the provider's error (HTTP status, provider status and
+    # code, quota id, retry delay). Never provider free text, prompts or keys.
+    error_detail: Mapped[str | None] = mapped_column(String(255))

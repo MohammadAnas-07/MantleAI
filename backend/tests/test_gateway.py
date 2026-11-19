@@ -18,7 +18,12 @@ from app.modules.llm.repository import (
     ProviderCredentialRepository,
     UsageRecordRepository,
 )
-from app.modules.llm.service import ModelUnavailable, NoCredential, RateLimited
+from app.modules.llm.service import (
+    ModelUnavailable,
+    NoCredential,
+    QuotaExhausted,
+    RateLimited,
+)
 from tests.graph import make_user
 
 pytestmark = pytest.mark.db
@@ -156,6 +161,23 @@ async def test_provider_error_is_typed_and_recorded(
     [row] = await UsageRecordRepository(session, user_id).list()
     assert row.status == UsageStatus.ERROR
     assert row.error_code == "rate_limited"
+
+
+async def test_quota_exhausted_is_recorded_with_provider_detail(
+    session: AsyncSession, gateway: Gateway, fake: FakeProvider, user_id: uuid.UUID
+) -> None:
+    gpt = await model(session, "openai/gpt-5.6")
+    await add_key(session, user_id, "openai", OPENAI_KEY)
+    error = QuotaExhausted("The provider's quota for this model is used up.")
+    error.provider_detail = "http=429 status=RESOURCE_EXHAUSTED quota_id=RequestsPerDay"
+    fake.fail("openai/gpt-5.6", error)
+
+    with pytest.raises(QuotaExhausted):
+        await collect(gateway, session, user_id, gpt.id)
+
+    [row] = await UsageRecordRepository(session, user_id).list()
+    assert (row.status, row.error_code) == (UsageStatus.ERROR, "quota_exhausted")
+    assert row.error_detail == "http=429 status=RESOURCE_EXHAUSTED quota_id=RequestsPerDay"
 
 
 async def test_cancelled_stream_is_recorded(

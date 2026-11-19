@@ -149,6 +149,7 @@ class Gateway:
         usage: UsageInfo | None = None
         status = UsageStatus.ERROR
         error_code: str | None = "internal_error"
+        error_detail: str | None = None
         record_id: uuid.UUID | None = None
         try:
             stream = self.backend.stream_chat(
@@ -163,7 +164,7 @@ class Gateway:
                         usage = item
             status, error_code = UsageStatus.SUCCESS, None
         except LLMError as exc:
-            error_code = exc.code
+            error_code, error_detail = exc.code, exc.provider_detail
             raise
         except (GeneratorExit, asyncio.CancelledError):
             # The caller stopped reading (client disconnect) or the task was cancelled.
@@ -191,6 +192,7 @@ class Gateway:
                     started=started,
                     status=status,
                     error_code=error_code,
+                    error_detail=error_detail,
                     links=links,
                 )
         yield ChatDone(
@@ -276,6 +278,7 @@ class Gateway:
                 started=started,
                 status=UsageStatus.ERROR,
                 error_code=exc.code,
+                error_detail=exc.provider_detail,
                 links=links,
             )
             raise
@@ -351,6 +354,7 @@ class Gateway:
         status: UsageStatus,
         error_code: str | None,
         links: UsageLinks | None,
+        error_detail: str | None = None,
     ) -> uuid.UUID:
         latency_ms = int((time.monotonic() - started) * 1000)
         links = links or UsageLinks()
@@ -368,15 +372,17 @@ class Gateway:
             latency_ms=latency_ms,
             status=status,
             error_code=error_code,
+            error_detail=error_detail,
         )
         # Metadata only: never prompts, replies or keys (rule 53).
         logger.info(
-            "llm call model=%s purpose=%s trigger=%s status=%s input_tokens=%d "
+            "llm call model=%s purpose=%s trigger=%s status=%s error=%s input_tokens=%d "
             "output_tokens=%d latency_ms=%d",
             model.litellm_model,
             purpose.value,
             trigger.value,
             status.value,
+            error_code,
             usage.input_tokens,
             usage.output_tokens,
             latency_ms,
