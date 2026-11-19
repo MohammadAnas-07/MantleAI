@@ -31,7 +31,6 @@ from app.modules.llm.service import (
 from app.modules.projects.service import MemoryRef, ProjectInfo, pinned_block, pinned_selection
 from app.modules.rag.service import RetrievedBlock
 from app.modules.workflow.outputs import Plan
-from app.modules.workflow.prompts import load_prompt
 from app.modules.workflow.state import StageView
 
 TAGS = (
@@ -119,11 +118,12 @@ def code_text(blocks: list[RetrievedBlock]) -> str:
     return "<retrieved_context>\n" + "\n".join(parts) + "\n</retrieved_context>"
 
 
-def messages(system_prompt: str, sections: list[str]) -> ChatMessages:
+def messages(system_text: str, sections: list[str]) -> ChatMessages:
+    """The system prompt, then one user message with every data section."""
     body = "\n\n".join(s for s in sections if s)
     body += "\n\nAnswer now with the JSON object only."
     return [
-        {"role": "system", "content": load_prompt(system_prompt).strip()},
+        {"role": "system", "content": system_text.strip()},
         {"role": "user", "content": body},
     ]
 

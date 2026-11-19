@@ -4,15 +4,17 @@ live in state.py and the agent files."""
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUserId, DbSession
+from app.api.deps import CurrentUserId, DbSession, SessionFactoryDep
 from app.modules.llm.service import Gateway, get_gateway
-from app.modules.workflow import gap_finder, state
-from app.modules.workflow.models import AgentRun, AgentRunStep
+from app.modules.workflow import gap_finder, runs, state
+from app.modules.workflow.models import AgentRun, AgentRunStep, RunType
+from app.modules.workflow.run_setup import get_run
 from app.modules.workflow.schemas import (
+    AgentRunIn,
     AgentRunOut,
     AgentRunPage,
     AgentRunStepOut,
@@ -20,6 +22,7 @@ from app.modules.workflow.schemas import (
     ArtifactOut,
     ChecklistIn,
     ChecklistItemOut,
+    EmptyIn,
     GapFinderIn,
     ReasonIn,
     ReopenIn,
@@ -193,3 +196,55 @@ async def list_gap_finder_runs(
     """Past gap finder results, newest first."""
     runs = await gap_finder.list_gap_runs(session, user_id, project_id)
     return AgentRunPage(items=[await run_out(session, r) for r in runs])
+
+
+@router.post("/projects/{project_id}/agent-runs", status_code=202)
+async def start_agent_run(
+    project_id: uuid.UUID,
+    body: AgentRunIn,
+    background: BackgroundTasks,
+    session: DbSession,
+    user_id: CurrentUserId,
+    gateway: GatewayDep,
+    session_factory: SessionFactoryDep,
+) -> AgentRunOut:
+    """Start a plan (Planner, then Reviewer) or review (Reviewer only) run in the background.
+    The response carries the estimate; poll GET /agent-runs/{id}. 409 when a run is active or
+    the estimate is over the cost limit without force; 413 when the prompt doesn't fit."""
+    run = await runs.start_run(
+        session, gateway, user_id, project_id, run_type=RunType(body.run_type),
+        model_id=body.model_id, requirement_id=body.requirement_id,
+        requirement_text=body.requirement_text, use_code_context=body.use_code_context,
+        force=body.force,
+    )  # fmt: skip
+    out = await run_out(session, run)
+    await session.commit()
+    background.add_task(runs.run_agent_job, session_factory, gateway, user_id, run.id)
+    return out
+
+
+@router.get("/projects/{project_id}/agent-runs")
+async def list_agent_runs(
+    project_id: uuid.UUID, session: DbSession, user_id: CurrentUserId
+) -> AgentRunPage:
+    """Plan and review runs, newest first."""
+    found = await runs.list_runs(session, user_id, project_id)
+    return AgentRunPage(items=[await run_out(session, r) for r in found])
+
+
+@router.get("/agent-runs/{run_id}")
+async def get_agent_run(
+    run_id: uuid.UUID, session: DbSession, user_id: CurrentUserId
+) -> AgentRunOut:
+    return await run_out(session, await get_run(session, user_id, run_id))
+
+
+@router.post("/agent-runs/{run_id}/cancel")
+async def cancel_agent_run(
+    run_id: uuid.UUID, body: EmptyIn, session: DbSession, user_id: CurrentUserId
+) -> AgentRunOut:
+    """Queued: cancelled now. Running: stops before its next step."""
+    run = await runs.request_cancel(session, user_id, run_id)
+    out = await run_out(session, run)
+    await session.commit()
+    return out

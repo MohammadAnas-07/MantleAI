@@ -37,13 +37,10 @@ def extract_json(text: str) -> Any:
         start = candidate.find("{")
         while start != -1:
             try:
-                value, _ = decoder.raw_decode(candidate, start)
+                # Decoding from a "{" can only give a dict.
+                return decoder.raw_decode(candidate, start)[0]
             except ValueError:
                 start = candidate.find("{", start + 1)
-                continue
-            if isinstance(value, dict):
-                return value
-            start = candidate.find("{", start + 1)
     raise OutputInvalid("The answer contains no JSON object.")
 
 

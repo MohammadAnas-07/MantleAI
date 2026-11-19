@@ -302,8 +302,7 @@ async def _advance(
 ) -> None:
     workflow = state.workflow
     current = state.current
-    if current is None:
-        raise conflict("workflow_completed", "The workflow is completed. Reopen a stage first.")
+    assert current is not None  # approve and skip check this first
     stages = get_stages()
     following = stages.after(current.definition.id)
     statuses = {**workflow.stage_statuses, current.definition.id: to.value}

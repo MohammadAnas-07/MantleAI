@@ -25,7 +25,7 @@ from app.modules.workflow.context import (
 )
 from app.modules.workflow.models import AgentName, AgentRun, RunStatus, RunType
 from app.modules.workflow.outputs import GapReport, References, check_references
-from app.modules.workflow.prompts import GAP_FINDER_PROMPT
+from app.modules.workflow.prompts import GAP_FINDER_PROMPT, load_prompt
 from app.modules.workflow.run_setup import (
     chat_model_with_key,
     check_cost,
@@ -66,7 +66,7 @@ async def run_gap_finder(
     inputs = AgentInputs(project=project, stage=stage, memory=memory)
     await load_memory(session, gateway, user_id, project_id, model, inputs)
     prompt = messages(
-        GAP_FINDER_PROMPT,
+        load_prompt(GAP_FINDER_PROMPT),
         [project_text(project, memory), stage_text(stage), inputs.memory_text],
     )
     tokens = await check_fits(session, gateway, user_id, model, prompt)

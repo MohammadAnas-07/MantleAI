@@ -28,7 +28,7 @@ def _escape(match: re.Match[str]) -> str:
 
 
 def defang(text: str, tags: Iterable[str]) -> str:
-    """`</source>` becomes `&lt;/source&gt;`, `<|im_start|>` becomes `&lt;|im_start|&gt;`,
+    """`</source>` becomes `&lt;/source>`, `<|im_start|>` becomes `&lt;|im_start|&gt;`,
     `[INST]` becomes `&#91;INST]`. The text stays readable; it just can't open or close a
     block whose tag is in `tags`."""
     return _markers(tuple(tags)).sub(_escape, text)

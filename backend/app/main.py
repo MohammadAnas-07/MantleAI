@@ -16,20 +16,21 @@ from app.core.logging import setup_logging
 from app.db.session import SessionLocal, check_database, engine
 from app.modules.llm.service import validate_master_key
 from app.modules.rag.service import recover_interrupted_runs
-from app.modules.workflow.service import check_stage_definitions
+from app.modules.workflow.service import check_stage_definitions, recover_interrupted_agent_runs
 
 logger = logging.getLogger(__name__)
 
 
-async def fail_interrupted_index_runs() -> None:
-    """Index jobs run in this process, so none survives a restart. Mark the leftovers failed.
-    A database that is down must not stop the API from starting."""
+async def fail_interrupted_runs() -> None:
+    """Index jobs and agent runs run in this process, so none survives a restart. Mark the
+    leftovers failed. A database that is down must not stop the API from starting."""
     try:
         async with SessionLocal() as session:
             await recover_interrupted_runs(session)
+            await recover_interrupted_agent_runs(session)
             await session.commit()
     except (SQLAlchemyError, OSError) as exc:
-        logger.warning("could not check for interrupted index runs: %s", type(exc).__name__)
+        logger.warning("could not check for interrupted runs: %s", type(exc).__name__)
 
 
 @asynccontextmanager
@@ -38,7 +39,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Fail fast: without a valid master key, stored provider keys can't be used.
     validate_master_key()
     check_stage_definitions()  # a bad stages.yaml stops the app here
-    await fail_interrupted_index_runs()
+    await fail_interrupted_runs()
     yield
     await engine.dispose()
 

@@ -116,6 +116,12 @@ class ReopenIn(ReasonIn):
 # ---- agent runs ----------------------------------------------------------------------------
 
 
+class EmptyIn(BaseModel):
+    """Write endpoints take a JSON body even when there is nothing to send (`{}`)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class GapFinderIn(BaseModel):
     model_id: uuid.UUID
     force: bool = False
