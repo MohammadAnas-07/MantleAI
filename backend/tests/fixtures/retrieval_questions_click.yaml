@@ -1,0 +1,132 @@
+# Questions about the public click repository, release 8.5.1 (commit cf19179), and the file(s)
+# that answer each one. The repository itself is not part of Mantle. Get it with:
+#
+#   git clone --depth 1 --branch 8.5.1 https://github.com/pallets/click.git C:\Users\admin\Desktop\click-sample
+#
+# Used by scripts/eval_retrieval.py --project-path ... --questions this-file.
+# kind: behaviour (plain words, no function names) | name (an exact function or variable
+# name) | two_files (the answer needs both files). verify: true marks an expected answer that
+# is a judgement call and needs a second look.
+
+# ---- behaviour: plain words, no names ---------------------------------------------------
+
+- question: When someone mistypes a subcommand, how does the error suggest the names they probably meant?
+  kind: behaviour
+  expected: src/click/exceptions.py
+  verify: true  # the suggestion is computed here; core.py only raises the error
+
+- question: How wide is the help text, and what decides that width?
+  kind: behaviour
+  expected: src/click/formatting.py
+  verify: true  # the formatter measures the terminal; core.py passes the context's width limits
+
+- question: When the program asks for a password, how is the typed text kept off the screen?
+  kind: behaviour
+  expected: src/click/termui.py
+
+- question: Which program opens when the user is asked to write text in an external editor, and how is it chosen?
+  kind: behaviour
+  expected: src/click/_termui_impl.py
+
+- question: How does the progress bar work out how much time is left?
+  kind: behaviour
+  expected: src/click/_termui_impl.py
+
+- question: Which words are accepted as true when a yes/no value is given on the command line?
+  kind: behaviour
+  expected: src/click/types.py
+
+- question: Where does a command line tool keep its per-user settings folder on Windows, macOS and Linux?
+  kind: behaviour
+  expected: src/click/utils.py
+
+- question: How are option values picked up from environment variables, including the automatic prefix for nested commands?
+  kind: behaviour
+  expected: src/click/core.py
+
+- question: How do tests swap standard input and output while a command line program runs?
+  kind: behaviour
+  expected: src/click/testing.py
+
+# ---- name: an exact function or variable name -------------------------------------------
+
+- question: What does make_context set up before a command runs?
+  kind: name
+  expected: src/click/core.py
+
+- question: What does the pass_context decorator hand to the decorated function?
+  kind: name
+  expected: src/click/decorators.py
+
+- question: What does _split_opt return for an option such as --name?
+  kind: name
+  expected: src/click/parser.py
+
+- question: How does IntRange treat a value outside its bounds when clamp is set?
+  kind: name
+  expected: src/click/types.py
+
+- question: What does get_current_context do when no context is active?
+  kind: name
+  expected: src/click/globals.py
+
+- question: How does write_dl lay out the two columns of a definition list?
+  kind: name
+  expected: src/click/formatting.py
+
+- question: Where is get_text_stderr defined and what does it return?
+  kind: name
+  expected: src/click/_compat.py
+
+- question: How does version_option find the version when package_name is not given?
+  kind: name
+  expected: src/click/decorators.py
+
+- question: What shell code does _SOURCE_BASH register for completion?
+  kind: name
+  expected: src/click/shell_completion.py
+
+# ---- two_files: the answer needs both files ---------------------------------------------
+
+- question: How does echo decide to strip colour codes when the output is not a terminal?
+  kind: two_files
+  expected:
+    - src/click/utils.py
+    - src/click/_compat.py
+
+- question: How does echo_via_pager choose and run a pager program?
+  kind: two_files
+  expected:
+    - src/click/termui.py
+    - src/click/_termui_impl.py
+
+- question: How does the command decorator turn a plain function into a command object?
+  kind: two_files
+  expected:
+    - src/click/decorators.py
+    - src/click/core.py
+  verify: true  # the decorator does the work; core.py only defines the Command class it builds
+
+- question: When a command parses its arguments, how are options and their values split out of the argument list?
+  kind: two_files
+  expected:
+    - src/click/core.py
+    - src/click/parser.py
+
+- question: How is Unicode text written to the Windows console?
+  kind: two_files
+  expected:
+    - src/click/_compat.py
+    - src/click/_winconsole.py
+
+- question: How does tab completion in bash offer file and folder names for a path parameter?
+  kind: two_files
+  expected:
+    - src/click/types.py
+    - src/click/shell_completion.py
+
+- question: How is long help text broken into lines with the right indentation?
+  kind: two_files
+  expected:
+    - src/click/formatting.py
+    - src/click/_textwrap.py
