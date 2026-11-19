@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # A generation or summary lock older than this is treated as stale (crashed job).
     conversation_lock_timeout_seconds: int = Field(default=600, ge=1)
 
+    # A rate limit is "quota exhausted" (never retried) when the provider asks for a wait
+    # longer than this, or names a per-day quota. Shorter waits are ordinary rate limits.
+    llm_quota_exhausted_min_wait_seconds: float = Field(default=600.0, ge=0)
+
     # ---- project indexing (rag) ----
     # Used when the user has not picked an embedding model in their settings.
     default_embedding_model: str = "gemini/gemini-embedding-001"
@@ -91,6 +95,9 @@ class Settings(BaseSettings):
     embed_rate_limit_backoff_seconds: float = Field(default=10.0, ge=0)
     embed_rate_limit_backoff_max_seconds: float = Field(default=120.0, ge=0)
     embed_max_retries: int = Field(default=5, ge=0)
+
+    # Give up on an ordinary rate limit once the waits of one batch would pass this total.
+    embed_retry_max_total_wait_seconds: float = Field(default=900.0, ge=0)
 
     # Retrieval.
     retrieval_top_k: int = Field(default=8, ge=1)

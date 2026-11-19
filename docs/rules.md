@@ -73,7 +73,7 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 
 ## Error handling and logging
 
-51. Provider failures are mapped to `RateLimited`, `ContextTooLong`, `AuthFailed` or `ProviderUnavailable` inside `modules/llm`.
+51. Provider failures are mapped to `RateLimited`, `QuotaExhausted`, `ContextTooLong`, `AuthFailed` or `ProviderUnavailable` inside `modules/llm`; `QuotaExhausted` is never retried (amended 2026-11-19).
 52. No `except Exception` without logging the error or re-raising, except in `/health`.
 53. Logs at INFO and above contain no prompts, replies, file contents, keys or `Authorization` headers.
 54. Every LLM call is logged with model, tokens, latency and status.

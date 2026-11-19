@@ -232,6 +232,14 @@ function EstimateTable({ estimate }: { estimate: IndexEstimate }) {
   );
 }
 
+// Failure reasons that need more than their code to be understood.
+const RUN_ERROR_TEXT: Record<string, string> = {
+  daily_quota_exhausted:
+    "The embedding provider's daily quota is used up. Finished batches are saved. Try again after the provider resets the quota; the next run resumes where this one stopped.",
+  rate_limit_wait_exceeded:
+    "The embedding provider kept rate limiting past the wait limit. Finished batches are saved; run it again later to resume.",
+};
+
 function RunCard({
   run,
   onCancel,
@@ -267,6 +275,9 @@ function RunCard({
         {run.files_seen}; {run.chunks_created} segments, {formatTokens(run.tokens)} tokens,{" "}
         {formatCost(run.cost_estimate_usd)}
       </p>
+      {run.error && RUN_ERROR_TEXT[run.error] ? (
+        <p className="text-danger">{RUN_ERROR_TEXT[run.error]}</p>
+      ) : null}
     </div>
   );
 }

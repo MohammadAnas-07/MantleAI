@@ -18,6 +18,7 @@ from app.modules.llm.errors import (
     ModelUnavailable,
     NoCredential,
     ProviderUnavailable,
+    QuotaExhausted,
     RateLimited,
 )
 from app.modules.llm.gateway import ChatDelta, ChatDone, ChatEvent, Gateway, UsageLinks
@@ -175,6 +176,7 @@ __all__ = [
     "ModelUnavailable",
     "NoCredential",
     "ProviderUnavailable",
+    "QuotaExhausted",
     "RateLimited",
     "UsageLinks",
     "UsagePurpose",

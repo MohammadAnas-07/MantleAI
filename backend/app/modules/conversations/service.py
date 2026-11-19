@@ -2,8 +2,9 @@
 and model switching.
 
 The conversation in our database is the source of truth, never a provider's session. Mantle
-never switches models by itself; on ContextTooLong or RateLimited it returns `suggested_models`
-and the user decides. A switch only changes `current_model_id` and never calls the old model.
+never switches models by itself; on ContextTooLong, RateLimited or QuotaExhausted it returns
+`suggested_models` and the user decides. A switch only changes `current_model_id` and never
+calls the old model.
 """
 
 import logging
@@ -81,7 +82,7 @@ from app.modules.rag.service import RetrievedBlock, blocks_for_chunks, retrieve_
 logger = logging.getLogger(__name__)
 
 TITLE_LENGTH = 60
-_SUGGEST_FOR = {"context_too_long", "rate_limited"}
+_SUGGEST_FOR = {"context_too_long", "rate_limited", "quota_exhausted"}
 
 
 class GenerationInProgress(AppError):

@@ -21,7 +21,7 @@ from app.modules.llm.repository import (
     UsageRecordRepository,
     UserModelSettingsRepository,
 )
-from app.modules.llm.service import RateLimited
+from app.modules.llm.service import QuotaExhausted, RateLimited
 from tests.api_helpers import api_client, override, parse_sse
 from tests.conversation_helpers import (
     World,
@@ -252,6 +252,25 @@ async def test_rate_limit_mid_conversation_suggests_other_providers(
     assert conversation["generating"] is False
     [_, assistant] = await MessageRepository(session, world.user_id).in_order(world.conversation_id)
     assert assistant.status == MessageStatus.ERROR and assistant.error_code == "rate_limited"
+
+
+async def test_quota_exhausted_shows_the_clear_message(
+    session: AsyncSession, world: World, fake: FakeProvider, gateway: Gateway
+) -> None:
+    message = (
+        "The provider's quota for this model is used up (for example its daily limit). "
+        "Try again after the provider resets the quota, or switch to another provider."
+    )
+    fake.fail(world.litellm("small"), QuotaExhausted(message))
+    async with api_client(session, gateway, world.user_id) as client:
+        events = await send(client, world, "hello")
+    assert [e for e, _ in events] == ["message_start", "error"]
+    error = events[1][1]
+    assert (error["code"], error["message"]) == ("quota_exhausted", message)
+    providers = {s["provider"] for s in error["details"]["suggested_models"]}
+    assert providers == {"anthropic", "google"}
+    [_, assistant] = await MessageRepository(session, world.user_id).in_order(world.conversation_id)
+    assert assistant.error_code == "quota_exhausted"
 
 
 async def test_client_disconnect_saves_partial_text(

@@ -189,7 +189,7 @@ function ConversationView({ conversationId }: { conversationId: string }) {
 }
 
 function reasonFor(code: string | undefined): SwitchReason {
-  if (code === "rate_limited") return "rate_limit";
+  if (code === "rate_limited" || code === "quota_exhausted") return "rate_limit";
   if (code === "context_too_long") return "context_limit";
   return "provider_error";
 }
