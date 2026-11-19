@@ -12,12 +12,14 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.errors import AppError
 from app.modules.projects.service import DraftDecision, DraftTask, add_agent_drafts
 from app.modules.workflow.models import AgentRun, RunStatus, RunType
-from app.modules.workflow.outputs import Plan, ProposedDecision, ProposedTask
+from app.modules.workflow.outputs import ProposedDecision, ProposedTask
 from app.modules.workflow.run_setup import get_run, now
 from app.modules.workflow.schemas import ApproveRunIn, DecisionEdit, TaskEdit
 
@@ -53,6 +55,37 @@ def _pick[E: (TaskEdit, DecisionEdit)](edits: list[E], count: int, kind: str) ->
     return sorted(edits, key=lambda e: e.index)
 
 
+def _limits_changed(kind: str, index: int | None, message: str) -> AppError:
+    if index is None:
+        text = f"The chosen items no longer meet the current limits: {message}. Leave some out."
+    else:
+        text = (
+            f"Proposed {kind} {index} no longer meets the current limits: {message}. "
+            "Edit it, leave it out, or reject the run."
+        )
+    return AppError(text, code="draft_limits_changed", status_code=422,
+                    details={"kind": kind, "index": index})  # fmt: skip
+
+
+def _current[M: BaseModel](
+    model: type[M], stored: dict[str, Any], changes: dict[str, Any], kind: str, index: int
+) -> M:
+    """A stored draft checked again against today's limits, with the user's edits applied.
+
+    The plan was valid when the run finished, but limits (title length, text length) may have
+    changed since. A problem in a field the user edited is left to the projects module, which
+    checks edits like manual input; a problem in an untouched field is a 422 here."""
+    try:
+        return model.model_validate({**stored, **changes})
+    except ValidationError as exc:
+        stale = [e for e in exc.errors() if not e["loc"] or e["loc"][0] not in changes]
+        if not stale:
+            return model.model_construct(**{**stored, **changes})
+        first = stale[0]
+        field_name = ".".join(str(part) for part in first["loc"])
+        raise _limits_changed(kind, index, f"{field_name}: {first['msg']}") from None
+
+
 def _task_draft(task: ProposedTask, edit: TaskEdit, deps: tuple[int, ...]) -> DraftTask:
     """Edited fields are passed on exactly as typed: the projects module checks them like any
     hand-written item (one-line title, length, no control characters)."""
@@ -78,20 +111,38 @@ async def approve_run(
     """Save the chosen drafts of a waiting plan run; 409 unless it is waiting for approval."""
     run = await get_run(session, user_id, run_id, lock=True)
     _waiting(run)
-    plan = Plan.model_validate(run.result["plan"])
+    stored = run.result.get("plan", {})
+    stored_tasks: list[dict[str, Any]] = stored.get("tasks", [])
+    stored_decisions: list[dict[str, Any]] = stored.get("decisions", [])
     if body.all:
-        task_edits = [TaskEdit(index=i) for i in range(len(plan.tasks))]
-        decision_edits = [DecisionEdit(index=i) for i in range(len(plan.decisions))]
+        task_edits = [TaskEdit(index=i) for i in range(len(stored_tasks))]
+        decision_edits = [DecisionEdit(index=i) for i in range(len(stored_decisions))]
     else:
-        task_edits = _pick(body.tasks, len(plan.tasks), "task")
-        decision_edits = _pick(body.decisions, len(plan.decisions), "decision")
+        task_edits = _pick(body.tasks, len(stored_tasks), "task")
+        decision_edits = _pick(body.decisions, len(stored_decisions), "decision")
+    chosen_count = len(task_edits) + len(decision_edits)
+    if chosen_count > settings.agent_plan_max_items:
+        raise _limits_changed(
+            "plan", None,
+            f"{chosen_count} items chosen, at most {settings.agent_plan_max_items} are allowed",
+        )  # fmt: skip
+    tasks = {
+        e.index: _current(ProposedTask, stored_tasks[e.index],
+                          e.model_dump(exclude={"index"}, exclude_none=True), "task", e.index)
+        for e in task_edits
+    }  # fmt: skip
+    decisions_now = {
+        e.index: _current(ProposedDecision, stored_decisions[e.index],
+                          e.model_dump(exclude={"index"}, exclude_none=True), "decision", e.index)
+        for e in decision_edits
+    }  # fmt: skip
 
     chosen = [e.index for e in task_edits]
     new_position = {plan_index: position for position, plan_index in enumerate(chosen)}
     result = Approval(run)
     drafts: list[DraftTask] = []
     for edit in task_edits:
-        task = plan.tasks[edit.index]
+        task = tasks[edit.index]
         deps = []
         for dep in task.depends_on:
             if dep in new_position:
@@ -100,7 +151,7 @@ async def approve_run(
                 result.warnings.append({"code": "dependency_not_saved", "task": edit.index,
                                         "depends_on": dep})  # fmt: skip
         drafts.append(_task_draft(task, edit, tuple(deps)))
-    decisions = [_decision_draft(plan.decisions[e.index], e) for e in decision_edits]
+    decisions = [_decision_draft(decisions_now[e.index], e) for e in decision_edits]
 
     try:
         saved = await add_agent_drafts(

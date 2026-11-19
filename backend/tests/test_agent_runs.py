@@ -628,6 +628,40 @@ async def test_invalid_edits_save_nothing(
     assert (await get(client, run_id))["status"] == "waiting_for_approval"
 
 
+@pytest.mark.parametrize(
+    ("setting", "value", "body", "where"),
+    [
+        ("memory_title_max_length", 8, {"all": True}, "title"),  # "Login form" is 10
+        ("agent_plan_max_items", 2, {"all": True}, "at most 2"),
+    ],
+)
+async def test_approval_after_limits_changed_is_a_clean_422(
+    client: httpx.AsyncClient, session: AsyncSession, world: AgentWorld,
+    monkeypatch: pytest.MonkeyPatch, setting: str, value: int, body: dict[str, Any], where: str,
+) -> None:  # fmt: skip
+    run_id = await planned(client, world)
+    before = len(await memory_rows(session, world))
+    monkeypatch.setattr(settings, setting, value)
+    r = await client.post(f"/api/v1/agent-runs/{run_id}/approve", json=body)
+    assert r.status_code == 422, r.text
+    error = r.json()["error"]
+    assert error["code"] == "draft_limits_changed" and where in error["message"]
+    assert len(await memory_rows(session, world)) == before
+    assert (await get(client, run_id))["status"] == "waiting_for_approval"
+
+
+async def test_after_limits_changed_a_fitting_subset_or_edit_still_saves(
+    client: httpx.AsyncClient, world: AgentWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_id = await planned(client, world)
+    monkeypatch.setattr(settings, "memory_title_max_length", 12)  # "Session cookie" is 14
+    r = await client.post(f"/api/v1/agent-runs/{run_id}/approve", json={
+        "tasks": [{"index": 0}, {"index": 1, "title": "Cookie"}], "decisions": [],
+    })  # fmt: skip
+    assert r.status_code == 200, r.text
+    assert len(r.json()["task_ids"]) == 2
+
+
 async def test_approval_is_all_or_nothing(
     client: httpx.AsyncClient,
     session: AsyncSession,
