@@ -7,12 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.config import settings
 from app.modules.workflow.state import clean_reason
-
-
-def _reason(value: str | None) -> str:
-    return clean_reason(value)
-
 
 # ---- workflow ------------------------------------------------------------------------------
 
@@ -92,6 +88,9 @@ class ChecklistIn(BaseModel):
 class ApproveIn(BaseModel):
     force: bool = False
     reason: str | None = None
+    # The stage the user sees as current. When sent, a request that arrives after another one
+    # moved the workflow gets 409 instead of approving the next stage by mistake.
+    stage_id: str | None = Field(default=None, max_length=50)
 
     @model_validator(mode="after")
     def _force_needs_reason(self) -> "ApproveIn":
@@ -106,7 +105,11 @@ class ReasonIn(BaseModel):
     @field_validator("reason")
     @classmethod
     def _check(cls, value: str) -> str:
-        return _reason(value)
+        return clean_reason(value)
+
+
+class SkipIn(ReasonIn):
+    stage_id: str | None = Field(default=None, max_length=50)  # as in ApproveIn
 
 
 class ReopenIn(ReasonIn):
@@ -137,8 +140,6 @@ class AgentRunIn(BaseModel):
 
     @model_validator(mode="after")
     def _requirement(self) -> "AgentRunIn":
-        from app.core.config import settings
-
         if self.requirement_text is not None:
             self.requirement_text = self.requirement_text.strip() or None
         if self.run_type == "plan":

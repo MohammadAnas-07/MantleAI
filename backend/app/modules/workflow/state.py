@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 def conflict(code: str, message: str, **details: Any) -> AppError:
+    """A 409 with a code, a message and details."""
     return AppError(message, code=code, status_code=409, details=details)
 
 
@@ -59,6 +60,7 @@ class Unmet:
     need: int | None = None
 
     def as_dict(self) -> dict[str, Any]:
+        """The unmet item as it appears in a 409 and in an event."""
         out: dict[str, Any] = {"type": self.type, "id": self.id, "text": self.text}
         if self.have is not None:
             out["have"], out["need"] = self.have, self.need
@@ -74,6 +76,7 @@ class StageView:
 
     @property
     def unmet(self) -> list[Unmet]:
+        """Required checklist items not ticked and artifact rules not met."""
         out = [
             Unmet("checklist", i.id, i.text)
             for i in self.definition.checklist
@@ -93,6 +96,7 @@ class WorkflowView:
 
     @property
     def current(self) -> StageView | None:
+        """The current stage, or None when the workflow is completed."""
         return next((s for s in self.stages if s.status == StageStatus.CURRENT), None)
 
 
@@ -128,21 +132,13 @@ def _check_known(workflow: ProjectWorkflow, stages: StageList) -> None:
 async def get_or_create(
     session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID
 ) -> ProjectWorkflow:
-    """The project's workflow. A project without one (made before this feature, or new) gets
-    one at the first stage on first access."""
+    """The project's stored workflow. A project without one (made before this feature, or
+    new) gets one at the first stage, with a "created" event, on its first change."""
     await get_project(session, user_id, project_id)  # 404 for another user's project
     found = await _load(session, user_id, project_id)
     if found is not None:
         return found
-    workflow = ProjectWorkflow(
-        user_id=user_id,
-        project_id=project_id,
-        status=WorkflowStatus.ACTIVE,
-        current_stage_id=get_stages().first.id,
-        stage_statuses={},
-        checklist={},
-        version=1,
-    )
+    workflow = _default(user_id, project_id)
     try:
         async with session.begin_nested():
             session.add(workflow)
@@ -168,11 +164,33 @@ async def _load(
     )
 
 
+def _default(user_id: uuid.UUID, project_id: uuid.UUID) -> ProjectWorkflow:
+    """The state a project without a stored workflow has: first stage, nothing ticked. Not
+    added to the session, so reading it writes nothing (rule 28)."""
+    return ProjectWorkflow(
+        user_id=user_id, project_id=project_id, status=WorkflowStatus.ACTIVE,
+        current_stage_id=get_stages().first.id, stage_statuses={}, checklist={}, version=1,
+    )  # fmt: skip
+
+
 async def view(
-    session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID, *, events: bool = True
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    *,
+    events: bool = True,
+    create: bool = True,
 ) -> WorkflowView:
-    """The state with gate status per stage. 409 unknown_stage if the stored stage is gone."""
-    workflow = await get_or_create(session, user_id, project_id)
+    """The state with gate status per stage. 409 unknown_stage if the stored stage is gone.
+
+    With `create=False` (GET requests) a project without a stored workflow gets the default
+    state and nothing is written; the first change stores it.
+    """
+    if create:
+        workflow = await get_or_create(session, user_id, project_id)
+    else:
+        await get_project(session, user_id, project_id)
+        workflow = await _load(session, user_id, project_id) or _default(user_id, project_id)
     stages = get_stages()
     _check_known(workflow, stages)
     memory = await memory_refs(session, user_id, project_id)
@@ -186,7 +204,7 @@ async def view(
         for stage in stages.stages
     ]
     result = WorkflowView(workflow, views)
-    if events:
+    if events and workflow.id is not None:
         rows = await session.scalars(
             select(WorkflowEvent)
             .where(WorkflowEvent.user_id == user_id, WorkflowEvent.workflow_id == workflow.id)
@@ -315,6 +333,22 @@ async def _advance(
     await _save(session, workflow, events, **values)
 
 
+def _current_or_409(state: WorkflowView, expected_stage_id: str | None) -> StageView:
+    """The current stage. 409 when the workflow is completed, or when the caller names the
+    stage it means and that is no longer the current one (another request moved it)."""
+    current = state.current
+    if current is None:
+        raise conflict("workflow_completed", "The workflow is completed. Reopen a stage first.")
+    if expected_stage_id is not None and expected_stage_id != current.definition.id:
+        raise conflict(
+            "workflow_changed",
+            f"The current stage is now {current.definition.id!r}, not {expected_stage_id!r}. "
+            "Load the workflow again.",
+            stage_id=current.definition.id,
+        )
+    return current
+
+
 async def approve(
     session: AsyncSession,
     user_id: uuid.UUID,
@@ -322,13 +356,13 @@ async def approve(
     *,
     force: bool = False,
     reason: str | None = None,
+    stage_id: str | None = None,
 ) -> WorkflowView:
     """Approve the current stage and move to the next one. 409 with the unmet list when the
-    gate isn't met, unless `force` (which needs a reason, checked by the schema)."""
+    gate isn't met, unless `force` (which needs a reason, checked by the schema). `stage_id`
+    is the stage the user means to approve; see `_current_or_409`."""
     state = await view(session, user_id, project_id, events=False)
-    current = state.current
-    if current is None:
-        raise conflict("workflow_completed", "The workflow is completed. Reopen a stage first.")
+    current = _current_or_409(state, stage_id)
     unmet = [u.as_dict() for u in current.unmet]
     if unmet and not force:
         raise conflict(
@@ -352,13 +386,12 @@ async def approve(
 
 
 async def skip(
-    session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID, *, reason: str
-) -> WorkflowView:
+    session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID, *, reason: str,
+    stage_id: str | None = None,
+) -> WorkflowView:  # fmt: skip
     """Skip the current stage (no gate), with a reason."""
     state = await view(session, user_id, project_id, events=False)
-    current = state.current
-    if current is None:
-        raise conflict("workflow_completed", "The workflow is completed. Reopen a stage first.")
+    current = _current_or_409(state, stage_id)
     event = _event(state.workflow, WorkflowAction.SKIP, current.definition.id, reason=reason)
     await _advance(session, state, StageStatus.SKIPPED, [event])
     return await view(session, user_id, project_id)

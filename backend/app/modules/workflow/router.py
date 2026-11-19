@@ -28,6 +28,7 @@ from app.modules.workflow.schemas import (
     GapFinderIn,
     ReasonIn,
     ReopenIn,
+    SkipIn,
     StageDefinitionOut,
     StageOut,
     UnmetOut,
@@ -42,6 +43,7 @@ GatewayDep = Annotated[Gateway, Depends(get_gateway)]
 
 
 async def run_out(session: AsyncSession, run: AgentRun) -> AgentRunOut:
+    """A run with its steps, for a response."""
     steps = await session.scalars(
         select(AgentRunStep)
         .where(AgentRunStep.user_id == run.user_id, AgentRunStep.run_id == run.id)
@@ -53,6 +55,7 @@ async def run_out(session: AsyncSession, run: AgentRun) -> AgentRunOut:
 
 
 def workflow_out(view: state.WorkflowView) -> WorkflowOut:
+    """The workflow state as a response, with gate status per stage."""
     stages = []
     for stage in view.stages:
         unmet = stage.unmet
@@ -65,7 +68,7 @@ def workflow_out(view: state.WorkflowView) -> WorkflowOut:
                 checklist=[
                     ChecklistItemOut(
                         id=i.id, text=i.text, required=i.required, done=i.id in stage.ticked
-                    )  # fmt: skip
+                    )
                     for i in stage.definition.checklist
                 ],
                 artifacts=[
@@ -76,7 +79,7 @@ def workflow_out(view: state.WorkflowView) -> WorkflowOut:
                         have=have,
                         need=rule.min,
                         met=have >= rule.min,
-                    )  # fmt: skip
+                    )
                     for rule, have in stage.artifacts
                 ],
                 unmet=[UnmetOut(**u.as_dict()) for u in unmet],
@@ -113,10 +116,9 @@ async def list_stages() -> list[StageDefinitionOut]:
 async def get_workflow(
     project_id: uuid.UUID, session: DbSession, user_id: CurrentUserId
 ) -> WorkflowOut:
-    """Stage, checklist, gate status and events. Created at the first stage on first access."""
-    view = await state.view(session, user_id, project_id)
-    await session.commit()
-    return workflow_out(view)
+    """Stage, checklist, gate status and events. A project without a stored workflow shows the
+    first stage; nothing is written until the first change."""
+    return workflow_out(await state.view(session, user_id, project_id, create=False))
 
 
 @router.post("/projects/{project_id}/workflow/checklist")
@@ -136,16 +138,19 @@ async def approve_stage(
 ) -> WorkflowOut:
     """Approve the current stage. 409 stage_gate_unmet lists what is missing, unless
     force=true with a reason."""
-    view = await state.approve(session, user_id, project_id, force=body.force, reason=body.reason)
+    view = await state.approve(
+        session, user_id, project_id, force=body.force, reason=body.reason, stage_id=body.stage_id
+    )
     await session.commit()
     return workflow_out(view)
 
 
 @router.post("/projects/{project_id}/workflow/skip")
 async def skip_stage(
-    project_id: uuid.UUID, body: ReasonIn, session: DbSession, user_id: CurrentUserId
+    project_id: uuid.UUID, body: SkipIn, session: DbSession, user_id: CurrentUserId
 ) -> WorkflowOut:
-    view = await state.skip(session, user_id, project_id, reason=body.reason)
+    view = await state.skip(session, user_id, project_id, reason=body.reason,
+                            stage_id=body.stage_id)  # fmt: skip
     await session.commit()
     return workflow_out(view)
 

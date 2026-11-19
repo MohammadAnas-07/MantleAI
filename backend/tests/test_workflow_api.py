@@ -72,28 +72,30 @@ async def add_memory(
     )
 
 
-async def test_first_access_creates_state_for_an_existing_project(
+async def test_first_access_for_an_existing_project(
     client: httpx.AsyncClient, session: AsyncSession, project_id: uuid.UUID
 ) -> None:
-    assert (
-        await session.scalar(
-            select(ProjectWorkflow).where(ProjectWorkflow.project_id == project_id)
-        )
-        is None
-    )
+    stored = select(ProjectWorkflow).where(ProjectWorkflow.project_id == project_id)
     r = await client.get(path(project_id))
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "active" and body["current_stage_id"] == "requirements"
     assert [s["id"] for s in body["stages"]] == STAGES
     assert [s["status"] for s in body["stages"]] == ["current"] + ["pending"] * 4
-    assert [e["action"] for e in body["events"]] == ["created"]
+    assert body["events"] == []
     first = body["stages"][0]
     assert not first["ready"]
     assert {u["id"] for u in first["unmet"]} == {"users_and_goal", "scope_out", "artifact_0"}
-    # A second read finds the same row.
-    again = (await client.get(path(project_id))).json()
-    assert again["version"] == body["version"] and len(again["events"]) == 1
+    # Reading writes nothing (rule 28).
+    assert await session.scalar(stored) is None
+
+    # The first change stores the state, with a "created" event before the change.
+    await client.post(path(project_id, "/checklist"),
+                      json={"stage_id": "requirements", "item_id": "scope_out"})  # fmt: skip
+    assert await session.scalar(stored) is not None
+    body = (await client.get(path(project_id))).json()
+    assert [e["action"] for e in body["events"]] == ["created", "tick"]
+    assert body["version"] == 2
 
 
 async def test_list_stage_definitions(client: httpx.AsyncClient) -> None:
@@ -170,6 +172,19 @@ async def test_force_needs_a_reason_and_is_recorded(
     }  # fmt: skip
 
 
+async def test_naming_a_stage_that_is_no_longer_current_is_409(
+    client: httpx.AsyncClient, project_id: uuid.UUID
+) -> None:
+    await client.post(path(project_id, "/skip"), json={"reason": "x", "stage_id": "requirements"})
+    for action, body in (
+        ("/approve", {"force": True, "reason": "x", "stage_id": "requirements"}),
+        ("/skip", {"reason": "x", "stage_id": "requirements"}),
+    ):
+        r = await client.post(path(project_id, action), json=body)
+        assert r.status_code == 409 and r.json()["error"]["code"] == "workflow_changed"
+        assert r.json()["error"]["details"]["stage_id"] == "architecture"
+
+
 async def test_skip_needs_a_reason(client: httpx.AsyncClient, project_id: uuid.UUID) -> None:
     r = await client.post(path(project_id, "/skip"), json={"reason": ""})
     assert r.status_code == 422
@@ -232,7 +247,7 @@ async def test_events_are_immutable(
 async def test_unknown_stored_stage_is_409_and_reset_fixes_it(
     client: httpx.AsyncClient, session: AsyncSession, project_id: uuid.UUID
 ) -> None:
-    await client.get(path(project_id))
+    await client.post(path(project_id, "/skip"), json={"reason": "store the state"})
     await session.execute(
         update(ProjectWorkflow)
         .where(ProjectWorkflow.project_id == project_id)
@@ -267,9 +282,13 @@ async def test_other_users_and_missing_projects_are_404(
 # ---- two approvals at the same moment -------------------------------------------------------
 
 
-async def test_two_simultaneous_approvals_one_wins(engine: AsyncEngine) -> None:
+@pytest.mark.parametrize("stored", [False, True])
+async def test_two_simultaneous_approvals_one_wins(engine: AsyncEngine, stored: bool) -> None:
     """Real concurrency needs separate connections and committed data, so this test commits
-    and cleans up after itself instead of using the rolled-back test session."""
+    and cleans up after itself instead of using the rolled-back test session.
+
+    Without a stored workflow both requests race to create it; with one, they race on the
+    version check. Either way one wins and the other gets 409."""
     async with AsyncSession(engine, expire_on_commit=False) as setup:
         user = User(display_name="Race")
         setup.add(user)
@@ -287,8 +306,10 @@ async def test_two_simultaneous_approvals_one_wins(engine: AsyncEngine) -> None:
     try:
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as c:
-            assert (await c.get(path(project_id))).status_code == 200
-            body: dict[str, Any] = {"force": True, "reason": "race"}
+            if stored:
+                tick = {"stage_id": "requirements", "item_id": "scope_out"}
+                assert (await c.post(path(project_id, "/checklist"), json=tick)).status_code == 200
+            body: dict[str, Any] = {"force": True, "reason": "race", "stage_id": "requirements"}
             first, second = await asyncio.gather(
                 c.post(path(project_id, "/approve"), json=body),
                 c.post(path(project_id, "/approve"), json=body),
