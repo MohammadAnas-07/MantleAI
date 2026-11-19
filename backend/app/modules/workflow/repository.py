@@ -1,16 +1,20 @@
 """Repositories for the workflow module. Every query filters by user_id."""
 
 from app.db.repository import UserScopedRepository
-from app.modules.workflow.models import AgentRun, StageState, WorkflowRun
+from app.modules.workflow.models import AgentRun, AgentRunStep, ProjectWorkflow, WorkflowEvent
 
 
-class WorkflowRunRepository(UserScopedRepository[WorkflowRun]):
-    model = WorkflowRun
+class ProjectWorkflowRepository(UserScopedRepository[ProjectWorkflow]):
+    model = ProjectWorkflow
 
 
-class StageStateRepository(UserScopedRepository[StageState]):
-    model = StageState
+class WorkflowEventRepository(UserScopedRepository[WorkflowEvent]):
+    model = WorkflowEvent
 
 
 class AgentRunRepository(UserScopedRepository[AgentRun]):
     model = AgentRun
+
+
+class AgentRunStepRepository(UserScopedRepository[AgentRunStep]):
+    model = AgentRunStep

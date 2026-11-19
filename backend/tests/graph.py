@@ -36,8 +36,9 @@ from app.modules.rag.repository import (
 from app.modules.teaching.repository import ConceptSuggestionRepository, TeachingNoteRepository
 from app.modules.workflow.repository import (
     AgentRunRepository,
-    StageStateRepository,
-    WorkflowRunRepository,
+    AgentRunStepRepository,
+    ProjectWorkflowRepository,
+    WorkflowEventRepository,
 )
 
 FAKE_API_KEY = "test-not-a-real-key-1234"
@@ -172,12 +173,28 @@ async def build_graph(
         index_run_id=run.id,
     )
 
-    workflow = await add(WorkflowRunRepository, project_id=project.id)
-    stage = await add(
-        StageStateRepository, workflow_run_id=workflow.id, stage_key="requirements", position=0
+    workflow = await add(
+        ProjectWorkflowRepository, project_id=project.id, current_stage_id="requirements"
+    )
+    await add(
+        WorkflowEventRepository, project_id=project.id, workflow_id=workflow.id, action="created"
     )
     agent_run = await add(
-        AgentRunRepository, stage_state_id=stage.id, agent="planner", model_id=chat_id
+        AgentRunRepository,
+        project_id=project.id,
+        run_type="plan",
+        status="waiting_for_approval",
+        model_id=chat_id,
+        prompt_version="planner_v1,reviewer_v1",
+    )
+    await add(
+        AgentRunStepRepository,
+        run_id=agent_run.id,
+        position=0,
+        agent="planner",
+        prompt_version="planner_v1",
+        model_id=chat_id,
+        status="succeeded",
     )
 
     await add(
@@ -247,9 +264,10 @@ PROJECT_SCOPED = [
     DocumentRepository,
     ChunkRepository,
     ProjectProfileRepository,
-    WorkflowRunRepository,
-    StageStateRepository,
+    ProjectWorkflowRepository,
+    WorkflowEventRepository,
     AgentRunRepository,
+    AgentRunStepRepository,
     TeachingNoteRepository,
     ConceptSuggestionRepository,
 ]

@@ -1,0 +1,98 @@
+# Workflow stages, in order (decision D4). Loaded and checked when the API starts.
+#
+# Each stage: id, title, goal, checklist (id, text, required), and artifacts: rules on project
+# memory that must hold before the stage can be approved without force.
+#
+# Artifact rule types:
+#   min_memory_items: at least `min` memory items of `kind`, optionally limited to `statuses`.
+
+stages:
+  - id: requirements
+    title: Requirements
+    goal: Agree on what the feature must do, for whom, and what is out of scope.
+    checklist:
+      - id: users_and_goal
+        text: Who the users are and what problem this solves is written down.
+        required: true
+      - id: scope_out
+        text: What is out of scope is written down.
+        required: true
+      - id: constraints
+        text: Constraints (deadlines, platforms, budgets) are listed.
+        required: false
+    artifacts:
+      - type: min_memory_items
+        kind: requirement
+        statuses: [approved]
+        min: 1
+        text: At least 1 approved requirement.
+
+  - id: architecture
+    title: Architecture
+    goal: Decide the main parts of the system and how they talk to each other.
+    checklist:
+      - id: components
+        text: The main components and their responsibilities are named.
+        required: true
+      - id: data_flow
+        text: How data moves between components is described.
+        required: true
+      - id: failure_modes
+        text: What happens when a dependency fails is considered.
+        required: false
+    artifacts:
+      - type: min_memory_items
+        kind: decision
+        statuses: [accepted]
+        min: 1
+        text: At least 1 accepted decision.
+
+  - id: technical_decisions
+    title: Technical decisions
+    goal: Pick libraries, storage and interfaces, with the reasons and the alternatives.
+    checklist:
+      - id: choices_have_reasons
+        text: Every choice has a reason and at least one alternative.
+        required: true
+      - id: security_considered
+        text: Security and secrets handling are considered.
+        required: true
+    artifacts:
+      - type: min_memory_items
+        kind: decision
+        statuses: [accepted]
+        min: 1
+        text: At least 1 accepted decision.
+
+  - id: task_breakdown
+    title: Task breakdown
+    goal: Split the work into small tasks with clear acceptance criteria.
+    checklist:
+      - id: tasks_small
+        text: Each task fits in a day or less.
+        required: true
+      - id: acceptance_criteria
+        text: Each task has acceptance criteria.
+        required: true
+    artifacts:
+      - type: min_memory_items
+        kind: task
+        min: 1
+        text: At least 1 task.
+
+  - id: implementation_plan
+    title: Implementation plan
+    goal: Order the tasks, note dependencies, and plan how each part is tested.
+    checklist:
+      - id: order_and_dependencies
+        text: Tasks are in order and their dependencies are set.
+        required: true
+      - id: test_plan
+        text: How each part is tested is written down.
+        required: true
+    artifacts:
+      - type: min_memory_items
+        kind: task
+        statuses: [todo, in_progress, blocked, done]
+        min: 1
+        text: At least 1 task.

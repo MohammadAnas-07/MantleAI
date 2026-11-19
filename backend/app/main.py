@@ -16,6 +16,7 @@ from app.core.logging import setup_logging
 from app.db.session import SessionLocal, check_database, engine
 from app.modules.llm.service import validate_master_key
 from app.modules.rag.service import recover_interrupted_runs
+from app.modules.workflow.service import check_stage_definitions
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(settings.log_level)
     # Fail fast: without a valid master key, stored provider keys can't be used.
     validate_master_key()
+    check_stage_definitions()  # a bad stages.yaml stops the app here
     await fail_interrupted_index_runs()
     yield
     await engine.dispose()

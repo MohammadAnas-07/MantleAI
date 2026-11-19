@@ -99,6 +99,25 @@ class Settings(BaseSettings):
     # Give up on an ordinary rate limit once the waits of one batch would pass this total.
     embed_retry_max_total_wait_seconds: float = Field(default=900.0, ge=0)
 
+    # ---- workflow and agents ----
+    # Reasons for skip, reopen, reset, forced approval and rejection: trimmed, at most this long.
+    workflow_reason_max_length: int = Field(default=500, ge=1, le=5000)
+    # An agent or gap finder run is refused above this estimated cost unless force=true.
+    agent_run_cost_limit_usd: Decimal = Field(default=Decimal("0.50"), ge=0)
+    # Per step: the prompt may use at most this many tokens (and the model's own budget),
+    # the reply at most this many, and the call may take at most this long.
+    agent_max_input_tokens: int = Field(default=60_000, ge=1000)
+    agent_max_output_tokens: int = Field(default=4_000, ge=100)
+    agent_step_timeout_seconds: float = Field(default=180.0, gt=0)
+    # Share of the prompt budget that project memory may use (pinned items use less).
+    agent_memory_max_share: float = Field(default=0.5, gt=0, le=1)
+    # A free-text requirement given to the Planner.
+    agent_requirement_max_chars: int = Field(default=4000, ge=1)
+    # Most tasks plus decisions a plan may propose.
+    agent_plan_max_items: int = Field(default=30, ge=1)
+    # Code blocks the Planner may get when use_code_context is on.
+    agent_code_context_max_blocks: int = Field(default=6, ge=1, le=50)
+
     # Retrieval.
     retrieval_top_k: int = Field(default=8, ge=1)
     retrieval_max_top_k: int = Field(default=50, ge=1)  # hard cap for any request
