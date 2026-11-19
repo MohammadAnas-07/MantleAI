@@ -12,8 +12,9 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 On `main`: Phases 1-3, the first UI (Phase 5) and the daily quota fix. On
 `feat/workflow-and-agents` (not merged yet): the workflow backend (5 stages from YAML, gates,
-events), the gap finder, Planner + Reviewer runs, and approval of drafts into memory. No UI for
-it yet. Branch tests: 549 backend (workflow module 99% covered), 49 frontend.
+events), the gap finder, Planner + Reviewer runs, and approval of drafts into memory, plus 5
+review fixes (run lock, conditional cancel, attribute escaping, unpriced models, limit checks).
+Pushed (fixes not yet); no UI. Tests: 561 backend (workflow 99% covered), 49 frontend.
 Dev database `mantle` at `0007`; the branch adds `0008` (`alembic upgrade head`).
 Not built: workflow and teaching screens, teaching notes, project profile,
 `GET /messages/{id}/context`. Not run with a real model: the click eval, `scripts/agent_demo.py`.
@@ -21,7 +22,7 @@ Branches: 2 local (`main`, `feat/workflow-and-agents`); remote branches untouche
 To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev` (http://127.0.0.1:5173).
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-19 (workflow and agents).
+First demo target: 2026-12-17. Last updated 2026-11-19 (workflow review fixes).
 
 ## Done
 
@@ -44,7 +45,9 @@ First demo target: 2026-12-17. Last updated 2026-11-19 (workflow and agents).
 - `feat/workflow-and-agents`: `0008` (`project_workflows`, `workflow_events`, `agent_runs`,
   `agent_run_steps`); `workflow/stages.yaml`, `state.py`, `gap_finder.py`, `runs.py` (plain state
   machine), `approval.py`, prompts `*_v1.txt`; `app/core/prompt_data.py`; `suggest_models` moved
-  to llm; purpose `agent_run`; rules 85-90 (branch hygiene). Next: open the PR, run the demo.
+  to llm; purpose `agent_run`; rules 85-90. Review fixes: decide locks the run; job and cancel use
+  conditional updates; `defang_attr`; 422 `model_not_priced` unless `AGENT_ALLOW_UNPRICED_MODELS`;
+  422 `draft_limits_changed`. Next: push the fixes, open the PR; demo after the merge.
 - Click eval (`eval_retrieval.py --project-path --questions --estimate-only`, 25 questions): run 1
   stopped at 926/1,429 segments (Gemini daily limit); resume.
 
@@ -57,6 +60,11 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 3. Run `scripts/agent_demo.py` with Gemini; then the workflow screen (frontend branch).
 4. `feat/project-profile` (before `feat/teaching-layer`).
 5. Not built: message cancel, project description/archive, typed models for `dict` responses.
+
+## Known cleanup
+
+- Run list endpoints load steps with one query per run (N+1); transitions load memory twice.
+- `list_gap_runs` and `runs.list_runs` duplicate one query; `memory_trimmed` has two shapes.
 
 ## Decisions
 
@@ -90,8 +98,7 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 - **PostgreSQL 17 Windows service listens on 5432**; keep Docker on 5433. The first DB connection
   after a restart can take over 2 s. The container can stop by itself (`Exited (255)`, then
   `WinError 1225`): `docker compose ps`, `docker compose up -d`. A Fernet key is 44 chars, ends `=`.
-- **PowerShell commands don't work in Git Bash** (use `source .venv/Scripts/activate`). Python
-  and pytest start slowly here (6-16 s); the backend suite takes 1-2 minutes.
+- **PowerShell commands don't work in Git Bash** (`source .venv/Scripts/activate`); the suite takes 2 min.
 - **`requirements.lock` was made on Windows with Python 3.14**; regenerate with `python -m pip freeze --exclude-editable > requirements.lock`.
 - **No LICENSE yet. `gh` isn't installed**: the developer opens and merges PRs. CRLF warnings
   are harmless; the first commit is named "chunk 0" (pre-rule).
@@ -104,25 +111,19 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 - **Rows in one transaction share `now()`** (never order by `created_at` for "newest"). **The
   running app must import every model** (`app/db/session.py` imports `app.db.models`);
   `tests/test_app_wiring.py` checks it in a fresh interpreter.
-- **Under Starlette/anyio, cancellation hits every later `await`.** Writes after a client
-  disconnect run inside `anyio.CancelScope(shield=True)`.
-- Tests run Alembic in a separate thread. **Every write endpoint needs a JSON body** (even `{}`),
-  or `/docs` and the frontend get 415. Swagger's "Example Value" is not the real answer.
+- **Under anyio, cancellation hits every later `await`**: post-disconnect writes use `CancelScope(shield=True)`.
+- **Every write endpoint needs a JSON body** (even `{}`), or `/docs` and the frontend get 415.
 - **Index jobs and agent runs are in-process `BackgroundTasks`**: in tests they finish before the
   request returns; a restart kills them (startup marks them `interrupted`). Search is dev-only.
-- **`tests/fixtures/sample_project` is data** (excluded from ruff and pytest). The click repo for
-  the large eval is outside the repo: `C:\Users\admin\Desktop\click-sample` (8.5.1).
-- **`core.autocrlf=true` checks the fixture out with CRLF.** Tests must not assume LF in
-  `tests/fixtures` (a test that turned LF into CRLF made CR CR LF and failed on main).
-- **Editing files with Python heredocs in Git Bash turned `\n` in code into real newlines** twice;
-  use an editor tool for code that contains escape sequences.
+- **`tests/fixtures/sample_project` is data**; the click eval repo is `C:\Users\admin\Desktop\click-sample`.
+- **`core.autocrlf=true` checks fixtures out with CRLF**: tests must not assume LF in `tests/fixtures`.
+- **Python heredocs in Git Bash turn `\n` in code into real newlines** (three times): use the Edit tool.
 - **Several uvicorns can listen on 8000; the oldest answers** (`netstat -ano | findstr :8000`).
   An unhandled 500 has no CORS headers, so the browser shows "Can't reach the API".
 - **Leaving a nested `api_client` clears ALL dependency overrides**: the outer client then hits
   the real dev DB. Switch `get_current_user_id` instead. Concurrency tests commit to `mantle_test`
   and clean up. `defang` turns `</source>` into `&lt;/source>` (the `>` stays).
-- **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`** (the old name is ignored). Backend
-  tests use `base_url="http://localhost"`: the Host check refuses other names.
+- **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`**. Backend tests use `http://localhost`.
 - **What FakeProvider tests can't prove:** real summary, plan and review quality, real token
   counts and streaming, retrieval quality (fake embeddings are bag-of-words). Only the scripts
   (`switch_demo.py`, `eval_retrieval.py`, `agent_demo.py`) with real keys do.
