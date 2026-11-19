@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUserId, DbSession, SessionFactoryDep
 from app.modules.llm.service import Gateway, get_gateway
-from app.modules.workflow import gap_finder, runs, state
+from app.modules.workflow import approval, gap_finder, runs, state
 from app.modules.workflow.models import AgentRun, AgentRunStep, RunType
 from app.modules.workflow.run_setup import get_run
 from app.modules.workflow.schemas import (
@@ -19,6 +19,8 @@ from app.modules.workflow.schemas import (
     AgentRunPage,
     AgentRunStepOut,
     ApproveIn,
+    ApproveRunIn,
+    ApproveRunOut,
     ArtifactOut,
     ChecklistIn,
     ChecklistItemOut,
@@ -245,6 +247,30 @@ async def cancel_agent_run(
 ) -> AgentRunOut:
     """Queued: cancelled now. Running: stops before its next step."""
     run = await runs.request_cancel(session, user_id, run_id)
+    out = await run_out(session, run)
+    await session.commit()
+    return out
+
+
+@router.post("/agent-runs/{run_id}/approve")
+async def approve_agent_run(
+    run_id: uuid.UUID, body: ApproveRunIn, session: DbSession, user_id: CurrentUserId
+) -> ApproveRunOut:
+    """Save all or the chosen proposed items (with edits) to project memory, in one
+    transaction. Tasks become todo, decisions proposed."""
+    result = await approval.approve_run(session, user_id, run_id, body)
+    out = await run_out(session, result.run)
+    await session.commit()
+    return ApproveRunOut(run=out, task_ids=result.task_ids, decision_ids=result.decision_ids,
+                         warnings=result.warnings)  # fmt: skip
+
+
+@router.post("/agent-runs/{run_id}/reject")
+async def reject_agent_run(
+    run_id: uuid.UUID, body: ReasonIn, session: DbSession, user_id: CurrentUserId
+) -> AgentRunOut:
+    """Close the run with a reason. Nothing is saved."""
+    run = await approval.reject_run(session, user_id, run_id, body.reason)
     out = await run_out(session, run)
     await session.commit()
     return out

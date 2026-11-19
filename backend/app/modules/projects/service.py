@@ -11,6 +11,12 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
+from app.modules.projects.memory_service import (
+    DraftDecision,
+    DraftTask,
+    SavedDrafts,
+    add_agent_drafts,
+)
 from app.modules.projects.models import Project
 from app.modules.projects.pinned import (
     DroppedPin,
@@ -22,11 +28,15 @@ from app.modules.projects.pinned import (
 from app.modules.projects.repository import MemoryItemRepository, ProjectRepository
 
 __all__ = [
+    "DraftDecision",
+    "DraftTask",
     "DroppedPin",
     "MemoryRef",
     "PinnedItem",
     "PinnedSelection",
     "ProjectInfo",
+    "SavedDrafts",
+    "add_agent_drafts",
     "create_project",
     "delete_project",
     "get_project",
