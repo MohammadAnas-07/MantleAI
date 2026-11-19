@@ -26,7 +26,9 @@ Built in `feat/llm-gateway`. Write requests without `Content-Type: application/j
 No response ever contains an API key; credentials show `key_hint` (last 4 characters). Models
 come from a default catalog added by `python -m app.db.seed`; an embedding model is enabled only
 if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `rate_limited`
-(429), `context_too_long` (413), `auth_failed` (401), `provider_unavailable` (503),
+(429, a short limit: retrying can help), `quota_exhausted` (429, the quota is used up, for example
+a per-day quota, or the provider asked for a wait over `LLM_QUOTA_EXHAUSTED_MIN_WAIT_SECONDS`;
+never retried), `context_too_long` (413), `auth_failed` (401), `provider_unavailable` (503),
 `no_credential` and `model_unavailable` (422).
 
 | Method | Path | Purpose |
@@ -74,7 +76,7 @@ Edits are last-write-wins.
 
 Built in `feat/model-switching`. The conversation in Mantle's database is the source of truth;
 messages are stored provider-neutral with a `sequence` number. Mantle never switches models by
-itself: `context_too_long` (413) and `rate_limited` errors carry `details.suggested_models`
+itself: `context_too_long` (413), `rate_limited` and `quota_exhausted` errors carry `details.suggested_models`
 (enabled chat models the user has a key for: bigger context window, or another provider).
 A second reply or a switch while a reply is streaming gets 409 `generation_in_progress`.
 

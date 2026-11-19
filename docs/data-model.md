@@ -209,6 +209,9 @@ summarized.
 - `project_id`, `conversation_id`, `message_id`, `agent_run_id` (all nullable)
 - `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`
 - `status`: `success` | `error` | `cancelled`, `error_code`
+- `error_detail` (nullable, up to 255 characters, migration `0007`): sanitized structured fields of
+  the provider's error, for example `http=429 status=RESOURCE_EXHAUSTED quota_id=... retry_after_s=33`.
+  Never the provider's free text, prompts or keys.
 
 ## rag module
 
@@ -221,7 +224,9 @@ summarized.
 - `files_seen`, `files_indexed`, `files_skipped`, `files_unchanged`, `chunks_created`, `tokens`
   (estimated, about 4 characters each), `cost_estimate_usd`
 - `error` (nullable: an error code such as `rate_limited`, `auth_failed`, `source_missing`,
-  `interrupted`, `internal_error`), `started_at`, `finished_at`, `cancel_requested_at`
+  `interrupted`, `internal_error`, `daily_quota_exhausted` (the provider's quota is used up; not
+  retried, run it again after the reset to resume) or `rate_limit_wait_exceeded` (retries of one
+  batch would wait longer than `EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS`)), `started_at`, `finished_at`, `cancel_requested_at`
 - `force` (bool): started above the cost limit on purpose
 - `embedding_model_id` → ModelConfig, plus snapshots `embedding_model` (name) and `root_path`
 - `estimate` (JSON): the estimate checked before the run; `skip_report` (JSON): count and up to
