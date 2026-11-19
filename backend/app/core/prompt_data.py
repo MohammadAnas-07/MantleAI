@@ -32,3 +32,9 @@ def defang(text: str, tags: Iterable[str]) -> str:
     `[INST]` becomes `&#91;INST]`. The text stays readable; it just can't open or close a
     block whose tag is in `tags`."""
     return _markers(tuple(tags)).sub(_escape, text)
+
+
+def defang_attr(value: str, tags: Iterable[str]) -> str:
+    """A repo-derived string (path, symbol, language) for a quoted tag attribute: defanged,
+    then `&`, `"` and newlines escaped, so it can't end the attribute or the tag."""
+    return defang(value, tags).replace("&", "&amp;").replace('"', "&quot;").replace("\n", " ")

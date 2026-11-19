@@ -29,6 +29,7 @@ from typing import Any
 
 from app.core.config import settings
 from app.core.prompt_data import defang as defang_markers
+from app.core.prompt_data import defang_attr
 from app.modules.conversations.prompts import SYSTEM_PROMPT, load_prompt
 from app.modules.llm.service import ChatMessages, ContextTooLong, ModelInfo
 from app.modules.projects.service import DroppedPin, PinnedItem, ProjectInfo, pinned_block
@@ -183,7 +184,7 @@ def defang(text: str) -> str:
 
 
 def _attr(value: str) -> str:
-    return defang(value).replace("&", "&amp;").replace('"', "&quot;").replace("\n", " ")
+    return defang_attr(value, _TAGS)
 
 
 def system_text(project: ProjectInfo) -> str:

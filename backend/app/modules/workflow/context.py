@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.prompt_data import defang
+from app.core.prompt_data import defang, defang_attr
 from app.modules.llm.service import (
     ChatMessages,
     ContextTooLong,
@@ -37,6 +37,11 @@ TAGS = (
     "project", "stage", "project_memory", "pinned_items", "requirement", "plan",
     "retrieved_context", "source",
 )  # fmt: skip
+
+
+def attr(value: str) -> str:
+    """A path, symbol or language for a quoted attribute: defanged and quote-escaped."""
+    return defang_attr(value, TAGS)
 
 
 def safe(text: str) -> str:
@@ -118,11 +123,14 @@ def code_text(blocks: list[RetrievedBlock]) -> str:
     """Retrieved code blocks as `<source>` data, or nothing."""
     if not blocks:
         return ""
-    parts = [
-        f'<source path="{safe(b.path)}" lines="{b.start_line}-{b.end_line}">\n'
-        f"{safe(b.text)}\n</source>"
-        for b in blocks
-    ]
+    parts = []
+    for b in blocks:
+        attrs = f'path="{attr(b.path)}" lines="{b.start_line}-{b.end_line}"'
+        if b.symbol:
+            attrs += f' symbol="{attr(b.symbol)}"'
+        if b.language:
+            attrs += f' language="{attr(b.language)}"'
+        parts.append(f"<source {attrs}>\n{safe(b.text)}\n</source>")
     return "<retrieved_context>\n" + "\n".join(parts) + "\n</retrieved_context>"
 
 
