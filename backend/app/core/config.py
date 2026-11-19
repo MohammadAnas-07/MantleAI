@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     workflow_reason_max_length: int = Field(default=500, ge=1, le=5000)
     # An agent or gap finder run is refused above this estimated cost unless force=true.
     agent_run_cost_limit_usd: Decimal = Field(default=Decimal("0.50"), ge=0)
+    # A model without prices in the catalog has no cost estimate, so the limit can't apply:
+    # runs on it are refused (422 model_not_priced) unless this is true.
+    agent_allow_unpriced_models: bool = False
     # Per step: the prompt may use at most this many tokens (and the model's own budget),
     # the reply at most this many, and the call may take at most this long.
     agent_max_input_tokens: int = Field(default=60_000, ge=1000)

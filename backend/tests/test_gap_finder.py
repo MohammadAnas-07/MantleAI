@@ -177,3 +177,39 @@ async def test_needs_a_key_and_a_chat_model(
     assert r.status_code == 422 and r.json()["error"]["code"] == "no_credential"
     r = await client.post(url(world), json={"model_id": str(uuid.uuid4())})
     assert r.status_code == 422 and r.json()["error"]["code"] == "model_unavailable"
+
+
+async def unpriced_model(session: AsyncSession, world: AgentWorld) -> uuid.UUID:
+    from app.modules.llm.repository import ModelConfigRepository
+
+    row = await ModelConfigRepository(session).add(
+        provider="openai", litellm_model=world.model_name + "-unpriced",
+        display_name="Fake unpriced", kind="chat", context_window=100_000,
+        max_output_tokens=4_000, supports_tools=False,
+    )  # fmt: skip
+    world.fake.set_reply(row.litellm_model, world.script)
+    return row.id
+
+
+async def test_unpriced_models_are_refused_unless_allowed(
+    client: httpx.AsyncClient, session: AsyncSession, world: AgentWorld,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    from app.core.config import settings
+
+    model_id = await unpriced_model(session, world)
+    world.script.say("gap_finder", gap_report())
+    plan_body = {"run_type": "plan", "model_id": str(model_id),
+                 "requirement_id": str(world.memory["req_login"])}  # fmt: skip
+    for path, body in ((url(world), {"model_id": str(model_id)}),
+                       (f"/api/v1/projects/{world.project_id}/agent-runs", plan_body)):  # fmt: skip
+        r = await client.post(path, json=body)
+        assert r.status_code == 422, r.text
+        error = r.json()["error"]
+        assert error["code"] == "model_not_priced"
+        assert "AGENT_ALLOW_UNPRICED_MODELS" in error["message"]
+    assert world.fake.calls == []
+
+    monkeypatch.setattr(settings, "agent_allow_unpriced_models", True)
+    r = await client.post(url(world), json={"model_id": str(model_id)})
+    assert r.status_code == 200 and r.json()["estimate"]["cost_usd"] is None

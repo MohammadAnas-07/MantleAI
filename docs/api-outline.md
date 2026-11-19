@@ -152,7 +152,9 @@ Agent and gap finder starts check, before any model call: the project (404), the
 key (422 `model_unavailable`, `no_credential`), the prompt size (413 `context_too_long` with
 `details.suggested_models`), one queued or running run per project (409
 `agent_run_in_progress`) and the estimate against `AGENT_RUN_COST_LIMIT_USD` (0.50; 409
-`cost_limit_exceeded` with `details.estimate`, unless `force=true`). Run statuses: `queued`,
+`cost_limit_exceeded` with `details.estimate`, unless `force=true`). A model with no price in the catalog
+has no estimate, so it is refused with 422 `model_not_priced` (even with `force`) unless
+`AGENT_ALLOW_UNPRICED_MODELS=true`. Run statuses: `queued`,
 `running`, `waiting_for_approval`, `approved`, `rejected`, `completed` (review and gap finder),
 `failed`, `cancelled`. At startup, queued and running runs become `failed` with `error` =
 `interrupted`.

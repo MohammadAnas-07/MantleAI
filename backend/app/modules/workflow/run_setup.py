@@ -68,9 +68,22 @@ def estimate(model: ModelInfo, prompt_tokens: list[int]) -> dict[str, Any]:
 
 
 def check_cost(run_estimate: dict[str, Any], force: bool) -> None:
-    """409 cost_limit_exceeded when the estimate is over the limit and force is off."""
+    """409 cost_limit_exceeded when the estimate is over the limit and force is off. A model
+    without prices fails closed: 422 model_not_priced, unless AGENT_ALLOW_UNPRICED_MODELS
+    (force doesn't skip this: there is no number to compare against)."""
     cost = run_estimate["cost_usd"]
-    if force or cost is None or Decimal(cost) <= settings.agent_run_cost_limit_usd:
+    if cost is None:
+        if settings.agent_allow_unpriced_models:
+            return
+        raise AppError(
+            f"{run_estimate['model']} has no price in the model catalog, so the cost limit "
+            "can't be checked. Pick a model with prices, or set "
+            "AGENT_ALLOW_UNPRICED_MODELS=true to run without a cost limit.",
+            code="model_not_priced",
+            status_code=422,
+            details={"model": run_estimate["model"]},
+        )
+    if force or Decimal(cost) <= settings.agent_run_cost_limit_usd:
         return
     raise AppError(
         f"This run could cost about ${cost}, above the limit of "
