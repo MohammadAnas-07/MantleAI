@@ -99,3 +99,4 @@ First-time setup is in `README.md`.
 - One topic per branch. Nobody commits directly to `main`.
 - Never commit `.env`.
 - Never use the word "chunk" in branch names, commit messages or PR titles.
+- docs/memory.md is updated in the same branch as the work, in its own commit, before the pull request is opened. Do not record PR numbers or merge commit hashes there. Do not create a separate branch just to update memory. Only a pure documentation catch-up that was missed may use its own docs/ branch.
