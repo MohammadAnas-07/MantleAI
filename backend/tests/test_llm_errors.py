@@ -12,6 +12,7 @@ from app.modules.llm.errors import (
     ContextTooLong,
     LLMError,
     ProviderUnavailable,
+    QuotaExhausted,
     RateLimited,
 )
 from app.modules.llm.litellm_backend import LiteLLMBackend, _litellm, map_provider_error
@@ -96,6 +97,73 @@ async def test_mid_stream_rate_limit_is_logged_with_status_not_text(
         await anext(stream)
     assert "type=MidStreamFallbackError root=StatusOnly status=429" in caplog.text
     assert PROVIDER_TEXT not in caplog.text
+
+
+def gemini_rate_limit(quota_id: str | None, retry_delay: str | None) -> Exception:
+    """A LiteLLM RateLimitError as LiteLLM 1.110.0 builds it for Gemini: the body is only in
+    the message text, the HTTP response is new and empty. The body follows the google.rpc
+    error model; it is not captured from a real exhausted quota."""
+    import json
+
+    details: list[dict[str, object]] = []
+    if quota_id:
+        details.append({"@type": "type.googleapis.com/google.rpc.QuotaFailure",
+                        "violations": [{"quotaId": quota_id}]})  # fmt: skip
+    if retry_delay:
+        details.append({"@type": "type.googleapis.com/google.rpc.RetryInfo",
+                        "retryDelay": retry_delay})  # fmt: skip
+    body = {"error": {"code": 429, "message": PROVIDER_TEXT, "status": "RESOURCE_EXHAUSTED",
+                      "details": details}}  # fmt: skip
+    cls = _litellm().RateLimitError
+    return cls(message=f"geminiException - {json.dumps(body)}", llm_provider="gemini",
+               model="gemini-embedding-001")  # fmt: skip
+
+
+def test_gemini_per_day_quota_is_quota_exhausted() -> None:
+    exc = gemini_rate_limit("EmbedContentRequestsPerDayPerUserPerProjectPerModel-FreeTier", "40s")
+    mapped = map_provider_error(exc, "gemini/gemini-embedding-001")
+    assert type(mapped) is QuotaExhausted and mapped.code == "quota_exhausted"
+    assert "resets the quota" in mapped.message
+    assert mapped.provider_detail is not None
+    assert "quota_id=EmbedContentRequestsPerDayPerUserPerProjectPerModel-FreeTier" in (
+        mapped.provider_detail
+    )
+    assert PROVIDER_TEXT not in mapped.message and PROVIDER_TEXT not in mapped.provider_detail
+
+
+def test_gemini_per_minute_limit_is_a_rate_limit_with_its_delay() -> None:
+    exc = gemini_rate_limit("EmbedContentRequestsPerMinutePerProjectPerModel-FreeTier", "33s")
+    mapped = map_provider_error(exc, "gemini/x")
+    assert type(mapped) is RateLimited
+    assert mapped.retry_after_seconds == 33.0
+
+
+def test_long_requested_wait_is_quota_exhausted(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.config import settings
+
+    exc = gemini_rate_limit(None, "900s")
+    assert type(map_provider_error(exc, "gemini/x")) is QuotaExhausted
+    monkeypatch.setattr(settings, "llm_quota_exhausted_min_wait_seconds", 1000.0)
+    assert type(map_provider_error(exc, "gemini/x")) is RateLimited
+
+
+def test_rate_limit_without_payload_stays_a_rate_limit() -> None:
+    for exc in (make("RateLimitError"), StatusOnly(429), mid_stream(StatusOnly(429))):
+        mapped = map_provider_error(exc, "gemini/x")
+        assert type(mapped) is RateLimited
+        assert mapped.retry_after_seconds is None
+        assert mapped.provider_detail == "http=429"
+
+
+def test_retry_after_header_is_read() -> None:
+    request = httpx.Request("POST", "https://example.invalid")
+    response = httpx.Response(429, request=request, headers={"retry-after": "7"})
+    exc = _litellm().RateLimitError(
+        message=PROVIDER_TEXT, llm_provider="openai", model="gpt-x", response=response
+    )
+    mapped = map_provider_error(exc, "openai/gpt-x")
+    assert type(mapped) is RateLimited and mapped.retry_after_seconds == 7.0
+    assert mapped.provider_detail == "http=429 retry_after_s=7"
 
 
 def test_unknown_errors_become_provider_unavailable() -> None:

@@ -7,11 +7,27 @@ from app.core.errors import AppError
 class LLMError(AppError):
     status_code = 502
     code = "llm_error"
+    # A short, safe summary of the provider's error payload for the usage row: structured
+    # fields only (HTTP status, provider status, quota id, retry delay), never free text.
+    provider_detail: str | None = None
 
 
 class RateLimited(LLMError):
+    """A short rate limit: waiting and retrying can help."""
+
     status_code = 429
     code = "rate_limited"
+    # How long the provider asked us to wait (Retry-After or its own retry delay), if it did.
+    retry_after_seconds: float | None = None
+
+
+class QuotaExhausted(LLMError):
+    """The provider's quota is used up (for example a per-day quota), or it asked for a wait
+    longer than LLM_QUOTA_EXHAUSTED_MIN_WAIT_SECONDS. Retrying soon cannot help, so callers
+    never retry it. Not a subclass of RateLimited for that reason."""
+
+    status_code = 429
+    code = "quota_exhausted"
 
 
 class ContextTooLong(LLMError):
