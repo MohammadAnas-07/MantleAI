@@ -21,7 +21,8 @@ class UsagePurpose(StrEnum):
     ROLLING_SUMMARY = "rolling_summary"
     SWITCH_SUMMARY = "switch_summary"
     EMBEDDING = "embedding"
-    AGENT = "agent"
+    AGENT = "agent"  # unused; agent and gap finder runs write agent_run
+    AGENT_RUN = "agent_run"
     TEACHING = "teaching"
     KEY_TEST = "key_test"  # the tiny call made by "test key"
 

@@ -406,8 +406,11 @@ async def retrieve_for_context(
     project_id: uuid.UUID,
     query: str,
     links: UsageLinks,
+    *,
+    top_k: int | None = None,
 ) -> RetrievalOutcome:
-    """Code for the chat context, using `query` (the latest user message).
+    """Code for a prompt, using `query` (the latest user message, or a requirement).
+    `top_k` defaults to RETRIEVAL_TOP_K.
 
     Not indexed: nothing, no warning. Needs re-index: nothing, with a warning. Provider errors
     (LLMError) are raised; the caller decides that chat goes on without retrieved code.
@@ -429,8 +432,8 @@ async def retrieve_for_context(
         return RetrievalOutcome([])
     blocks = await _run_search(
         session, gateway, user_id, project_id, text,
-        top_k=settings.retrieval_top_k, mode="hybrid", path_prefix=None, language=None,
-        links=links,
+        top_k=top_k or settings.retrieval_top_k, mode="hybrid", path_prefix=None,
+        language=None, links=links,
     )  # fmt: skip
     return RetrievalOutcome(blocks)
 

@@ -2,16 +2,25 @@
 live in state.py and the agent files."""
 
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUserId, DbSession
-from app.modules.workflow import state
+from app.modules.llm.service import Gateway, get_gateway
+from app.modules.workflow import gap_finder, state
+from app.modules.workflow.models import AgentRun, AgentRunStep
 from app.modules.workflow.schemas import (
+    AgentRunOut,
+    AgentRunPage,
+    AgentRunStepOut,
     ApproveIn,
     ArtifactOut,
     ChecklistIn,
     ChecklistItemOut,
+    GapFinderIn,
     ReasonIn,
     ReopenIn,
     StageDefinitionOut,
@@ -23,6 +32,19 @@ from app.modules.workflow.schemas import (
 from app.modules.workflow.stages import get_stages
 
 router = APIRouter(tags=["workflow"])
+
+GatewayDep = Annotated[Gateway, Depends(get_gateway)]
+
+
+async def run_out(session: AsyncSession, run: AgentRun) -> AgentRunOut:
+    steps = await session.scalars(
+        select(AgentRunStep)
+        .where(AgentRunStep.user_id == run.user_id, AgentRunStep.run_id == run.id)
+        .order_by(AgentRunStep.position)
+    )
+    out = AgentRunOut.model_validate(run)
+    out.steps = [AgentRunStepOut.model_validate(s) for s in steps]
+    return out
 
 
 def workflow_out(view: state.WorkflowView) -> WorkflowOut:
@@ -142,3 +164,32 @@ async def reset_workflow(
     view = await state.reset(session, user_id, project_id, reason=body.reason)
     await session.commit()
     return workflow_out(view)
+
+
+@router.post("/projects/{project_id}/gap-finder")
+async def run_gap_finder(
+    project_id: uuid.UUID,
+    body: GapFinderIn,
+    session: DbSession,
+    user_id: CurrentUserId,
+    gateway: GatewayDep,
+) -> AgentRunOut:
+    """Find gaps for the current stage now (one model call, purpose agent_run). A failed run
+    is saved, then its error is returned."""
+    run, error = await gap_finder.run_gap_finder(
+        session, gateway, user_id, project_id, body.model_id, force=body.force
+    )
+    out = await run_out(session, run)
+    await session.commit()
+    if error is not None:
+        raise error
+    return out
+
+
+@router.get("/projects/{project_id}/gap-finder")
+async def list_gap_finder_runs(
+    project_id: uuid.UUID, session: DbSession, user_id: CurrentUserId
+) -> AgentRunPage:
+    """Past gap finder results, newest first."""
+    runs = await gap_finder.list_gap_runs(session, user_id, project_id)
+    return AgentRunPage(items=[await run_out(session, r) for r in runs])

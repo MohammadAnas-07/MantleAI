@@ -3,9 +3,8 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.conversations.suggestions import suggest_models
 from app.modules.llm.repository import ModelConfigRepository, ProviderCredentialRepository
-from app.modules.llm.service import get_chat_model
+from app.modules.llm.service import get_chat_model, suggest_models
 from tests.graph import make_user
 
 pytestmark = pytest.mark.db
