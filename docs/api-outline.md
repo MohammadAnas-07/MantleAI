@@ -126,7 +126,9 @@ come from `app/modules/workflow/stages.yaml`, checked at startup. A project with
 workflow (made before this feature) reads as the first stage; GET writes nothing, and the first
 change stores it with a `created` event. Every transition is saved as an append-only event and
 uses a version check; approve and skip also take the `stage_id` the user means. Of two requests
-at the same moment one wins, the other gets 409 `workflow_changed`. Reasons are trimmed, required and at most `WORKFLOW_REASON_MAX_LENGTH` (500).
+at the same moment one wins, the other gets 409 `workflow_changed`. `stage_id` stays optional
+for scripts and `/docs`; the UI always sends it, because without it a request that arrives just
+after another approval approves the next stage. Reasons are trimmed, required and at most `WORKFLOW_REASON_MAX_LENGTH` (500).
 If the stored stage no longer exists in the YAML, every call except reset answers 409
 `unknown_stage` with `details.reset_path`.
 
@@ -144,9 +146,9 @@ If the stored stage no longer exists in the YAML, every call except reset answer
 | POST | `/api/v1/projects/{id}/agent-runs` | 202: start `{run_type: plan \| review, model_id, requirement_id? \| requirement_text?, use_code_context?, force?}` in the background. A plan run needs exactly one requirement; a review run none. The response has the `estimate` |
 | GET | `/api/v1/projects/{id}/agent-runs` | Plan and review runs, newest first |
 | GET | `/api/v1/agent-runs/{id}` | Status, estimate, result (`plan`, `review`), warnings, error, tokens, cost and `steps` |
-| POST | `/api/v1/agent-runs/{id}/cancel` | Queued: cancelled now; running: stops before the next step. 409 `agent_run_not_active` |
-| POST | `/api/v1/agent-runs/{id}/approve` | `{all: true}` or `{tasks: [{index, title?, description?, priority?}], decisions: [{index, title?, what?, why?, alternatives?}]}`. Saves the chosen items in one transaction: tasks `todo`, decisions `proposed`, `source = agent`, `source_agent_run_id`, `stage_key`; dependencies between chosen tasks become links. Returns the new ids and warnings (`dependency_not_saved`). 422 `invalid_draft` / `invalid_selection`; 409 `agent_run_not_waiting` |
-| POST | `/api/v1/agent-runs/{id}/reject` | `{reason}`. Saves nothing |
+| POST | `/api/v1/agent-runs/{id}/cancel` | Queued: cancelled now; running: stops at the next check (before every model call and every save) and always ends `cancelled`. Status changes are conditional updates, so a cancel is never overwritten. 409 `agent_run_not_active` when the run is finished or waiting for approval; 409 `agent_run_not_cancellable` for a gap finder run |
+| POST | `/api/v1/agent-runs/{id}/approve` | `{all: true}` or `{tasks: [{index, title?, description?, priority?}], decisions: [{index, title?, what?, why?, alternatives?}]}`. Saves the chosen items in one transaction: tasks `todo`, decisions `proposed`, `source = agent`, `source_agent_run_id`, `stage_key`; dependencies between chosen tasks become links. Returns the new ids and warnings (`dependency_not_saved`). The run row is locked first: of two decisions at once, the second gets 409 `agent_run_not_waiting` and saves nothing. Chosen drafts are checked again against today's limits: 422 `draft_limits_changed`. 422 `invalid_draft` / `invalid_selection` |
+| POST | `/api/v1/agent-runs/{id}/reject` | `{reason}`. Saves nothing. Locks the run like approve |
 
 Agent and gap finder starts check, before any model call: the project (404), the model and its
 key (422 `model_unavailable`, `no_credential`), the prompt size (413 `context_too_long` with
