@@ -17,7 +17,7 @@ from app.modules.llm.repository import (
     UsageRecordRepository,
     UserModelSettingsRepository,
 )
-from app.modules.llm.service import AuthFailed, RateLimited
+from app.modules.llm.service import AuthFailed, QuotaExhausted, RateLimited
 from app.modules.rag.models import Chunk, IndexRun
 from app.modules.rag.service import (
     CostLimitExceeded,
@@ -215,6 +215,77 @@ async def test_rate_limit_fails_after_retry_cap_and_rerun_resumes(
     flaky.fail_on = set()
     run = await index_once(session, world)
     assert run.status == "succeeded"
+
+
+def quota_error() -> QuotaExhausted:
+    error = QuotaExhausted("daily quota used up")
+    error.provider_detail = "http=429 status=RESOURCE_EXHAUSTED quota_id=RequestsPerDay"
+    return error
+
+
+def rate_limit(retry_after: float | None) -> RateLimited:
+    error = RateLimited("slow down")
+    error.retry_after_seconds = retry_after
+    return error
+
+
+async def test_quota_exhausted_stops_at_once_and_rerun_resumes(
+    session: AsyncSession, root: Path, monkeypatch: pytest.MonkeyPatch, _fast: list[float]
+) -> None:
+    monkeypatch.setattr(settings, "embed_batch_max_items", 4)
+    flaky = FlakyProvider(quota_error(), fail_on={3})
+    world = await make_rag_world(session, root, flaky)
+    run = await index_once(session, world)
+    assert (run.status, run.error) == ("failed", "daily_quota_exhausted")
+    assert flaky.embed_calls == 3  # no retry
+    assert _fast == []  # and no backoff wait
+    assert await count_chunks(session, world) == 8  # the two finished batches stay
+    usage = await UsageRecordRepository(session, world.user_id).list(limit=1000)
+    [failed] = [u for u in usage if u.status == "error"]
+    assert failed.error_code == "quota_exhausted"
+    assert failed.error_detail == "http=429 status=RESOURCE_EXHAUSTED quota_id=RequestsPerDay"
+
+    first_total = run.estimate["segments_to_embed"]
+    flaky.fail_on = set()
+    flaky.calls.clear()
+    run = await index_once(session, world)
+    assert run.status == "succeeded"
+    assert len(embedded_texts(flaky)) == first_total - 8  # resumes; nothing embedded twice
+
+
+async def test_short_rate_limit_is_retried_after_retry_after(
+    session: AsyncSession, root: Path, monkeypatch: pytest.MonkeyPatch, _fast: list[float]
+) -> None:
+    monkeypatch.setattr(settings, "embed_rate_limit_backoff_seconds", 10.0)
+    flaky = FlakyProvider(rate_limit(3.0), fail_on={1, 2})
+    world = await make_rag_world(session, root, flaky)
+    run = await index_once(session, world)
+    assert run.status == "succeeded"
+    assert _fast == [3.0, 3.0]  # the provider's value, not the 10 s backoff
+
+
+async def test_rate_limit_without_retry_after_uses_backoff(
+    session: AsyncSession, root: Path, monkeypatch: pytest.MonkeyPatch, _fast: list[float]
+) -> None:
+    # An unknown rate limit (no delay, no quota id) is an ordinary rate limit: retried.
+    monkeypatch.setattr(settings, "embed_rate_limit_backoff_seconds", 4.0)
+    flaky = FlakyProvider(rate_limit(None), fail_on={1})
+    world = await make_rag_world(session, root, flaky)
+    run = await index_once(session, world)
+    assert run.status == "succeeded" and _fast == [4.0]
+
+
+async def test_rate_limit_gives_up_after_total_wait_limit(
+    session: AsyncSession, root: Path, monkeypatch: pytest.MonkeyPatch, _fast: list[float]
+) -> None:
+    monkeypatch.setattr(settings, "embed_max_retries", 10)
+    monkeypatch.setattr(settings, "embed_retry_max_total_wait_seconds", 100.0)
+    flaky = FlakyProvider(rate_limit(40.0), fail_on=set(range(1, 20)))
+    world = await make_rag_world(session, root, flaky)
+    run = await index_once(session, world)
+    assert (run.status, run.error) == ("failed", "rate_limit_wait_exceeded")
+    assert _fast == [40.0, 40.0]  # a third wait would pass 100 s
+    assert flaky.embed_calls == 3
 
 
 async def test_second_start_while_active_is_409(session: AsyncSession, world: RagWorld) -> None:

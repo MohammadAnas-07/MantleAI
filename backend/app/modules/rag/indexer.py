@@ -13,8 +13,11 @@ Plan, then embed:
 Deleted files lose their rows (and chunks). A rename is a delete plus an add.
 
 Between batches the job pauses (EMBED_BATCH_DELAY_SECONDS) and checks for a cancel request.
-RateLimited and ProviderUnavailable are retried with a doubling backoff, up to
-EMBED_MAX_RETRIES; then the run fails and keeps every finished batch.
+RateLimited and ProviderUnavailable are retried with a doubling backoff, or after the
+provider's Retry-After when it sends one, up to EMBED_MAX_RETRIES and at most
+EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS of waiting per batch; then the run fails and keeps every
+finished batch. QuotaExhausted (a daily quota is used up) is never retried: the run fails at
+once with "daily_quota_exhausted". Running it again resumes where it stopped.
 
 Logs hold paths, counts and timings only, never file contents.
 """
@@ -45,6 +48,7 @@ from app.modules.llm.service import (
     Gateway,
     LLMError,
     ProviderUnavailable,
+    QuotaExhausted,
     RateLimited,
     UsageLinks,
     UsageTrigger,
@@ -108,6 +112,11 @@ class _RunError(Exception):
     def __init__(self, code: str) -> None:
         super().__init__(code)
         self.code = code
+
+
+# Run failure reasons (index_runs.error) set by this file, besides the gateway error codes.
+DAILY_QUOTA_EXHAUSTED = "daily_quota_exhausted"
+RATE_LIMIT_WAIT_EXCEEDED = "rate_limit_wait_exceeded"
 
 
 def estimate_tokens(text: str) -> int:
@@ -493,6 +502,7 @@ async def _embed_with_retry(
     project_id: uuid.UUID,
 ) -> list[list[float]]:
     delay = settings.embed_rate_limit_backoff_seconds
+    waited = 0.0
     for attempt in range(settings.embed_max_retries + 1):
         try:
             return await gateway.embed(
@@ -504,17 +514,33 @@ async def _embed_with_retry(
                 links=UsageLinks(project_id=project_id),
                 input_type="document",
             )
+        except QuotaExhausted:
+            await session.commit()  # keep the error usage row; waiting can't help
+            logger.warning("embedding quota exhausted; stopping the run without retry")
+            raise
         except (RateLimited, ProviderUnavailable) as exc:
             await session.commit()  # keep the error usage row
             if attempt == settings.embed_max_retries:
                 raise
+            asked = exc.retry_after_seconds if isinstance(exc, RateLimited) else None
+            wait = asked if asked is not None else delay
+            if waited + wait > settings.embed_retry_max_total_wait_seconds:
+                logger.warning(
+                    "embedding retries stopped code=%s waited_s=%.1f next_wait_s=%.1f",
+                    exc.code,
+                    waited,
+                    wait,
+                )
+                raise _RunError(RATE_LIMIT_WAIT_EXCEEDED) from None
             logger.warning(
-                "embedding batch failed code=%s attempt=%d wait_s=%.1f",
+                "embedding batch failed code=%s attempt=%d wait_s=%.1f retry_after=%s",
                 exc.code,
                 attempt + 1,
-                delay,
+                wait,
+                asked is not None,
             )
-            await _sleep(delay)
+            await _sleep(wait)
+            waited += wait
             delay = min(delay * 2, settings.embed_rate_limit_backoff_max_seconds)
     raise AssertionError("unreachable")
 
@@ -722,6 +748,8 @@ async def run_index_job(
             status = IndexRunStatus.CANCELLED
         except _RunError as exc:
             status, error = IndexRunStatus.FAILED, exc.code
+        except QuotaExhausted:
+            status, error = IndexRunStatus.FAILED, DAILY_QUOTA_EXHAUSTED
         except LLMError as exc:
             status, error = IndexRunStatus.FAILED, exc.code
         except Exception as exc:
