@@ -253,6 +253,25 @@ describe("index panel", () => {
     expect(cancelled).toHaveBeenCalled();
     expect(await screen.findByText("stopping")).toBeInTheDocument();
   });
+
+  it("explains a run that stopped because the daily quota is used up", async () => {
+    const starts: boolean[] = [];
+    server.use(
+      // Listed first, so it wins over the run handler in indexHandlers.
+      http.get(`${API}/api/v1/index-runs/r1`, () =>
+        HttpResponse.json(run("failed", { error: "daily_quota_exhausted", chunks_created: 12 })),
+      ),
+      ...indexHandlers(["failed"], starts),
+    );
+    const { user } = renderApp(`/projects/${PROJECT_ID}`);
+    await openIndexTab(user);
+    await user.click(await screen.findByRole("button", { name: "Estimate" }));
+    await user.click(await screen.findByRole("button", { name: "Start indexing" }));
+    await user.click(await screen.findByRole("button", { name: "Index anyway" }));
+    expect(await screen.findByText("Run failed")).toBeInTheDocument();
+    expect(screen.getByText("daily_quota_exhausted")).toBeInTheDocument();
+    expect(screen.getByText(/Try again after the provider resets the quota/)).toBeInTheDocument();
+  });
 });
 
 const task = (id: string, title: string, deps: string[] = []): MemoryItem => ({
