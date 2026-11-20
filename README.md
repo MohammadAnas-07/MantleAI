@@ -202,6 +202,11 @@ npm run build
 npm run gen:api:check
 ```
 
+The built app (`npm run build`, then `npm run preview` on the same port 5173, with `npm run dev`
+stopped) carries a Content-Security-Policy: no remote images, scripts or frames, and requests
+only to the app and `VITE_API_BASE_URL`. The dev server has no CSP (hot reload needs inline
+scripts). Chat replies never load images, and only `http`, `https` and `mailto` links work.
+
 `npm run gen:api` regenerates `src/lib/api/schema.ts` from the backend's OpenAPI schema (it runs
 `backend\scripts\export_openapi.py` with `backend\.venv`, no server needed). Run it after
 changing an endpoint and commit the result.
