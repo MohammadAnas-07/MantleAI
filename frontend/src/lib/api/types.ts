@@ -36,6 +36,9 @@ export type WorkflowEvent = Schemas["WorkflowEventOut"];
 export type Unmet = Schemas["UnmetOut"];
 export type AgentRun = Schemas["AgentRunOut"];
 export type AgentRunPage = Schemas["AgentRunPage"];
+/** A plan or review run in a list: no plan, review, input or steps (GET /agent-runs/{id}). */
+export type AgentRunSummary = Schemas["AgentRunSummaryOut"];
+export type AgentRunSummaryPage = Schemas["AgentRunSummaryPage"];
 export type AgentRunStart = Schemas["AgentRunIn"];
 export type AgentRunEstimate = Schemas["AgentRunEstimateOut"];
 export type ApproveRunBody = Schemas["ApproveRunIn"];

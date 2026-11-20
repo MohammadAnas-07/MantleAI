@@ -162,7 +162,7 @@ export const useAgentRuns = (projectId: string) =>
   });
 
 /** Queued or running: the backend may still change it on its own. */
-export const isRunActive = (run: AgentRun | undefined): boolean =>
+export const isRunActive = (run: Pick<AgentRun, "status"> | undefined): boolean =>
   run?.status === "queued" || run?.status === "running";
 
 export const AGENT_RUN_POLL_MS = 1_500;

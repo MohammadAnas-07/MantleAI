@@ -523,3 +523,21 @@ describe("approval view", () => {
     }
   });
 });
+
+describe("run list summaries", () => {
+  it("opens a waiting run from a summary that has no plan", async () => {
+    const full = waitingRun();
+    const summary = Object.fromEntries(
+      Object.entries(full).filter(
+        ([k]) => !["result", "steps", "input", "estimate", "warnings"].includes(k),
+      ),
+    );
+    server.use(
+      http.get(RUNS, () => HttpResponse.json({ items: [summary] })),
+      http.get(RUN, () => HttpResponse.json(full)),
+    );
+    renderApp(PAGE);
+    expect(await screen.findByText("Planner draft", {}, { timeout: 5_000 })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Agent runs" })).toHaveTextContent("waiting");
+  });
+});

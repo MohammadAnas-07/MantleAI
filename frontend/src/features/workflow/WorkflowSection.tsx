@@ -82,7 +82,11 @@ function WorkflowView({ workflow, actions }: { workflow: Workflow; actions: Work
         <h3 id="workflow-history" className="text-base">
           History
         </h3>
-        <EventHistory events={workflow.events} stages={workflow.stages} />
+        <EventHistory
+          events={workflow.events}
+          total={workflow.events_total}
+          stages={workflow.stages}
+        />
       </section>
     </div>
   );

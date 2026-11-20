@@ -7,6 +7,7 @@ import type {
   AgentRun,
   AgentRunEstimate,
   AgentRunPage,
+  AgentRunSummaryPage,
   AgentRunStart,
   ApproveRunBody,
   ApproveRunResult,
@@ -220,7 +221,7 @@ export const api = {
       timeoutMs: 60_000,
     }),
   agentRuns: (projectId: string, o: Opts = {}) =>
-    apiFetch<AgentRunPage>(`/api/v1/projects/${projectId}/agent-runs`, o),
+    apiFetch<AgentRunSummaryPage>(`/api/v1/projects/${projectId}/agent-runs`, o),
   agentRun: (runId: string, o: Opts = {}) => apiFetch<AgentRun>(`/api/v1/agent-runs/${runId}`, o),
   cancelAgentRun: (runId: string) =>
     apiFetch<AgentRun>(`/api/v1/agent-runs/${runId}/cancel`, { method: "POST", body: {} }),

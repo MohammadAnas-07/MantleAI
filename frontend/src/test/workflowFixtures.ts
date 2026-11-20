@@ -78,6 +78,7 @@ export function workflow(
     version,
     stages,
     events,
+    events_total: events.length,
   };
 }
 

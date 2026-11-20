@@ -222,3 +222,20 @@ describe("workflow stages", () => {
     expect(spy).toHaveBeenCalled();
   });
 });
+
+describe("long workflow history", () => {
+  it("says how many old events the API left out", async () => {
+    const events = Array.from({ length: 100 }, (_, i) =>
+      event(i % 2 ? "untick" : "tick", { item_id: "goal", id: `e${String(i)}` }),
+    );
+    server.use(
+      http.get(URL, () => HttpResponse.json({ ...workflow(0, { events }), events_total: 140 })),
+    );
+    const { user } = renderApp(PAGE);
+    const history = await screen.findByRole("list", { name: "Workflow history" });
+    expect(within(history).getAllByRole("listitem")).toHaveLength(20);
+    await user.click(screen.getByRole("button", { name: "Show the latest 100" }));
+    expect(within(history).getAllByRole("listitem")).toHaveLength(100);
+    expect(screen.getByText("The 40 oldest of 140 events are not shown.")).toBeInTheDocument();
+  });
+});
