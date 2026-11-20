@@ -50,12 +50,37 @@ leaked key is not.
 
 | Skipped | Why |
 | --- | --- |
-| Names: `.env`, `.env.*`, `*.env`, `*.pem`, `*.key`, `*.pfx`, `*.p12`, `*.jks`, `*.keystore`, `*.kdbx`, `id_*`, `credentials*`, `secrets*`, `.netrc`, `.npmrc`, `.pypirc`, `.htpasswd`, plus `INDEX_SENSITIVE_PATTERNS` | Files that usually hold keys or passwords. `id_*` follows rule 48 literally, so it also skips harmless files such as `id_utils.py`. Reason `sensitive_name` |
-| Content with a private-key header, an AWS key id or secret, an OpenAI/Anthropic `sk-` key, a Google `AIza` key, a GitHub, Slack or Stripe live token | The whole file is skipped, reason `possible secret`. Only the reason and the path are stored |
+| Names (checked before any content is read): environment files `.env`, `.env.*`, `*.env`, `.envrc`; keys and certificates `*.pem`, `*.key`, `*.crt`, `*.cer`, `*.der`, `*.p7b`, `*.p7c`, `*.pfx`, `*.p12`, `*.jks`, `*.keystore`, `*.kdbx`, `*.ppk`, `*.gpg`, `id_*`; credential files `credentials*`, `*credentials.json`, `service-account*.json`, `service_account*.json`, `serviceaccount*.json`, `secrets*`, `.netrc`, `.npmrc`, `.pypirc`, `.htpasswd`, `.git-credentials`, `.pgpass`, `.my.cnf`, `local.settings.json`, `wp-config.php`; cloud and cluster config `.aws/config`, `.docker/config.json`, `.dockercfg`, `kubeconfig`, `*.kubeconfig`, `.kube/config`, `*.ovpn`; terraform `*.tfvars`, `*.tfvars.json`, `*.tfstate`, `*.tfstate.*`; plus `INDEX_SENSITIVE_PATTERNS` | Files that usually hold keys or passwords. `id_*` follows rule 48 literally, so it also skips harmless files such as `id_utils.py`; `credentials*` also skips a `credentials-guide.md`. Reason `sensitive_name` |
+| Content (`app/modules/rag/secret_scan.py`): (1) known formats: private-key blocks (PEM, OpenSSH, PGP, PuTTY), AWS key ids, `sk-` keys (OpenAI and Anthropic style), Google `AIza` keys and `GOCSPX-` OAuth secrets, GitHub `gh?_` and `github_pat_`, GitLab `glpat-`, Slack tokens and webhook URLs, Stripe `sk_`/`rk_` live and test keys and `whsec_`, Hugging Face `hf_`, npm `npm_`, SendGrid `SG.`, PyPI tokens, Azure `AccountKey=`, signed JWTs; (2) connection strings with a password for postgres, mysql, mariadb, mongodb, redis, amqp, mssql and oracle; (3) assignments: a name ending in a secret word (`password`, `passwd`, `pwd`, `passphrase`, `secret`, `token`, `apikey`, `credential(s)`, or `<api/access/secret/private/client/auth/encryption/signing/master/...>_key`, in snake, kebab or camel case) given a literal value: quoted values in any file, bare values too in config files (YAML, TOML, INI, JSON, XML, `.properties`, `.tf`, `.hcl`, `.env`-style, docker-compose, Dockerfile), including inside `Server=...;Password=...;` strings; and any other `*_key` name with a value of 20 or more characters, mixed case or digits, high entropy, not a hex digest or UUID | The whole file is skipped, reason `possible secret`, before it is split. Nothing of it is stored except the path, reason and size on its document row, and the run's skip report keeps only a count for `possible secret` and `sensitive_name` (no paths). The result is a yes or no; what matched is never returned, stored or logged |
 | `.gitignore` matches (nested files and `!` negations), `.git`, `node_modules`, virtualenvs (any folder with `pyvenv.cfg`), `__pycache__`, `dist`, `build`, caches | Not the user's source, or already marked as private |
 | Symlinks and Windows junctions | Never followed, so no link can leave the root and no loop can form |
 | Lock files, minified files, source maps, images, archives, PDFs, fonts, media, compiled files, databases; any file with a null byte, a UTF-16/32 BOM or invalid UTF-8; lines over 10,000 characters | Binary or generated; nothing useful to embed |
 | Files over `INDEX_MAX_FILE_BYTES` (1 MB), past `INDEX_MAX_FILES`, or with more than `INDEX_MAX_CHUNKS_PER_FILE` segments; files that change while read | Cost and correctness limits |
+
+**Not skipped on purpose (false-positive trade-offs).** Placeholders (`your-key-here`,
+`<...>`, `${VAR}`, `{{ var }}`, `changeme`, `example`, `xxxx`), references (`os.environ[...]`,
+`process.env.X`, `settings.x`), empty values, type annotations, JSON schemas, numbers, hex
+digests, UUIDs, base64 images and lock-file hashes. A bare `key` name (React and dictionary
+keys) and a lowercase identifier value don't count. A local connection string whose password
+equals its user name (`postgres:postgres@localhost`) is a dev default and doesn't count. The
+other way round, test files with fake keys and a docker-compose file with a real dev password
+are skipped: on Mantle's own repository that is 13 test files and `docker-compose.yml` of 320.
+
+**What pattern matching can't catch.** A secret under a neutral name (`db_conn = "hunter2"`,
+`CONFIG = {"pw": ...}` with an unknown key), a password split across lines or built at runtime,
+a bare value in a code file (`PASSWORD = hunter2` in a shell script is caught only if the file
+type counts as config), a secret shorter than the minimum length (6 for passwords, 8 for
+tokens), unknown token formats, secrets in file types that are read but not listed as config
+(for example a `.go` constant with a neutral name). Keep secrets out of the repository, use
+`.gitignore` or `INDEX_SENSITIVE_PATTERNS` for anything else private, and treat this scanner as
+a safety net.
+
+**Rule changes reach old data.** Each document records the rules version it was checked with
+(`documents.scan_version`, `secret_scan.RULES_VERSION`). After a rules change, the next index
+run reads every indexed file again (no embedding call unless the text changed); a file that now
+counts as a secret, or whose name is now sensitive, loses its stored segments and embeddings.
+Text that already went to the embedding provider, or into earlier chat replies and summaries,
+can't be recalled: rotate any key that was indexed.
 
 Logs from indexing and retrieval hold paths, counts, error codes and timings only, never file
 contents or query text. An unexpected error is logged by its type name, because an exception
