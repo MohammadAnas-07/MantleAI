@@ -35,14 +35,11 @@ export type Stage = Schemas["StageOut"];
 export type WorkflowEvent = Schemas["WorkflowEventOut"];
 export type Unmet = Schemas["UnmetOut"];
 export type AgentRun = Schemas["AgentRunOut"];
-export type AgentRunStep = Schemas["AgentRunStepOut"];
 export type AgentRunPage = Schemas["AgentRunPage"];
 export type AgentRunStart = Schemas["AgentRunIn"];
 export type AgentRunEstimate = Schemas["AgentRunEstimateOut"];
 export type ApproveRunBody = Schemas["ApproveRunIn"];
 export type ApproveRunResult = Schemas["ApproveRunOut"];
-export type TaskEdit = Schemas["TaskEdit"];
-export type DecisionEdit = Schemas["DecisionEdit"];
 
 export type MemoryKind = "requirement" | "decision" | "task";
 

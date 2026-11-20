@@ -1,16 +1,13 @@
 // Words for run types, statuses and failures, shared by every agent view.
 
 import { ApiError } from "../../lib/api/errors";
-import type { AgentRun, RunWarning, SuggestedModel } from "../../lib/api/types";
+import type { RunWarning, SuggestedModel } from "../../lib/api/types";
 
 export const RUN_TYPE_LABEL: Record<string, string> = {
   plan: "Plan (Planner + Reviewer)",
   review: "Review (Reviewer only)",
   gap_finder: "Gap finder",
 };
-
-/** Statuses the backend never changes again. */
-export const FINAL_STATUSES = new Set(["approved", "rejected", "completed", "failed", "cancelled"]);
 
 // Our own words for each failure. Provider messages are never shown: they can echo a prompt.
 const FAILURE_TEXT: Record<string, string> = {
@@ -42,8 +39,9 @@ export function failureText(code: string, backendMessage: string | null): string
   return text;
 }
 
-export function suggestedModels(run: Pick<AgentRun, "error_details">): SuggestedModel[] {
-  const list = run.error_details.suggested_models;
+/** Models the backend suggests in a failed run's `error_details` or an error's `details`. */
+export function suggestedModels(details: Record<string, unknown>): SuggestedModel[] {
+  const list = details.suggested_models;
   return Array.isArray(list) ? (list as SuggestedModel[]) : [];
 }
 
@@ -73,12 +71,6 @@ export function startErrorText(error: unknown): string {
   // Provider errors never show the provider's text.
   if (PROVIDER_CODES.has(error.code)) return failureText(error.code, null);
   return error.message;
-}
-
-export function errorSuggestions(error: unknown): SuggestedModel[] {
-  if (!(error instanceof ApiError)) return [];
-  const list = error.details.suggested_models;
-  return Array.isArray(list) ? (list as SuggestedModel[]) : [];
 }
 
 /** A warning field as text; anything that isn't a plain string or number is not shown. */

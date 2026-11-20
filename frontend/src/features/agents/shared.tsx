@@ -45,6 +45,10 @@ export function ModelSelect({
   );
 }
 
+// The backend replaces references with real ids, but they started as model output: only a
+// well-formed id becomes a link.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Where a finding points: memory items link to their page; "task:N" and "decision:N" (items
  * of the draft plan) link to the item in the approval list.
@@ -73,8 +77,10 @@ export function References({
               <a href={`#plan-${plan[1] ?? ""}-${plan[2] ?? ""}`} dir="auto">
                 proposed {plan[1]}: {planTitle?.(ref) ?? `#${plan[2] ?? ""}`}
               </a>
-            ) : (
+            ) : UUID.test(ref) ? (
               <MemoryLink projectId={projectId} id={ref} index={memory} />
+            ) : (
+              <span dir="auto">{ref.slice(0, 40)}</span>
             )}
           </span>
         );

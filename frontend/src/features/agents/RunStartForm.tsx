@@ -9,7 +9,7 @@ import { api } from "../../lib/api/endpoints";
 import { ApiError } from "../../lib/api/errors";
 import type { AgentRun, AgentRunStart, RunEstimate } from "../../lib/api/types";
 import { limits } from "../../lib/limits";
-import { errorSuggestions, startErrorText } from "./runText";
+import { startErrorText, suggestedModels } from "./runText";
 import { CostGuardDialog, EstimateTable, ModelSelect, SuggestedModels } from "./shared";
 
 type Source = "memory" | "text";
@@ -105,7 +105,7 @@ export function RunStartForm({
   };
 
   const error = start.error ?? estimate.error;
-  const errorDetails = errorSuggestions(error);
+  const suggestions = error instanceof ApiError ? suggestedModels(error.details) : [];
 
   return (
     <form
@@ -241,7 +241,7 @@ export function RunStartForm({
       {error && !costGuard ? (
         <Banner kind="danger">
           {startErrorText(error)}
-          <SuggestedModels models={errorDetails} onPick={change(onModelChange)} />
+          <SuggestedModels models={suggestions} onPick={change(onModelChange)} />
         </Banner>
       ) : null}
 

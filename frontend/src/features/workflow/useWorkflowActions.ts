@@ -16,7 +16,7 @@ const STALE: Record<string, string> = {
   stage_gate_unmet: "The stage can't be approved yet. The page now shows what is missing.",
 };
 
-export interface Notice {
+interface Notice {
   text: string;
   unmet?: Unmet[];
 }

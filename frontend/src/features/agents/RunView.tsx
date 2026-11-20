@@ -112,7 +112,7 @@ export function RunView({
       {run.status === "failed" ? (
         <Banner kind="danger">
           <p>{failureText(run.error ?? "", run.error_message)}</p>
-          <SuggestedModels models={suggestedModels(run)} onPick={onPickModel} />
+          <SuggestedModels models={suggestedModels(run.error_details)} onPick={onPickModel} />
         </Banner>
       ) : null}
       <Warnings warnings={run.warnings as RunWarning[]} />
