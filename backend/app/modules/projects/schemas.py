@@ -172,6 +172,9 @@ class MemoryItemOut(BaseModel):
     depends_on_ids: list[uuid.UUID] = Field(default_factory=list)
     is_blocked: bool | None = None  # tasks only: a dependency is not done
     source: str
+    # Set for items saved from an agent run's plan, so the UI can link back to the run.
+    source_agent_run_id: uuid.UUID | None = None
+    stage_key: str | None = None
     created_at: datetime
     updated_at: datetime
 

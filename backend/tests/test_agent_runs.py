@@ -351,6 +351,31 @@ async def test_cost_guard_with_and_without_force(
     assert (await get(client, r.json()["id"]))["status"] == "waiting_for_approval"
 
 
+async def test_estimate_matches_the_start_and_creates_nothing(
+    client: httpx.AsyncClient, session: AsyncSession, world: AgentWorld,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    payload = {"run_type": "plan", "model_id": str(world.model_id),
+               "requirement_id": str(world.memory["req_login"])}  # fmt: skip
+    r = await client.post(f"{runs_url(world)}/estimate", json=payload)
+    assert r.status_code == 200, r.text
+    found = r.json()
+    assert found["steps"] == 2 and found["input_tokens"] > 0 and found["over_limit"] is False
+    assert world.fake.calls == []
+    assert (await client.get(runs_url(world))).json()["items"] == []
+
+    monkeypatch.setattr(settings, "agent_run_cost_limit_usd", Decimal("0.0001"))
+    over = (await client.post(f"{runs_url(world)}/estimate", json=payload)).json()
+    assert over["over_limit"] is True and Decimal(over["cost_limit_usd"]) == Decimal("0.0001")
+    started = await start(client, world)
+    assert started.status_code == 409
+    assert started.json()["error"]["details"]["estimate"]["input_tokens"] == over["input_tokens"]
+
+    # The same request checks as a start: an unknown requirement is a 404.
+    missing = {**payload, "requirement_id": str(uuid.uuid4())}
+    assert (await client.post(f"{runs_url(world)}/estimate", json=missing)).status_code == 404
+
+
 async def test_cyclic_plan_is_retried_then_fails(
     client: httpx.AsyncClient, world: AgentWorld
 ) -> None:
@@ -576,6 +601,16 @@ async def test_approve_all(
     assert decision is not None and decision.status == "proposed"  # never accepted
     assert (decision.why, decision.alternatives) == ("Slow to brute force.", "bcrypt")
     assert str(decision.source_agent_run_id) == run_id
+
+    # The API shows where each saved item came from, so the UI can link back to the run.
+    page = (await client.get(f"/api/v1/projects/{world.project_id}/memory",
+                             params={"kind": "task"})).json()  # fmt: skip
+    from_run = [i for i in page["items"] if i["id"] in body["task_ids"]]
+    assert len(from_run) == 3
+    assert all(i["source"] == "agent" and i["source_agent_run_id"] == run_id for i in from_run)
+    assert all(i["stage_key"] == "requirements" for i in from_run)
+    manual = [i for i in page["items"] if i["id"] not in body["task_ids"]]
+    assert all(i["source_agent_run_id"] is None for i in manual)
 
     links = await MemoryDependencyRepository(session, world.user_id).edges(world.project_id)
     ids = [uuid.UUID(i) for i in body["task_ids"]]

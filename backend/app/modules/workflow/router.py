@@ -2,6 +2,7 @@
 live in state.py and the agent files."""
 
 import uuid
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends
@@ -14,6 +15,7 @@ from app.modules.workflow import approval, gap_finder, runs, state
 from app.modules.workflow.models import AgentRun, AgentRunStep, RunType
 from app.modules.workflow.run_setup import get_run
 from app.modules.workflow.schemas import (
+    AgentRunEstimateOut,
     AgentRunIn,
     AgentRunOut,
     AgentRunPage,
@@ -228,6 +230,31 @@ async def start_agent_run(
     await session.commit()
     background.add_task(runs.run_agent_job, session_factory, gateway, user_id, run.id)
     return out
+
+
+@router.post("/projects/{project_id}/agent-runs/estimate")
+async def estimate_agent_run(
+    project_id: uuid.UUID,
+    body: AgentRunIn,
+    session: DbSession,
+    user_id: CurrentUserId,
+    gateway: GatewayDep,
+) -> AgentRunEstimateOut:
+    """The estimate a start with this body would get, so the user can confirm first. Makes the
+    same checks as a start (404, 413, 422) but no run, no model call; `force` is ignored."""
+    prepared = await runs.prepare_run(
+        session, gateway, user_id, project_id, run_type=RunType(body.run_type),
+        model_id=body.model_id, requirement_id=body.requirement_id,
+        requirement_text=body.requirement_text, use_code_context=body.use_code_context,
+    )  # fmt: skip
+    found = prepared.estimate
+    cost = Decimal(found["cost_usd"]) if found["cost_usd"] is not None else None
+    limit = Decimal(found["cost_limit_usd"])
+    return AgentRunEstimateOut(
+        steps=found["steps"], input_tokens=found["input_tokens"],
+        output_tokens=found["output_tokens"], cost_usd=cost, cost_limit_usd=limit,
+        model=found["model"], over_limit=cost is not None and cost > limit,
+    )  # fmt: skip
 
 
 @router.get("/projects/{project_id}/agent-runs")

@@ -11,6 +11,7 @@ import {
   PROJECT_ID,
   providers,
 } from "./fixtures";
+import { workflow } from "./workflowFixtures";
 
 /** Answers every request the shell makes on its own, so each test adds only what it tests. */
 export const defaultHandlers = [
@@ -30,6 +31,9 @@ export const defaultHandlers = [
     HttpResponse.json(conversation(String(params.id), "Chat")),
   ),
   http.get(`${API}/api/v1/conversations/:id/messages`, () => HttpResponse.json([])),
+  http.get(`${API}/api/v1/projects/:id/workflow`, () => HttpResponse.json(workflow(0))),
+  http.get(`${API}/api/v1/projects/:id/gap-finder`, () => HttpResponse.json({ items: [] })),
+  http.get(`${API}/api/v1/projects/:id/agent-runs`, () => HttpResponse.json({ items: [] })),
 ];
 
 export const server = setupServer(...defaultHandlers);

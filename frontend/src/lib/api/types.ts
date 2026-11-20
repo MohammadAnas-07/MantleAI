@@ -30,6 +30,16 @@ export type MemoryItem = Schemas["MemoryItemOut"];
 export type MemoryPage = Schemas["MemoryPage"];
 export type MemoryCreate = Schemas["MemoryItemCreate"];
 export type MemoryPatch = Schemas["MemoryItemPatch"];
+export type Workflow = Schemas["WorkflowOut"];
+export type Stage = Schemas["StageOut"];
+export type WorkflowEvent = Schemas["WorkflowEventOut"];
+export type Unmet = Schemas["UnmetOut"];
+export type AgentRun = Schemas["AgentRunOut"];
+export type AgentRunPage = Schemas["AgentRunPage"];
+export type AgentRunStart = Schemas["AgentRunIn"];
+export type AgentRunEstimate = Schemas["AgentRunEstimateOut"];
+export type ApproveRunBody = Schemas["ApproveRunIn"];
+export type ApproveRunResult = Schemas["ApproveRunOut"];
 
 export type MemoryKind = "requirement" | "decision" | "task";
 
@@ -124,6 +134,77 @@ export interface IndexEstimate {
   provider: string;
   model: string;
   skip_report: SkipReport;
+}
+
+// ---- agent run results (AgentRunOut.result, .estimate and .warnings are dicts) -------------
+// Shapes from backend/app/modules/workflow/outputs.py and run_setup.estimate. Model output:
+// every string here is untrusted and is rendered as plain text.
+
+export type Severity = "low" | "medium" | "high";
+
+export interface GapFinding {
+  title: string;
+  explanation: string;
+  severity: Severity;
+  refers_to: string[];
+}
+
+export interface GapReport {
+  missing_steps: GapFinding[];
+  risks: GapFinding[];
+  technical_debt: GapFinding[];
+  scalability_concerns: GapFinding[];
+}
+
+export interface ProposedTask {
+  title: string;
+  description: string;
+  priority: "high" | "medium" | "low";
+  acceptance_criteria: string[];
+  depends_on: number[];
+  possible_duplicate_of: string | null;
+}
+
+export interface ProposedDecision {
+  title: string;
+  what: string;
+  why: string;
+  alternatives: string;
+}
+
+export interface Plan {
+  tasks: ProposedTask[];
+  decisions: ProposedDecision[];
+  assumptions: string[];
+  risks: string[];
+  open_questions: string[];
+}
+
+export interface ReviewFinding {
+  severity: Severity;
+  refers_to: string[];
+  explanation: string;
+  suggestion: string;
+}
+
+export interface Review {
+  verdict: "approve" | "changes_requested";
+  findings: ReviewFinding[];
+}
+
+/** The estimate stored on a run and sent with a 409 cost_limit_exceeded. */
+export interface RunEstimate {
+  steps: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: string | null;
+  cost_limit_usd: string;
+  model: string;
+}
+
+export interface RunWarning {
+  code: string;
+  [key: string]: unknown;
 }
 
 // ---- the chat stream (SSE) -----------------------------------------------------------------

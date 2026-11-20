@@ -25,7 +25,10 @@ export function Dialog({ title, open, onClose, children }: DialogProps) {
   useEffect(() => {
     if (!open) return;
     opener.current = document.activeElement;
-    const first = panel.current?.querySelector<HTMLElement>(FOCUSABLE);
+    // A field marked data-autofocus (the reason in a reason dialog) wins over the first button.
+    const first =
+      panel.current?.querySelector<HTMLElement>("[data-autofocus]") ??
+      panel.current?.querySelector<HTMLElement>(FOCUSABLE);
     (first ?? panel.current)?.focus();
     return () => {
       if (opener.current instanceof HTMLElement) opener.current.focus();

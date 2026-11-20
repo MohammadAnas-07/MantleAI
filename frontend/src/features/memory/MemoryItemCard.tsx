@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Lock, Trash2 } from "lucide-react";
+import { Bot, Check, Lock, Trash2, X } from "lucide-react";
 import { useId, useState } from "react";
+import { Link } from "react-router";
 
 import { Button } from "../../components/ui/Button";
 import { ConfirmDialog } from "../../components/ui/Dialog";
@@ -29,6 +30,9 @@ export function MemoryItemCard({
   const [superseding, setSuperseding] = useState(false);
   const refresh = () => {
     void client.invalidateQueries({ queryKey: keys.memory(projectId, kind) });
+    void client.invalidateQueries({ queryKey: keys.memoryItem(item.id) });
+    // Stage gates count accepted decisions and tasks.
+    void client.invalidateQueries({ queryKey: keys.workflow(projectId) });
   };
 
   const setStatus = useMutation({
@@ -52,6 +56,11 @@ export function MemoryItemCard({
           {item.title}
         </h4>
         {item.priority ? <Badge>{item.priority}</Badge> : null}
+        {item.source === "agent" ? (
+          <Badge kind="info">
+            <Bot aria-hidden className="size-3" /> from agent run
+          </Badge>
+        ) : null}
         {item.is_blocked ? (
           <Badge kind="warning">
             <Lock aria-hidden className="size-3" /> blocked
@@ -68,6 +77,43 @@ export function MemoryItemCard({
           <span className="label">Why: </span>
           {item.why}
         </p>
+      ) : null}
+      {item.source_agent_run_id ? (
+        <p className="text-xs">
+          <Link to={`/projects/${projectId}/workflow?run=${item.source_agent_run_id}`}>
+            Open the agent run
+          </Link>
+          {item.stage_key ? <span className="text-muted"> (stage {item.stage_key})</span> : null}
+        </p>
+      ) : null}
+      {kind === "decision" && item.status === "proposed" ? (
+        <div role="group" aria-label="Decide on this proposal" className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="primary"
+            busy={setStatus.isPending && setStatus.variables === "accepted"}
+            disabled={setStatus.isPending}
+            aria-label={`Accept ${item.title}`}
+            icon={<Check aria-hidden className="size-4" />}
+            onClick={() => {
+              setStatus.mutate("accepted");
+            }}
+          >
+            Accept
+          </Button>
+          <Button
+            size="sm"
+            busy={setStatus.isPending && setStatus.variables === "rejected"}
+            disabled={setStatus.isPending}
+            aria-label={`Reject ${item.title}`}
+            icon={<X aria-hidden className="size-4" />}
+            onClick={() => {
+              setStatus.mutate("rejected");
+            }}
+          >
+            Reject
+          </Button>
+        </div>
       ) : null}
       {item.superseded_by_id ? (
         <p className="text-muted">

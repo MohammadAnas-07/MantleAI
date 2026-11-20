@@ -4,7 +4,7 @@ import { Badge, EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { useUsageRecords } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
 import { errorMessage } from "../../lib/api/errors";
-import { formatCost, formatTime, formatTokens, sumCosts } from "../../lib/format";
+import { formatCost, formatTime, formatTokens, purposeLabel, sumCosts } from "../../lib/format";
 
 // Calls since this tab opened: "this session".
 const SESSION_START = new Date().toISOString();
@@ -43,7 +43,7 @@ export function ActivityPanel() {
               <td>{formatTime(r.created_at)}</td>
               <td>{models.name(r.model_id)}</td>
               <td>
-                {r.purpose}{" "}
+                {purposeLabel(r.purpose)}{" "}
                 {r.trigger === "background" ? <Badge kind="info">background</Badge> : null}
               </td>
               <td>

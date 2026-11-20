@@ -125,7 +125,7 @@ memory. Then ask "why did we choose this?" and get a teaching note.
 **Exit criteria:**
 - [x] The five stages run in order, each with approve, skip and reopen (reopen replaced
   request-changes on 2026-11-19; sending a plan back is "reject the run" with a reason).
-  Backend in `feat/workflow-and-agents`; the workflow screen comes later.
+  Backend in `feat/workflow-and-agents`; the workflow screen in `feat/workflow-ui`.
 - [x] Planner and Reviewer produce text only and change nothing without approval (plain Python
   state machine, no LangGraph: ADR 0004). A gap finder lists missing steps and risks on request.
 - [x] AI-proposed memory items stay `proposed` until you approve them (decisions are saved as
@@ -146,12 +146,14 @@ switch models, approve a workflow stage, open a teaching note, check usage.
 
 **Built so far** (`feat/frontend-workspace`, 2026-11-18): settings (keys, models, usage),
 projects, the index panel, memory, conversations with streaming, the context preview, model
-switching and the activity log. The workflow and teaching screens come later, with their
-backend (Phase 4). The workflow and agent backend is built (`feat/workflow-and-agents`); teaching is not.
+switching and the activity log. `feat/workflow-ui` (2026-11-20) adds the workflow page: stages
+with gates and reasons, the gap finder, Planner and Reviewer runs with an estimate, live
+status and the approval view, and agent badges in memory. The teaching screen comes with its
+backend (Phase 4).
 
 **Exit criteria:**
-- [ ] Every "v0.1 is finished when" item in `docs/mvp-scope.md` is true. (Not yet: workflow and
-  teaching need Phase 4 first.)
+- [ ] Every "v0.1 is finished when" item in `docs/mvp-scope.md` is true. (Not yet: teaching
+  needs Phase 4 first, and the workflow has not been run end to end with a real model.)
 - [x] `docs/design-app.md` exists and the UI follows it.
 - [ ] A new user can go from `README.md` to a first chat in under 15 minutes.
 - [ ] You start the 2-week trial for the success metric in `docs/prd.md`.

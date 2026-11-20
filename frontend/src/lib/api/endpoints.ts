@@ -4,6 +4,12 @@ import { apiFetch, apiRequest } from "./client";
 import { ApiError, CLIENT_CODES } from "./errors";
 import { readSse, type SseMessage } from "./sse";
 import type {
+  AgentRun,
+  AgentRunEstimate,
+  AgentRunPage,
+  AgentRunStart,
+  ApproveRunBody,
+  ApproveRunResult,
   Conversation,
   Credential,
   CredentialTest,
@@ -31,9 +37,14 @@ import type {
   SwitchResult,
   Usage,
   UsageRecord,
+  Workflow,
 } from "./types";
 
 type Opts = { signal?: AbortSignal };
+
+// The gap finder answers in the same request: up to two model calls of at most
+// AGENT_STEP_TIMEOUT_SECONDS (180 s) each.
+const GAP_FINDER_TIMEOUT_MS = 420_000;
 
 export const api = {
   health: (o: Opts = {}) =>
@@ -110,6 +121,7 @@ export const api = {
     apiFetch<MemoryItem>(`/api/v1/projects/${projectId}/memory`, { method: "POST", body }),
   updateMemory: (id: string, body: MemoryPatch) =>
     apiFetch<MemoryItem>(`/api/v1/memory/${id}`, { method: "PATCH", body }),
+  memoryItem: (id: string, o: Opts = {}) => apiFetch<MemoryItem>(`/api/v1/memory/${id}`, o),
   deleteMemory: (id: string) => apiFetch<undefined>(`/api/v1/memory/${id}`, { method: "DELETE" }),
   supersede: (
     id: string,
@@ -156,6 +168,65 @@ export const api = {
     }),
   handoffs: (id: string, o: Opts = {}) =>
     apiFetch<Handoff[]>(`/api/v1/conversations/${id}/handoffs`, o),
+
+  // ---- workflow ----
+  // Approve and skip always send the stage the user is looking at: if another tab moved the
+  // workflow first, the backend answers 409 workflow_changed instead of acting on the next one.
+  workflow: (projectId: string, o: Opts = {}) =>
+    apiFetch<Workflow>(`/api/v1/projects/${projectId}/workflow`, o),
+  setChecklistItem: (
+    projectId: string,
+    body: { stage_id: string; item_id: string; done: boolean },
+  ) =>
+    apiFetch<Workflow>(`/api/v1/projects/${projectId}/workflow/checklist`, {
+      method: "POST",
+      body,
+    }),
+  approveStage: (projectId: string, body: { stage_id: string; force?: boolean; reason?: string }) =>
+    apiFetch<Workflow>(`/api/v1/projects/${projectId}/workflow/approve`, { method: "POST", body }),
+  skipStage: (projectId: string, body: { stage_id: string; reason: string }) =>
+    apiFetch<Workflow>(`/api/v1/projects/${projectId}/workflow/skip`, { method: "POST", body }),
+  reopenStage: (projectId: string, body: { stage_id: string; reason: string }) =>
+    apiFetch<Workflow>(`/api/v1/projects/${projectId}/workflow/reopen`, { method: "POST", body }),
+  resetWorkflow: (projectId: string, reason: string) =>
+    apiFetch<Workflow>(`/api/v1/projects/${projectId}/workflow/reset`, {
+      method: "POST",
+      body: { reason },
+    }),
+
+  // ---- gap finder and agent runs ----
+  runGapFinder: (projectId: string, body: { model_id: string; force: boolean }) =>
+    apiFetch<AgentRun>(`/api/v1/projects/${projectId}/gap-finder`, {
+      method: "POST",
+      body,
+      timeoutMs: GAP_FINDER_TIMEOUT_MS,
+    }),
+  gapRuns: (projectId: string, o: Opts = {}) =>
+    apiFetch<AgentRunPage>(`/api/v1/projects/${projectId}/gap-finder`, o),
+  estimateAgentRun: (projectId: string, body: AgentRunStart) =>
+    apiFetch<AgentRunEstimate>(`/api/v1/projects/${projectId}/agent-runs/estimate`, {
+      method: "POST",
+      body,
+      timeoutMs: 60_000, // counts prompt tokens
+    }),
+  startAgentRun: (projectId: string, body: AgentRunStart) =>
+    apiFetch<AgentRun>(`/api/v1/projects/${projectId}/agent-runs`, {
+      method: "POST",
+      body,
+      timeoutMs: 60_000,
+    }),
+  agentRuns: (projectId: string, o: Opts = {}) =>
+    apiFetch<AgentRunPage>(`/api/v1/projects/${projectId}/agent-runs`, o),
+  agentRun: (runId: string, o: Opts = {}) => apiFetch<AgentRun>(`/api/v1/agent-runs/${runId}`, o),
+  cancelAgentRun: (runId: string) =>
+    apiFetch<AgentRun>(`/api/v1/agent-runs/${runId}/cancel`, { method: "POST", body: {} }),
+  approveAgentRun: (runId: string, body: ApproveRunBody) =>
+    apiFetch<ApproveRunResult>(`/api/v1/agent-runs/${runId}/approve`, { method: "POST", body }),
+  rejectAgentRun: (runId: string, reason: string) =>
+    apiFetch<AgentRun>(`/api/v1/agent-runs/${runId}/reject`, {
+      method: "POST",
+      body: { reason },
+    }),
 };
 
 const STREAM_EVENTS = new Set(["message_start", "delta", "warning", "message_end", "error"]);

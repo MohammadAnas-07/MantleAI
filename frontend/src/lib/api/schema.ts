@@ -494,6 +494,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/agent-runs/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Estimate Agent Run
+         * @description The estimate a start with this body would get, so the user can confirm first. Makes the
+         *     same checks as a start (404, 413, 422) but no run, no model call; `force` is ignored.
+         */
+        post: operations["estimate_agent_run"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/conversations": {
         parameters: {
             query?: never;
@@ -934,6 +955,27 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentRunEstimateOut
+         * @description What a start would cost, before anything is created. `cost_usd` is null for a model
+         *     without catalog prices; `over_limit` says a start needs force.
+         */
+        AgentRunEstimateOut: {
+            /** Cost Limit Usd */
+            cost_limit_usd: string;
+            /** Cost Usd */
+            cost_usd: string | null;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Model */
+            model: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /** Over Limit */
+            over_limit: boolean;
+            /** Steps */
+            steps: number;
+        };
         /** AgentRunIn */
         AgentRunIn: {
             /**
@@ -1509,6 +1551,10 @@ export interface components {
             project_id: string;
             /** Source */
             source: string;
+            /** Source Agent Run Id */
+            source_agent_run_id?: string | null;
+            /** Stage Key */
+            stage_key?: string | null;
             /** Status */
             status: string;
             /** Superseded By Id */
@@ -3219,6 +3265,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentRunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    estimate_agent_run: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentRunIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRunEstimateOut"];
                 };
             };
             /** @description Validation Error */

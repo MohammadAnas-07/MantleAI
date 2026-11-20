@@ -197,6 +197,28 @@ npm run gen:api:check
 `backend\scripts\export_openapi.py` with `backend\.venv`, no server needed). Run it after
 changing an endpoint and commit the result.
 
+### The workflow page
+
+Open a project and choose **Workflow and agents** in the explorer (or the link on the project
+page). It has three parts:
+
+- **Stages.** The five stages, the current one marked. For the stage you open you see its goal,
+  the checklist (tick and untick), and what its gate still needs. Approve it when the gate is
+  met; otherwise "Approve anyway" asks for a reason. Skip and reopen ask for a reason too.
+  Every change is in the history. Mantle never moves a stage by itself.
+- **Gap finder.** One model call on request, with the model you pick and your key. It lists
+  missing steps, risks, technical debt and scalability concerns, with links to the memory items
+  they mention. Past results stay.
+- **Planner and Reviewer.** Pick a plan run (for a requirement from memory or one you type) or a
+  review run, and a model. "Estimate cost" shows the tokens and the upper bound of the cost
+  first (no model call); the run starts when you confirm. Above `AGENT_RUN_COST_LIMIT_USD` you
+  confirm a second time. The run is polled until it ends and can be cancelled. When the plan is
+  ready you choose items, edit them, and approve or reject; only then is anything saved (tasks
+  as `todo`, decisions as `proposed`). Saved items show a "from agent run" badge in memory, and
+  a proposed decision has Accept and Reject buttons.
+
+Agent and gap finder calls show as "agent run" in the activity panel and the usage view.
+
 ## Switch demo (real models)
 
 `backend\scripts\switch_demo.py` measures the Phase 1 success metric with **real, paid** calls.

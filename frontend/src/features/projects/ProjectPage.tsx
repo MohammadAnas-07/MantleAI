@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import { useState, type SubmitEvent } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { Button } from "../../components/ui/Button";
 import { ConfirmDialog } from "../../components/ui/Dialog";
@@ -30,6 +30,8 @@ function ProjectPage({ projectId }: { projectId: string }) {
       <h1 className="text-xl">{project.data.name}</h1>
       <p className="text-sm text-muted">
         Start or open a conversation in the explorer. Memory and the index are in the AI panel.
+        Stages, the gap finder and the Planner and Reviewer are on the{" "}
+        <Link to={`/projects/${projectId}/workflow`}>workflow page</Link>.
       </p>
       <ProjectSettings project={project.data} />
       <SourceFolder project={project.data} />
