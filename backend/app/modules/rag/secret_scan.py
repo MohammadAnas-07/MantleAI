@@ -148,7 +148,8 @@ def _entropy(value: str) -> float:
 
 
 def _key_kind(key: str) -> str | None:
-    """ "strict" for a name that says it holds a secret, "loose" for one ending in `key`."""
+    """How a name counts: `strict` when it says it holds a secret (`db_password`, `apiKey`),
+    `loose` for another name ending in `key` (`stripe_key`), else None."""
     words = [w for w in re.split(r"[_.\-]+", _CAMEL.sub("_", key).lower()) if w]
     while words and words[-1].isdigit():
         words.pop()
