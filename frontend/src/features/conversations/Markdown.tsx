@@ -3,6 +3,8 @@ import { isValidElement, useState, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { displayTarget, safeLinkHref } from "../../lib/safeUrl";
+
 /** Plain text of a React tree (the code inside <pre>), for the copy button. */
 function textOf(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -45,13 +47,46 @@ function CodeBlock({ children }: { children?: ReactNode }) {
   );
 }
 
+/**
+ * Model output is untrusted. A safe link opens in a new tab without access to this page, and
+ * its real address is shown when the text says something else. Any other link is plain text.
+ */
+function SafeLink({ href, children }: { href: string | undefined; children?: ReactNode }) {
+  const safe = safeLinkHref(href);
+  if (!safe) {
+    return (
+      <span>
+        {children}{" "}
+        <span className="text-xs text-muted">
+          (link blocked: {(href ?? "").slice(0, 80) || "no address"})
+        </span>
+      </span>
+    );
+  }
+  const shown = displayTarget(safe);
+  const textIsTarget = textOf(children).trim().replace(/\/$/, "").endsWith(shown);
+  return (
+    <span>
+      <a href={safe} target="_blank" rel="noopener noreferrer" title={safe}>
+        {children}
+      </a>
+      {textIsTarget ? null : <span className="text-xs text-muted"> ({shown})</span>}
+    </span>
+  );
+}
+
+/** Images in model output are never loaded: fetching one could send data to its server. */
+function BlockedImage({ src, alt }: { src?: string | undefined; alt?: string | undefined }) {
+  return (
+    <span className="rounded-sm border border-dashed border-line px-1 text-xs text-muted">
+      [image not loaded: {alt?.trim() || "no description"} — {src ?? "no address"}]
+    </span>
+  );
+}
+
 const components: Components = {
-  // Model output is untrusted: links open in a new tab without access to this page.
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => <SafeLink href={href}>{children}</SafeLink>,
+  img: ({ src, alt }) => <BlockedImage src={typeof src === "string" ? src : undefined} alt={alt} />,
   pre: ({ children }) => <CodeBlock>{children}</CodeBlock>,
   table: ({ children }) => (
     <div className="my-2 overflow-x-auto">
@@ -62,14 +97,23 @@ const components: Components = {
   ),
 };
 
+// URLs reach the components unchanged, so a blocked one can be shown as text; the components
+// decide what may become an href (SafeLink) and never render an <img> (BlockedImage).
+const keepUrl = (url: string) => url;
+
 /**
- * Renders model output as Markdown. Raw HTML is dropped (skipHtml), react-markdown's default
- * URL filter removes javascript: links, and nothing uses dangerouslySetInnerHTML.
+ * Renders model output as Markdown. Raw HTML is dropped (skipHtml), links are checked by
+ * SafeLink, images are never loaded, and nothing uses dangerouslySetInnerHTML.
  */
 export function Markdown({ text }: { text: string }) {
   return (
     <div className="prose-mantle space-y-2 break-words [&_code]:rounded-sm [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} skipHtml components={components}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        skipHtml
+        urlTransform={keepUrl}
+        components={components}
+      >
         {text}
       </ReactMarkdown>
     </div>
