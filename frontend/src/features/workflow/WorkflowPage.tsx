@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useParams } from "react-router";
 
 import { useProject } from "../../hooks/queries";
+import { AgentRunsSection } from "../agents/AgentRunsSection";
 import { GapFinderPanel } from "../agents/GapFinderPanel";
 import { WorkflowSection } from "./WorkflowSection";
 
@@ -22,6 +23,9 @@ function WorkflowPage({ projectId }: { projectId: string }) {
       </Section>
       <Section id="gap-finder" title="Gap finder">
         <GapFinderPanel projectId={projectId} defaultModelId={defaultModelId} />
+      </Section>
+      <Section id="agent-runs" title="Planner and Reviewer">
+        <AgentRunsSection projectId={projectId} defaultModelId={defaultModelId} />
       </Section>
     </div>
   );

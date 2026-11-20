@@ -80,7 +80,7 @@ export function GapFinderPanel({
       </p>
       <div className="flex flex-wrap items-end gap-2">
         <div className="min-w-60">
-          <ModelSelect value={modelId} onChange={setPicked} />
+          <ModelSelect label="Gap finder model" value={modelId} onChange={setPicked} />
         </div>
         <Button
           variant="primary"
