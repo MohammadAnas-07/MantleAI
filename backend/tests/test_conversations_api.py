@@ -439,3 +439,28 @@ async def test_a_hostile_reply_changes_nothing(
     assert [(m.id, m.status) for m in memory_after] == [(m.id, m.status) for m in memory_before]
     [_, reply] = await MessageRepository(session, world.user_id).in_order(world.conversation_id)
     assert reply.content[0]["text"] == hostile  # stored as text, unchanged
+
+
+async def test_an_internal_error_mid_reply_is_an_error_not_a_cancel(
+    session: AsyncSession, world: World, fake: FakeProvider, gateway: Gateway,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # fmt: skip
+    """A bug (not a provider error, not a disconnect) during a reply ends the stream with an
+    `error` event and saves the message as `error`, logged by type only. Audit A-009."""
+    marker = "zebra-" + "marker-in-the-crash"
+
+    def crash(_: object) -> str:
+        raise RuntimeError(marker)
+
+    fake.set_reply(world.litellm("small"), crash)
+    caplog.set_level(logging.DEBUG)
+    async with api_client(session, gateway, world.user_id) as client:
+        events = await send(client, world, "Hi")
+    name, data = events[-1]
+    assert name == "error" and data["code"] == "internal_error"
+    [_, reply] = await MessageRepository(session, world.user_id).in_order(world.conversation_id)
+    assert (reply.status, reply.error_code) == (MessageStatus.ERROR, "internal_error")
+    conversation = await ConversationRepository(session, world.user_id).get(world.conversation_id)
+    assert conversation is not None and conversation.generating_since is None  # lock released
+    assert marker not in caplog.text and marker not in str(events)
+    assert "RuntimeError" in caplog.text and "reply cancelled" not in caplog.text
