@@ -2,7 +2,7 @@ import { Badge, Banner, Skeleton } from "../../components/ui/Feedback";
 import { useUsage } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
 import { errorMessage } from "../../lib/api/errors";
-import { formatCost, formatTokens, sumCosts } from "../../lib/format";
+import { formatCost, formatTokens, purposeLabel, sumCosts } from "../../lib/format";
 import type { UsageLine } from "../../lib/api/types";
 
 interface Row {
@@ -56,7 +56,7 @@ export function UsageSection() {
   const byPurpose = group(
     lines,
     (l) => `${l.purpose}:${l.trigger}`,
-    (l) => l.purpose,
+    (l) => purposeLabel(l.purpose),
   );
 
   return (

@@ -43,3 +43,19 @@ export function lineRange(start: number, end: number): string {
 export function sumCosts(values: (string | null)[]): number {
   return values.reduce((total, v) => total + (v === null ? 0 : Number(v) || 0), 0);
 }
+
+// Usage purposes (backend UsagePurpose) in words. agent_run covers Planner, Reviewer and the
+// gap finder.
+const PURPOSE: Record<string, string> = {
+  chat: "chat",
+  rolling_summary: "rolling summary",
+  switch_summary: "switch summary",
+  embedding: "embedding",
+  agent_run: "agent run",
+  teaching: "teaching note",
+  key_test: "key test",
+};
+
+export function purposeLabel(purpose: string): string {
+  return PURPOSE[purpose] ?? purpose;
+}
