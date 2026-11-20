@@ -21,6 +21,14 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
       "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
       "no-console": ["error", { allow: ["warn", "error"] }],
+      // Model output, memory and retrieved code are untrusted: never inject raw HTML.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message: "Untrusted text must be rendered as text or through Markdown.tsx.",
+        },
+      ],
     },
   },
   {
