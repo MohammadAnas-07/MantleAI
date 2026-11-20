@@ -577,6 +577,16 @@ async def test_approve_all(
     assert (decision.why, decision.alternatives) == ("Slow to brute force.", "bcrypt")
     assert str(decision.source_agent_run_id) == run_id
 
+    # The API shows where each saved item came from, so the UI can link back to the run.
+    page = (await client.get(f"/api/v1/projects/{world.project_id}/memory",
+                             params={"kind": "task"})).json()  # fmt: skip
+    from_run = [i for i in page["items"] if i["id"] in body["task_ids"]]
+    assert len(from_run) == 3
+    assert all(i["source"] == "agent" and i["source_agent_run_id"] == run_id for i in from_run)
+    assert all(i["stage_key"] == "requirements" for i in from_run)
+    manual = [i for i in page["items"] if i["id"] not in body["task_ids"]]
+    assert all(i["source_agent_run_id"] is None for i in manual)
+
     links = await MemoryDependencyRepository(session, world.user_id).edges(world.project_id)
     ids = [uuid.UUID(i) for i in body["task_ids"]]
     assert sorted(links) == sorted([(ids[1], ids[0]), (ids[2], ids[1])])

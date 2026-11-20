@@ -62,7 +62,7 @@ Edits are last-write-wins.
 | DELETE | `/api/v1/projects/{id}` | Delete a project and all its data (memory, conversations, index, runs cascade; usage rows stay). 409 `index_in_progress` while an index run is queued or running |
 | GET | `/api/v1/projects/{id}/memory` | List memory items: filter by `kind`, `status`; `limit` (1-100, default 50) and `offset`; ordered by `created_at`, then id. Returns `{items, total, limit, offset}` |
 | POST | `/api/v1/projects/{id}/memory` | Add an item `{kind, title, body?, status?, priority?, why?, alternatives?, decided_at?}`. 409 `memory_limit_reached` past 500 per kind |
-| GET | `/api/v1/memory/{item_id}` | One item, with `depends_on_ids` and `is_blocked` (tasks) and `supersedes_ids` / `superseded_by_id` (decisions) |
+| GET | `/api/v1/memory/{item_id}` | One item, with `depends_on_ids` and `is_blocked` (tasks) and `supersedes_ids` / `superseded_by_id` (decisions). Every item view also has `source` (`user` or `agent`) and, for items saved from an agent run, `source_agent_run_id` and `stage_key` |
 | PATCH | `/api/v1/memory/{item_id}` | Change only the fields sent (`null` clears an optional text field); an empty body is a 422. `superseded` can't be set here; a superseded decision's status is locked (409) |
 | POST | `/api/v1/memory/{item_id}/supersede` | Replace a decision: `{"decision": {...}}` creates the new one, `{"by_id": ...}` uses an existing one. Returns `{superseded, by}`. 409 if already superseded or if it would loop |
 | POST | `/api/v1/memory/{item_id}/dependencies` | The task depends on `{depends_on_id}` (same project, no cycles: 409 `dependency_cycle`). Adding an existing link changes nothing |

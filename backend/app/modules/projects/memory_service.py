@@ -373,6 +373,8 @@ async def describe(
                     else None
                 ),
                 source=item.source.value,
+                source_agent_run_id=item.source_agent_run_id,
+                stage_key=item.stage_key,
                 created_at=item.created_at,
                 updated_at=item.updated_at,
             )
