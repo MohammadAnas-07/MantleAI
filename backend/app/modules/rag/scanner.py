@@ -97,6 +97,7 @@ RECORDED_REASONS = frozenset(
 )  # fmt: skip
 
 REPORT_EXAMPLES = 5
+COUNT_ONLY_REASONS = frozenset({SkipReason.SENSITIVE_NAME, SkipReason.POSSIBLE_SECRET})
 
 
 @dataclass
@@ -109,7 +110,9 @@ class SkipReport:
     def add(self, reason: str, path: str) -> None:
         self.counts[reason] = self.counts.get(reason, 0) + 1
         examples = self.examples.setdefault(reason, [])
-        if len(examples) < REPORT_EXAMPLES:
+        # Secret skips are only counted: the report travels further (estimates, run views)
+        # than the per-file document row, which keeps the path for the file list.
+        if reason not in COUNT_ONLY_REASONS and len(examples) < REPORT_EXAMPLES:
             examples.append(path)
 
     def as_dict(self) -> dict[str, dict[str, object]]:
@@ -324,7 +327,7 @@ def read_text(path: Path, max_bytes: int) -> ReadResult:
         return skip(SkipReason.EMPTY)
     if any(len(line) > MAX_LINE_CHARS for line in text.split("\n")):
         return skip(SkipReason.LONG_LINES)
-    if looks_like_secret(text):
+    if looks_like_secret(text, path.name):
         return skip(SkipReason.POSSIBLE_SECRET)
     return ReadResult(text, None, after.st_size, after.st_mtime_ns)
 

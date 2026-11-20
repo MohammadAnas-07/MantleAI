@@ -399,9 +399,27 @@ async def test_skipped_files_are_recorded_with_reasons(
     assert docs["logo.png"].skip_reason == "binary"
     assert "debug.log" not in docs  # .gitignore matches are only counted
     assert run.skip_report["gitignored"]["count"] >= 1
-    assert run.skip_report["possible secret"]["examples"] == ["backend/app/keys.py"]
+    # Secret skips are counted, never listed in the report (the path stays on the document).
+    assert run.skip_report["possible secret"] == {"count": 1, "examples": []}
+    assert run.skip_report["sensitive_name"]["examples"] == []
     texts = " ".join(embedded_texts(world.fake))
     assert key not in texts and "TASKBOARD_DEBUG=1" not in texts
+
+
+async def test_secret_content_reaches_no_row_and_no_log(
+    session: AsyncSession, world: RagWorld, root: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    password = "Zq" + uuid.uuid4().hex[:12]  # unique, so a match can only come from this file
+    (root / "backend" / "app" / "settings.yaml").write_text(f"db:\n  password: {password}\n")
+    caplog.set_level(logging.DEBUG)
+    run = await index_once(session, world)
+    doc = (await documents(session, world))["backend/app/settings.yaml"]
+    assert (doc.status, doc.skip_reason, doc.content_hash) == ("skipped", "possible secret", None)
+    stored = await session.scalars(select(Chunk.text).where(Chunk.project_id == world.project_id))
+    assert all(password not in text for text in stored)
+    assert password not in " ".join(embedded_texts(world.fake))
+    assert password not in caplog.text
+    assert password not in str(run.skip_report) and "settings.yaml" not in str(run.skip_report)
 
 
 async def test_logs_hold_no_file_contents(
@@ -464,6 +482,57 @@ async def test_indexed_file_that_gains_a_secret_loses_its_chunks(
     await index_once(session, world)
     doc = (await documents(session, world))["backend/app/config.py"]
     assert (doc.status, doc.skip_reason, doc.content_hash) == ("skipped", "possible secret", None)
+    assert await count_chunks(session, world, document_id=doc.id) == 0
+
+
+async def test_new_secret_rules_rescan_unchanged_files(
+    session: AsyncSession, world: RagWorld, root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file indexed under older rules is read again when the rules change, even though its
+    size and mtime didn't change, and loses its stored text if it now counts as a secret."""
+    from app.modules.rag import scanner, secret_scan
+
+    path = root / "backend" / "app" / "config.py"
+    path.write_text(path.read_text() + "\nTOKEN = 'ey" + "J" + "a" * 20 + ".eyJ" + "b" * 20
+                    + "." + "c" * 20 + "'\n")  # fmt: skip
+    # Older rules: they didn't know this shape.
+    monkeypatch.setattr(scanner, "looks_like_secret", lambda text, name="": False)
+    await index_once(session, world)
+    doc = (await documents(session, world))["backend/app/config.py"]
+    assert doc.status == "indexed" and await count_chunks(session, world, document_id=doc.id) > 0
+
+    monkeypatch.undo()
+    monkeypatch.setattr(secret_scan, "RULES_VERSION", secret_scan.RULES_VERSION + 1)
+    fast_settings(monkeypatch)
+    await index_once(session, world)
+    await session.refresh(doc)
+    assert (doc.status, doc.skip_reason, doc.content_hash) == ("skipped", "possible secret", None)
+    assert await count_chunks(session, world, document_id=doc.id) == 0
+
+
+async def test_unchanged_files_are_not_read_again_under_the_same_rules(
+    session: AsyncSession, world: RagWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.rag import indexer
+
+    await index_once(session, world)
+    reads: list[object] = []
+    real = indexer.read_text
+    monkeypatch.setattr(indexer, "read_text", lambda *a: reads.append(a) or real(*a))
+    await index_once(session, world)
+    assert reads == []
+
+
+async def test_file_that_becomes_sensitive_by_name_loses_its_chunks(
+    session: AsyncSession, world: RagWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await index_once(session, world)
+    doc = (await documents(session, world))["backend/app/config.py"]
+    assert await count_chunks(session, world, document_id=doc.id) > 0
+    monkeypatch.setattr(settings, "index_sensitive_patterns", ["backend/app/config.py"])
+    await index_once(session, world)
+    await session.refresh(doc)
+    assert (doc.status, doc.skip_reason) == ("skipped", "sensitive_name")
     assert await count_chunks(session, world, document_id=doc.id) == 0
 
 

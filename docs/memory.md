@@ -14,19 +14,20 @@ Working memory for any AI tool and for the developer. Read it before every task.
 with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
 Planner and Reviewer, and the workflow page (stages, gap finder, agent runs, approval; merged).
 An audit (2026-11-20, report outside the repo, A-001..A-022) found 2 Critical, 3 High issues.
-`fix/test-database-guard` (not pushed) fixes A-001: tests use only `TEST_DATABASE_URL` (name
-ends in `_test`) and stop with exit 4 otherwise. Next fix branches: secret detection,
-untrusted output and prompts, error handling and logs, run concurrency, docs catch-up. Not
+A-001 is merged (tests use only `TEST_DATABASE_URL`, name ends in `_test`, else exit 4).
+`fix/index-secret-detection` (not pushed) fixes A-002/A-011: wider secret rules, re-check on a
+rules change (`0009`). Next: untrusted output and prompts, errors and logs, concurrency, docs. Not
 built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
 with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
-Next: the developer adds `TEST_DATABASE_URL` to `backend/.env`; then `fix/index-secret-detection`.
-Branches: 2 local (`main`, `fix/test-database-guard`), 27 remote (untouched).
+Next: the developer adds `TEST_DATABASE_URL` to `backend/.env` and re-indexes every project
+(old segments may hold secrets); then `fix/untrusted-output-and-prompts`.
+Branches: 2 local (`main`, `fix/index-secret-detection`), 28 remote (untouched).
 
-Tests: 579 backend (97% coverage) and 96 frontend pass. pytest needs `TEST_DATABASE_URL`.
-Migration head `0008` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
+Tests: 718 backend and 96 frontend pass. pytest needs `TEST_DATABASE_URL`.
+Migration head `0009` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-20 (test database guard).
+First demo target: 2026-12-17. Last updated 2026-11-20 (secret detection).
 
 ## Done
 
@@ -34,15 +35,14 @@ First demo target: 2026-12-17. Last updated 2026-11-20 (test database guard).
   switching, context builder, rolling summary, project memory. Switch demo 5/5 twice on Gemini.
 - 2026-11-18: indexing and RAG (hybrid search, RRF k=60, ADRs 0006, 0007); the first frontend
   (`docs/design-app.md`, settings, projects, index, memory, chat, context, activity).
-- 2026-11-19: daily quota fix (`0007`); `feat/workflow-and-agents` merged: `0008`, stages YAML,
-  gates, events, gap finder, Planner + Reviewer as a plain state machine, approval of drafts,
-  and 5 review fixes (run lock, conditional cancel, attribute escaping, unpriced models, limit
-  checks); rules 85-90.
+- 2026-11-19/20: quota fix (`0007`); workflow and agents (`0008`, plain state machine, approval
+  of drafts, 5 review fixes, rules 85-90); the workflow UI; the test database guard (A-001).
 
 ## In progress
 
-- `fix/test-database-guard`: `tests/db_guard.py` (check, `guarded_engine`), `pytest_configure`
-  swaps the app's `DATABASE_URL` for the test URL; no auto-create of the test database.
+- `fix/index-secret-detection`: `rag/secret_scan.py` (formats, DB URLs, assignments, names,
+  `RULES_VERSION`), `documents.scan_version` (`0009`), skip report counts secrets without paths.
+  On this repo it skips 13 test files with fake keys and `docker-compose.yml` of 320.
 - Workflow UI (merged 2026-11-20): next is one real plan run in the browser.
 - Click eval (`eval_retrieval.py`, 25 questions): run 1 stopped at 926/1,429 segments
   (Gemini daily limit); resume.

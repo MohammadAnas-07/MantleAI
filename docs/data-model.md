@@ -245,6 +245,8 @@ summarized.
   stored), `size_bytes`, `mtime_ns`, `line_count`, `language`
 - `parse_fallback` (nullable): `syntax_error` or `no_grammar` when code was split by lines
 - `embedding_model`: the model its chunks were made with
+- `scan_version` (nullable, `0009`): the secret rules version (`secret_scan.RULES_VERSION`) its
+  content was last checked with; an older or null value makes the next run read the file again
 - `last_index_run_id` → IndexRun
 
 **Chunk**: one segment of a document ("chunk" in table and column names).
