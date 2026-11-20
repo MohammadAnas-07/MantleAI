@@ -399,9 +399,27 @@ async def test_skipped_files_are_recorded_with_reasons(
     assert docs["logo.png"].skip_reason == "binary"
     assert "debug.log" not in docs  # .gitignore matches are only counted
     assert run.skip_report["gitignored"]["count"] >= 1
-    assert run.skip_report["possible secret"]["examples"] == ["backend/app/keys.py"]
+    # Secret skips are counted, never listed in the report (the path stays on the document).
+    assert run.skip_report["possible secret"] == {"count": 1, "examples": []}
+    assert run.skip_report["sensitive_name"]["examples"] == []
     texts = " ".join(embedded_texts(world.fake))
     assert key not in texts and "TASKBOARD_DEBUG=1" not in texts
+
+
+async def test_secret_content_reaches_no_row_and_no_log(
+    session: AsyncSession, world: RagWorld, root: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    password = "Zq" + uuid.uuid4().hex[:12]  # unique, so a match can only come from this file
+    (root / "backend" / "app" / "settings.yaml").write_text(f"db:\n  password: {password}\n")
+    caplog.set_level(logging.DEBUG)
+    run = await index_once(session, world)
+    doc = (await documents(session, world))["backend/app/settings.yaml"]
+    assert (doc.status, doc.skip_reason, doc.content_hash) == ("skipped", "possible secret", None)
+    stored = await session.scalars(select(Chunk.text).where(Chunk.project_id == world.project_id))
+    assert all(password not in text for text in stored)
+    assert password not in " ".join(embedded_texts(world.fake))
+    assert password not in caplog.text
+    assert password not in str(run.skip_report) and "settings.yaml" not in str(run.skip_report)
 
 
 async def test_logs_hold_no_file_contents(
