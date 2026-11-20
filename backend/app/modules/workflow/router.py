@@ -6,20 +6,19 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUserId, DbSession, SessionFactoryDep
 from app.modules.llm.service import Gateway, get_gateway
 from app.modules.workflow import approval, gap_finder, runs, state
-from app.modules.workflow.models import AgentRun, AgentRunStep, RunType
+from app.modules.workflow.models import RunType
 from app.modules.workflow.run_setup import get_run
 from app.modules.workflow.schemas import (
     AgentRunEstimateOut,
     AgentRunIn,
     AgentRunOut,
     AgentRunPage,
-    AgentRunStepOut,
+    AgentRunSummaryOut,
+    AgentRunSummaryPage,
     ApproveIn,
     ApproveRunIn,
     ApproveRunOut,
@@ -38,22 +37,11 @@ from app.modules.workflow.schemas import (
     WorkflowOut,
 )
 from app.modules.workflow.stages import get_stages
+from app.modules.workflow.views import run_out, runs_out
 
 router = APIRouter(tags=["workflow"])
 
 GatewayDep = Annotated[Gateway, Depends(get_gateway)]
-
-
-async def run_out(session: AsyncSession, run: AgentRun) -> AgentRunOut:
-    """A run with its steps, for a response."""
-    steps = await session.scalars(
-        select(AgentRunStep)
-        .where(AgentRunStep.user_id == run.user_id, AgentRunStep.run_id == run.id)
-        .order_by(AgentRunStep.position)
-    )
-    out = AgentRunOut.model_validate(run)
-    out.steps = [AgentRunStepOut.model_validate(s) for s in steps]
-    return out
 
 
 def workflow_out(view: state.WorkflowView) -> WorkflowOut:
@@ -204,7 +192,7 @@ async def list_gap_finder_runs(
 ) -> AgentRunPage:
     """Past gap finder results, newest first."""
     runs = await gap_finder.list_gap_runs(session, user_id, project_id)
-    return AgentRunPage(items=[await run_out(session, r) for r in runs])
+    return AgentRunPage(items=await runs_out(session, runs))
 
 
 @router.post("/projects/{project_id}/agent-runs", status_code=202)
@@ -260,10 +248,10 @@ async def estimate_agent_run(
 @router.get("/projects/{project_id}/agent-runs")
 async def list_agent_runs(
     project_id: uuid.UUID, session: DbSession, user_id: CurrentUserId
-) -> AgentRunPage:
-    """Plan and review runs, newest first."""
+) -> AgentRunSummaryPage:
+    """Plan and review runs, newest first, as summaries (no drafts or steps)."""
     found = await runs.list_runs(session, user_id, project_id)
-    return AgentRunPage(items=[await run_out(session, r) for r in found])
+    return AgentRunSummaryPage(items=[AgentRunSummaryOut.model_validate(r) for r in found])
 
 
 @router.get("/agent-runs/{run_id}")
