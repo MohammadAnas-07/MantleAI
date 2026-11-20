@@ -20,6 +20,7 @@ saved to memory here: that needs the user's approval (approval.py).
 import logging
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import select, update
@@ -434,6 +435,14 @@ async def request_cancel(session: AsyncSession, user_id: uuid.UUID, run_id: uuid
             await session.refresh(run)
             raise AppError(f"A run that is {run.status} can't be cancelled.",
                            code="agent_run_not_active", status_code=409)  # fmt: skip
+        # A run running far longer than any job can has lost its job: end it now, or it
+        # blocks the project until a restart.
+        stale_before = stamp - timedelta(seconds=settings.agent_run_stale_seconds)
+        await session.execute(
+            _conditional(run, expect=RunStatus.RUNNING)
+            .where(AgentRun.started_at < stale_before)
+            .values(status=RunStatus.CANCELLED, finished_at=stamp)
+        )
     await session.refresh(run)
     return run
 

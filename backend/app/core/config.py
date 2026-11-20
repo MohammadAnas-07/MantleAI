@@ -123,6 +123,10 @@ class Settings(BaseSettings):
     agent_max_input_tokens: int = Field(default=60_000, ge=1000)
     agent_max_output_tokens: int = Field(default=4_000, ge=100)
     agent_step_timeout_seconds: float = Field(default=180.0, gt=0)
+    # A running agent run older than this has lost its job (it died without a restart): a cancel
+    # then ends it at once instead of waiting for a job that will never check. The default is
+    # above two steps of two attempts at the step timeout.
+    agent_run_stale_seconds: float = Field(default=900.0, gt=0)
     # Share of the prompt budget that project memory may use (pinned items use less).
     agent_memory_max_share: float = Field(default=0.5, gt=0, le=1)
     # A free-text requirement given to the Planner.
