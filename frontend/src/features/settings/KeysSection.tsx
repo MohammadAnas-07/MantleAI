@@ -12,6 +12,7 @@ import { errorMessage } from "../../lib/api/errors";
 import { formatDateTime } from "../../lib/format";
 import { limits } from "../../lib/limits";
 import type { Credential } from "../../lib/api/types";
+import { KEYS_UNREADABLE, llmErrorText } from "../../lib/llmErrors";
 
 /**
  * Provider keys. The key lives only in this form's state until it is sent; the input is
@@ -76,6 +77,11 @@ export function KeysSection() {
       {credentials.data?.length === 0 ? (
         <EmptyState icon={KeyRound}>No keys saved yet.</EmptyState>
       ) : null}
+      {credentials.data?.some((c) => !c.readable) ? (
+        <p className="text-sm text-danger">
+          {KEYS_UNREADABLE} Remove the old key once a new one works.
+        </p>
+      ) : null}
       <ul className="space-y-1 text-sm">
         {credentials.data?.map((c) => (
           <li
@@ -87,6 +93,7 @@ export function KeysSection() {
             <span className="code" aria-label={`Key ending in ${c.key_hint}`}>
               ••••{c.key_hint}
             </span>
+            {!c.readable ? <Badge kind="danger">can&apos;t be read</Badge> : null}
             {c.last_test_ok === true ? <Badge kind="success">works</Badge> : null}
             {c.last_test_ok === false ? <Badge kind="danger">failed</Badge> : null}
             <span className="text-xs text-muted">tested {formatDateTime(c.last_tested_at)}</span>
@@ -115,7 +122,8 @@ export function KeysSection() {
       </ul>
       {test.data && !test.data.ok ? (
         <p role="alert" className="text-sm text-danger">
-          The test failed: {test.data.error_code}.
+          The test failed:{" "}
+          {llmErrorText(test.data.error_code, `error ${test.data.error_code ?? "unknown"}.`)}
         </p>
       ) : null}
 

@@ -1,8 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
+import { Link } from "react-router";
 
 import { useHealth } from "../hooks/queries";
 import { apiBaseUrl } from "../lib/api/client";
+import { KEYS_UNREADABLE } from "../lib/llmErrors";
 import { Button } from "./ui/Button";
 import { Banner } from "./ui/Feedback";
 
@@ -10,7 +12,21 @@ import { Banner } from "./ui/Feedback";
 export function BackendBanner() {
   const health = useHealth();
   const client = useQueryClient();
-  if (!health.isError && health.data?.database !== "down") return null;
+  if (!health.isError && health.data?.database !== "down") {
+    if (health.data?.keys !== "unreadable") return null;
+    return (
+      <Banner
+        kind="warning"
+        action={
+          <Link to="/settings" className="text-sm">
+            Open settings
+          </Link>
+        }
+      >
+        {KEYS_UNREADABLE}
+      </Banner>
+    );
+  }
 
   const retry = () => {
     void client.invalidateQueries();
