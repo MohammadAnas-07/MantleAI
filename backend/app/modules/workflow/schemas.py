@@ -68,7 +68,8 @@ class WorkflowOut(BaseModel):
     current_stage_id: str | None
     version: int
     stages: list[StageOut]
-    events: list[WorkflowEventOut]
+    events: list[WorkflowEventOut]  # the newest 100, oldest first
+    events_total: int  # all events of the workflow
 
 
 class StageDefinitionOut(BaseModel):

@@ -84,6 +84,7 @@ def workflow_out(view: state.WorkflowView) -> WorkflowOut:
         version=workflow.version,
         stages=stages,
         events=[WorkflowEventOut.model_validate(e) for e in view.events],
+        events_total=view.events_total,
     )
 
 

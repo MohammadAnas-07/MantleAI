@@ -94,3 +94,62 @@ async def test_the_run_detail_takes_a_fixed_number_of_queries(
     await add_plan_runs(client, world, 1)
     [item] = (await client.get(f"/api/v1/projects/{world.project_id}/agent-runs")).json()["items"]
     assert await queries_for(engine, client, f"/api/v1/agent-runs/{item['id']}") <= 3
+
+
+# ---- the workflow ----------------------------------------------------------------------------
+
+
+async def test_a_workflow_change_reads_memory_once(
+    engine: AsyncEngine, client: httpx.AsyncClient, world: AgentWorld
+) -> None:
+    """Known cleanup: a transition read the project, the workflow and all memory twice. A
+    change doesn't touch memory, so the answer is built from what was read before it."""
+    url = f"/api/v1/projects/{world.project_id}/workflow"
+    tick = {"stage_id": "requirements", "item_id": "constraints", "done": True}
+    await client.post(f"{url}/checklist", json=tick)  # stores the workflow first
+    with count_queries(engine) as statements:
+        r = await client.post(f"{url}/checklist", json={**tick, "done": False})
+    assert r.status_code == 200
+    memory_reads = [s for s in statements if "FROM memory_items" in s]
+    assert len(memory_reads) == 1, statements
+    assert len(statements) <= 8, statements
+    with count_queries(engine) as statements:
+        r = await client.post(f"{url}/approve", json={"stage_id": "requirements", "force": True,
+                                                       "reason": "query count"})  # fmt: skip
+    assert r.status_code == 200 and r.json()["current_stage_id"] == "architecture"
+    assert len([s for s in statements if "FROM memory_items" in s]) == 1
+    assert len(statements) <= 8, statements
+
+
+async def test_the_workflow_answer_holds_the_newest_100_events_and_the_total(
+    engine: AsyncEngine, client: httpx.AsyncClient, world: AgentWorld
+) -> None:
+    url = f"/api/v1/projects/{world.project_id}/workflow"
+    for i in range(104):  # + the "created" event = 105
+        await client.post(
+            f"{url}/checklist",
+            json={"stage_id": "requirements", "item_id": "constraints", "done": i % 2 == 0},
+        )
+    with count_queries(engine) as statements:
+        body = (await client.get(url)).json()
+    assert len(statements) <= 6
+    assert body["events_total"] == 105 and len(body["events"]) == 100
+    actions = [e["action"] for e in body["events"]]
+    assert "created" not in actions  # the oldest ones are left out
+    seqs = [e["created_at"] for e in body["events"]]
+    assert seqs == sorted(seqs)  # still oldest first
+    assert body["events"][-1]["action"] == "untick"  # the newest is last
+
+
+async def test_a_short_history_needs_no_count_query(
+    engine: AsyncEngine, client: httpx.AsyncClient, world: AgentWorld
+) -> None:
+    url = f"/api/v1/projects/{world.project_id}/workflow"
+    await client.post(
+        f"{url}/checklist",
+        json={"stage_id": "requirements", "item_id": "constraints", "done": True},
+    )
+    with count_queries(engine) as statements:
+        body = (await client.get(url)).json()
+    assert body["events_total"] == len(body["events"]) == 2
+    assert not any("count(" in s.lower() for s in statements)
