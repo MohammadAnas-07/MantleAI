@@ -12,16 +12,16 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 **Summary (2026-11-20).** Mantle today: projects, keys, chat with streaming, model switching
 with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
-Planner and Reviewer (backend merged). `feat/workflow-ui` (not pushed) adds the workflow page:
+Planner and Reviewer (backend merged). `feat/workflow-ui` (pushed, PR opened) adds the workflow page:
 stages, checklist, gates, approve/skip/reopen/force with reasons, history, reset; gap finder;
 agent runs with an estimate, confirm, cost guard, live status, cancel and the approval view;
 agent badges and accept/reject on proposed decisions; "agent run" in activity and usage. Not
 built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
 with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
-Next: the developer reviews and pushes the branch, then one real plan run with Gemini.
+Next: one real plan run with Gemini in the UI (checklist in the PR description).
 Branches: 2 local (`main`, `feat/workflow-ui`), 26 remote (untouched).
 
-Tests: 562 backend (the DB tests were not run on this branch: Docker was down), 96 frontend.
+Tests: 562 backend and 96 frontend pass; estimate checked on the running API (Gemini, $0.015).
 Migration head `0008` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
@@ -40,11 +40,11 @@ First demo target: 2026-12-17. Last updated 2026-11-20 (workflow UI).
 
 ## In progress
 
-- `feat/workflow-ui` (committed, not pushed): `/projects/:id/workflow` (`features/workflow`,
+- `feat/workflow-ui` (pushed, PR opened 2026-11-20): `/projects/:id/workflow` (`features/workflow`,
   `features/agents`), `/projects/:id/memory/:itemId`, `ReasonDialog`, `QueryError`,
   `Dialog` focuses `[data-autofocus]`. Backend: memory items show `source_agent_run_id` and
   `stage_key`; `POST /projects/{id}/agent-runs/estimate` (same checks as a start, no run).
-  Next: run the DB tests with Docker up, push, open the PR, one real plan run.
+  Next: one real plan run in the browser.
 - Click eval (`eval_retrieval.py`, 25 questions): run 1 stopped at 926/1,429 segments
   (Gemini daily limit); resume.
 
