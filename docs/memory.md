@@ -14,21 +14,21 @@ Working memory for any AI tool and for the developer. Read it before every task.
 with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
 Planner and Reviewer, and the workflow page (stages, gap finder, agent runs, approval; merged).
 An audit (2026-11-20, report outside the repo, A-001..A-022) found 2 Critical, 3 High issues.
-Merged: A-001 (test DB guard), A-002/A-011 (secret rules, `0009`), A-003/A-007 (no remote
-images or unsafe links, CSP in the build, defanged prompts). `fix/logging-and-key-errors` (not
-pushed) fixes A-004 (`credential_unreadable`, `/health` keys), A-005 (no text in logs), A-006
-(LLM_TIMEOUT_SECONDS), A-009 (internal error mid-reply). Next: run concurrency, docs. Not
+Merged: A-001, A-002/A-011, A-003/A-007, A-004/A-005/A-006/A-009. `fix/run-concurrency-and-queries`
+(not pushed) fixes A-008 (gap finder row committed first), A-013 (one steps query, run list
+summaries), A-014 (usage index, `0010`), A-019 (env access only in config, full .env.example),
+A-022 (README note); stale runs can be cancelled. Next: `docs/audit-catch-up`. Not
 built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
 with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
 Next: the developer adds `TEST_DATABASE_URL` to `backend/.env`, runs `alembic upgrade head`
-and re-indexes every project; then `fix/run-concurrency-and-queries`.
-Branches: 2 local (`main`, `fix/logging-and-key-errors`), 30 remote (untouched).
+and re-indexes every project; then `docs/audit-catch-up`.
+Branches: 2 local (`main`, `fix/run-concurrency-and-queries`), 31 remote (untouched).
 
-Tests: 742 backend and 117 frontend pass, none flaky. pytest needs `TEST_DATABASE_URL`.
-Migration head `0009` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
+Tests: 763 backend and 119 frontend pass, races 5/5. pytest needs `TEST_DATABASE_URL`.
+Migration head `0010` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-20 (key errors and logs).
+First demo target: 2026-12-17. Last updated 2026-11-20 (run concurrency and queries).
 
 ## Done
 
@@ -41,9 +41,9 @@ First demo target: 2026-12-17. Last updated 2026-11-20 (key errors and logs).
 
 ## In progress
 
-- `fix/logging-and-key-errors`: `llm/key_status.py`, `CredentialUnreadable`,
-  `UnhandledErrorMiddleware` (inside CORS), `/health` on the request session, `hide_parameters`,
-  `repr=False` secrets, filter on uvicorn; `lib/llmErrors.ts`. A-019 left (config, not errors).
+- `fix/run-concurrency-and-queries`: `tests/test_run_races.py` (two connections, blocking fake
+  provider), `query_count.py`, `workflow/views.py`, `AGENT_RUN_STALE_SECONDS`, `EVENTS_SHOWN` 100,
+  `prepare_litellm_environment()`, migration `0010` (CONCURRENTLY, autocommit block).
 - Click eval (25 questions): run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
@@ -58,9 +58,8 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 
 ## Known cleanup
 
-- Run list endpoints load steps with one query per run (N+1); transitions load memory twice.
-- `list_gap_runs` and `runs.list_runs` duplicate one query; `memory_trimmed` has two shapes.
-- Workflow GET returns every event (no paging); the UI shows the latest 20 and a "show all".
+- `list_gap_runs`/`runs.list_runs` repeat a query; `memory_trimmed` has two shapes (not audited).
+- A dead index job (server still up) stays `running` until a restart; agent runs can be cancelled.
 
 ## Decisions
 
@@ -122,6 +121,7 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
   Concurrency tests commit to `mantle_test`
   and clean up. `defang` turns `</source>` into `&lt;/source>` (the `>` stays).
 - **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`**. Backend tests use `http://localhost`.
+- **`pytest -s` hangs in this shell**: write debug output to a file instead.
 - **PostgreSQL error text can quote the bad value** even with `hide_parameters`: log types only.
 - **Testing Library role queries are slow on a long plan**: wait for a text first, then
   `getByRole`. Hidden "sr-only" prefixes lose their space in jsdom names: use `aria-label`.
