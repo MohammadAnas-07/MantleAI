@@ -23,8 +23,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import NotFound
 from app.modules.llm.backend import Backend, ChatMessages, EmbedInputType, TextDelta, UsageInfo
-from app.modules.llm.crypto import decrypt_secret
-from app.modules.llm.errors import LLMError, ModelUnavailable, NoCredential
+from app.modules.llm.crypto import DecryptionError, decrypt_secret
+from app.modules.llm.errors import (
+    LLMError,
+    ModelUnavailable,
+    NoCredential,
+    credential_unreadable,
+)
 from app.modules.llm.models import (
     ModelConfig,
     ModelKind,
@@ -114,7 +119,10 @@ class Gateway:
                 f"Add an API key for {model.provider} to use this model.",
                 details={"provider": model.provider},
             )
-        return decrypt_secret(credential.encrypted_key)
+        try:
+            return decrypt_secret(credential.encrypted_key)
+        except DecryptionError:
+            raise credential_unreadable(model.provider) from None
 
     def count_tokens(self, model: ModelConfig, messages: ChatMessages) -> int:
         """Estimated prompt tokens of `messages` for `model` (no network)."""
