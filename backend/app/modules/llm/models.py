@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import ForeignKey, LargeBinary, Numeric, String, false, true
+from sqlalchemy import ForeignKey, Index, LargeBinary, Numeric, String, false, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Entity, UserOwnedEntity, fk, str_enum
@@ -96,6 +96,8 @@ class UsageRecord(UserOwnedEntity):
     so cost history stays complete."""
 
     __tablename__ = "usage_records"
+    # The activity log and usage totals read one user's newest calls (migration 0010).
+    __table_args__ = (Index("ix_usage_records_user_id_created_at", "user_id", "created_at", "id"),)
 
     model_id: Mapped[uuid.UUID] = mapped_column(fk("model_configs"), index=True)
     purpose: Mapped[UsagePurpose] = mapped_column(str_enum(UsagePurpose))
