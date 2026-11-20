@@ -1,8 +1,8 @@
 """Shared test fixtures.
 
 Database tests run against the database in TEST_DATABASE_URL, whose name must end in `_test`
-(tests/db_guard.py). The guard runs when this file is imported, before any test module, and
-stops the whole run if the setting is missing or names another database. Then the app's own
+(tests/db_guard.py). The guard runs in `pytest_configure`, before any test module is imported,
+and stops the whole run if the setting is missing or names another database. Then the app's own
 DATABASE_URL is replaced by it, so the app engine, alembic and anything that forgets a
 dependency override can only reach the test database. It is migrated to head once per run; each
 test runs inside a transaction that is rolled back. When PostgreSQL is down, database tests are
@@ -59,6 +59,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_report_header() -> str:
     return f"test database: {TEST_DATABASE_URL.render_as_string(hide_password=True)}"
 
+
 # The sample project is data for the indexing tests, not tests to run.
 collect_ignore_glob = ["fixtures/*"]
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -100,9 +101,7 @@ def alembic_config() -> Config:
     """Alembic aimed at the test database only (downgrade tests drop every table there)."""
     config = Config(str(BACKEND_DIR / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
-    url = get_test_database_url()
-    assert_test_url(url)
-    rendered = url.render_as_string(hide_password=False)
+    rendered = get_test_database_url().render_as_string(hide_password=False)
     config.set_main_option("sqlalchemy.url", rendered.replace("%", "%%"))
     return config
 
@@ -122,10 +121,14 @@ async def _ping_test_database() -> None:
 
 
 def _database_missing(exc: BaseException) -> bool:
-    # asyncpg's InvalidCatalogNameError, possibly wrapped by SQLAlchemy.
-    return any(
-        type(e).__name__ == "InvalidCatalogNameError" for e in (exc, exc.__cause__, exc.__context__)
-    )
+    # asyncpg's InvalidCatalogNameError, wrapped twice by SQLAlchemy (DBAPIError, then the
+    # adapter's Error), so walk the whole cause chain.
+    seen: BaseException | None = exc
+    while seen is not None:
+        if type(seen).__name__ == "InvalidCatalogNameError":
+            return True
+        seen = seen.__cause__ or seen.__context__
+    return False
 
 
 @pytest.fixture(scope="session")

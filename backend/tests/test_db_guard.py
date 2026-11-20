@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from sqlalchemy import URL
 
 from app.core.config import settings
 from tests.db_guard import (
@@ -72,18 +73,20 @@ def test_engines_for_tests_refuse_a_non_test_database() -> None:
         guarded_engine(DEV)  # refused before an engine exists
 
 
-def test_the_app_engine_and_alembic_use_the_test_database() -> None:
+def test_the_app_engine_and_settings_point_at_the_test_database() -> None:
     from app.db.session import engine
 
     assert engine.url.database is not None and engine.url.database.endswith("_test")
     assert engine.url.database == settings.database_url.rsplit("/", 1)[-1]
 
 
-def run_pytest_with(test_database_url: str) -> subprocess.CompletedProcess[str]:
+def run_pytest_with(
+    test_database_url: str, target: str = "tests/test_health.py"
+) -> subprocess.CompletedProcess[str]:
     """A fresh pytest run of one test that would use the database, with this setting."""
     env = {**os.environ, "TEST_DATABASE_URL": test_database_url}
     return subprocess.run(
-        [sys.executable, "-m", "pytest", "tests/test_health.py", "-q", "-p", "no:cacheprovider"],
+        [sys.executable, "-m", "pytest", target, "-q", "-p", "no:cacheprovider"],
         cwd=BACKEND, env=env, capture_output=True, text=True, timeout=180,
     )  # fmt: skip
 
@@ -102,3 +105,18 @@ def test_a_whole_run_stops_before_any_test(value: str, expected: str) -> None:
     assert result.returncode == EXIT_CODE, output
     assert expected in output
     assert "passed" not in output and "failed" not in output
+
+
+@pytest.mark.db
+def test_a_missing_test_database_stops_the_run(migrated_database: URL) -> None:
+    """The server is up (the fixture would skip otherwise), but this _test database doesn't
+    exist: the run stops with the create command instead of creating it."""
+    missing = migrated_database.set(database="mantle_guard_missing_test")
+    result = run_pytest_with(
+        missing.render_as_string(hide_password=False),
+        "tests/test_migrations.py::test_hnsw_cosine_index_exists",
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == EXIT_CODE, output
+    assert "The test database does not exist" in output
+    assert "CREATE DATABASE mantle_test" in output
