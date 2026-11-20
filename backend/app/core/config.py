@@ -1,5 +1,9 @@
-"""Application settings, loaded from environment variables and backend/.env."""
+"""Application settings, loaded from environment variables and backend/.env.
 
+This is the only module that touches the process environment (rule 5).
+"""
+
+import os
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
@@ -152,3 +156,9 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def prepare_litellm_environment() -> None:
+    """LiteLLM reads LITELLM_LOCAL_MODEL_COST_MAP when it is imported. Set it before that, so it
+    uses the model data bundled with the package and never downloads it at import time."""
+    os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")

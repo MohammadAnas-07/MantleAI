@@ -4,13 +4,12 @@
 """
 
 import logging
-import os
 from collections.abc import AsyncIterator, Mapping
 from functools import cache
 from types import ModuleType
 from typing import Any
 
-from app.core.config import settings
+from app.core.config import prepare_litellm_environment, settings
 from app.modules.llm.backend import (
     ChatMessages,
     EmbedInputType,
@@ -40,8 +39,7 @@ logger = logging.getLogger(__name__)
 
 @cache
 def _litellm() -> ModuleType:
-    # Use the model data bundled with the package; never download it at import time.
-    os.environ.setdefault("LITELLM_LOCAL_MODEL_COST_MAP", "True")
+    prepare_litellm_environment()  # before the import: bundled model data, no download
     import litellm
 
     litellm.suppress_debug_info = True  # no verbose/debug output (security.md #6)
