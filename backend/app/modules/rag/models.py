@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Numeric,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -109,6 +110,9 @@ class Document(UserOwnedEntity):
     # "syntax_error" or "no_grammar" when code was split by lines instead.
     parse_fallback: Mapped[str | None] = mapped_column(String(32))
     embedding_model: Mapped[str | None] = mapped_column(String(200))
+    # secret_scan.RULES_VERSION the content was last checked with. A file checked with older
+    # rules is read and checked again even when its size and mtime didn't change.
+    scan_version: Mapped[int | None] = mapped_column(SmallInteger)
     last_index_run_id: Mapped[uuid.UUID] = mapped_column(fk("index_runs"), index=True)
 
 

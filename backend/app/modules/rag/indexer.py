@@ -56,6 +56,7 @@ from app.modules.llm.service import (
     get_embedding_model_by_id,
 )
 from app.modules.projects.service import get_project
+from app.modules.rag import secret_scan
 from app.modules.rag.chunker import (
     ChunkSettings,
     Segment,
@@ -221,11 +222,14 @@ async def _reusable(
 
 
 def _unchanged(doc: Document | None, entry: FileEntry, model: str) -> bool:
+    """Safe to skip without reading: same size, mtime and model, and checked with the current
+    secret rules (otherwise the content is read and checked again)."""
     return (
         doc is not None
         and doc.status == DocumentStatus.INDEXED
         and doc.content_hash is not None
         and doc.embedding_model == model
+        and doc.scan_version == secret_scan.RULES_VERSION
         and doc.size_bytes == entry.size
         and doc.mtime_ns == entry.mtime_ns
     )
@@ -613,6 +617,7 @@ async def _finish_file(
     doc.language = plan.entry.language
     doc.parse_fallback = plan.fallback
     doc.embedding_model = model.litellm_model
+    doc.scan_version = secret_scan.RULES_VERSION
     doc.last_index_run_id = run.id
     run.files_indexed += 1
 
@@ -641,13 +646,14 @@ async def _apply_cheap_changes(
             delete(Chunk).where(Chunk.user_id == user_id, Chunk.document_id == doc.id)
         )
         doc.status, doc.skip_reason, doc.size_bytes = DocumentStatus.SKIPPED, reason, size
-        doc.content_hash, doc.embedding_model = None, None
+        doc.content_hash, doc.embedding_model, doc.scan_version = None, None, None
         doc.last_index_run_id = run.id
     for doc in plan.deleted:
         await session.delete(doc)
     for f in plan.by_action("touch"):
         assert f.document is not None
         f.document.size_bytes, f.document.mtime_ns = f.entry.size, f.entry.mtime_ns
+        f.document.scan_version = secret_scan.RULES_VERSION  # it was read and checked again
         f.document.last_index_run_id = run.id
     run.files_seen = plan.files_seen
     run.files_skipped = len(plan.skipped)

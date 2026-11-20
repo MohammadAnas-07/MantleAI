@@ -467,6 +467,57 @@ async def test_indexed_file_that_gains_a_secret_loses_its_chunks(
     assert await count_chunks(session, world, document_id=doc.id) == 0
 
 
+async def test_new_secret_rules_rescan_unchanged_files(
+    session: AsyncSession, world: RagWorld, root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file indexed under older rules is read again when the rules change, even though its
+    size and mtime didn't change, and loses its stored text if it now counts as a secret."""
+    from app.modules.rag import scanner, secret_scan
+
+    path = root / "backend" / "app" / "config.py"
+    path.write_text(path.read_text() + "\nTOKEN = 'ey" + "J" + "a" * 20 + ".eyJ" + "b" * 20
+                    + "." + "c" * 20 + "'\n")  # fmt: skip
+    # Older rules: they didn't know this shape.
+    monkeypatch.setattr(scanner, "looks_like_secret", lambda text, name="": False)
+    await index_once(session, world)
+    doc = (await documents(session, world))["backend/app/config.py"]
+    assert doc.status == "indexed" and await count_chunks(session, world, document_id=doc.id) > 0
+
+    monkeypatch.undo()
+    monkeypatch.setattr(secret_scan, "RULES_VERSION", secret_scan.RULES_VERSION + 1)
+    fast_settings(monkeypatch)
+    await index_once(session, world)
+    await session.refresh(doc)
+    assert (doc.status, doc.skip_reason, doc.content_hash) == ("skipped", "possible secret", None)
+    assert await count_chunks(session, world, document_id=doc.id) == 0
+
+
+async def test_unchanged_files_are_not_read_again_under_the_same_rules(
+    session: AsyncSession, world: RagWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.modules.rag import indexer
+
+    await index_once(session, world)
+    reads: list[object] = []
+    real = indexer.read_text
+    monkeypatch.setattr(indexer, "read_text", lambda *a: reads.append(a) or real(*a))
+    await index_once(session, world)
+    assert reads == []
+
+
+async def test_file_that_becomes_sensitive_by_name_loses_its_chunks(
+    session: AsyncSession, world: RagWorld, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await index_once(session, world)
+    doc = (await documents(session, world))["backend/app/config.py"]
+    assert await count_chunks(session, world, document_id=doc.id) > 0
+    monkeypatch.setattr(settings, "index_sensitive_patterns", ["backend/app/config.py"])
+    await index_once(session, world)
+    await session.refresh(doc)
+    assert (doc.status, doc.skip_reason) == ("skipped", "sensitive_name")
+    assert await count_chunks(session, world, document_id=doc.id) == 0
+
+
 async def test_reordered_functions_reuse_every_vector(
     session: AsyncSession, world: RagWorld, root: Path
 ) -> None:
