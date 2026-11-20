@@ -21,8 +21,9 @@ day, so the readability rules below win wherever the two disagree.
 +------------------------------------------------------------------+
 ```
 
-- Left explorer: projects and their conversations. Center workspace: the conversation, or a
-  settings screen. Right AI panel: tabs Memory, Index, Context. Bottom: the activity log.
+- Left explorer: projects, the project's workflow page and its conversations. Center
+  workspace: the conversation, the workflow page (stages, gap finder, agent runs), one memory
+  item, or a settings screen. Right AI panel: tabs Memory, Index, Context. Bottom: the activity log.
 - The left, right and bottom panels can be collapsed (a button in each header, with
   `aria-expanded`) and the side panels resized with a keyboard-reachable handle (arrow keys).
 - Under 768px everything stacks in one column: top bar, workspace, AI panel, explorer, activity.
