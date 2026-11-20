@@ -9,7 +9,8 @@ active-run slot while it does.
 import logging
 import uuid
 
-from sqlalchemy import select
+import anyio
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError
@@ -48,6 +49,29 @@ def trimmed_warning(dropped: int) -> list[dict[str, object]]:
              "message": f"{dropped} memory items did not fit and were left out."}]  # fmt: skip
 
 
+_END_MESSAGES = {
+    "interrupted": "The request stopped before the gap finder finished.",
+    "internal_error": "The gap finder stopped on an internal error.",
+}
+
+
+async def _end_unfinished(session: AsyncSession, run: AgentRun, reason: str) -> None:
+    """Mark a gap finder run that is still running as failed, in a fresh transaction."""
+    # Read before the rollback: it expires `run`, and a lazy load can't run here.
+    user_id, run_id = run.user_id, run.id
+    await session.rollback()
+    await session.execute(
+        update(AgentRun)
+        .where(AgentRun.user_id == user_id, AgentRun.id == run_id,
+               AgentRun.status == RunStatus.RUNNING)
+        .values(status=RunStatus.FAILED, error=reason, error_message=_END_MESSAGES[reason],
+                finished_at=now())
+        .execution_options(synchronize_session=False)
+    )  # fmt: skip
+    await session.commit()
+    logger.warning("gap finder run ended run=%s reason=%s", run_id, reason)
+
+
 async def run_gap_finder(
     session: AsyncSession,
     gateway: Gateway,
@@ -78,6 +102,9 @@ async def run_gap_finder(
         status=RunStatus.RUNNING, model=model, stage_id=stage.definition.id,
         prompt_version=GAP_FINDER_PROMPT, run_input={"force": force}, run_estimate=run_estimate,
     )  # fmt: skip
+    # Committed before the model call, so another request sees the active run at once and gets
+    # 409, instead of waiting on the unique index until this call ends (audit A-008).
+    await session.commit()
     error: AppError | None = None
     try:
         report = await run_step(
@@ -94,6 +121,13 @@ async def run_gap_finder(
         await fail(session, run, exc, model)
         exc.details["run_id"] = str(run.id)
         error = exc
+    except BaseException as exc:
+        # The request died (client gone, server stopping) or a bug: the committed running row
+        # must not stay behind and block the project until a restart.
+        reason = "internal_error" if isinstance(exc, Exception) else "interrupted"
+        with anyio.CancelScope(shield=True):
+            await _end_unfinished(session, run, reason)
+        raise
     await session.flush()
     logger.info("gap finder run=%s status=%s warnings=%d", run.id, run.status.value,
                 len(run.warnings))  # fmt: skip

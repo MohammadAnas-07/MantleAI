@@ -18,7 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from app.api.deps import get_current_user_id, get_db, get_session_factory
 from app.core.models import User
 from app.main import app
+from app.modules.llm.fake import FakeProvider
+from app.modules.llm.gateway import Gateway
 from app.modules.llm.models import ModelConfig
+from app.modules.llm.repository import ProviderCredentialRepository
+from app.modules.llm.service import get_gateway
 from app.modules.projects.repository import ProjectRepository
 from app.modules.workflow.models import AgentRun, RunStatus, RunType
 from tests.agent_helpers import plan, review
@@ -60,8 +64,10 @@ class Committed:
             return found
 
     @asynccontextmanager
-    async def client(self) -> AsyncIterator[httpx.AsyncClient]:
-        """An API client where every request gets its own connection."""
+    async def client(self, gateway: Gateway | None = None) -> AsyncIterator[httpx.AsyncClient]:
+        """An API client where every request gets its own connection. Model calls go to
+        `gateway` (a fake provider by default), never to a real one."""
+        fake = gateway or Gateway(FakeProvider())
 
         async def own_session() -> AsyncIterator[AsyncSession]:
             async with self.session() as s:
@@ -70,6 +76,7 @@ class Committed:
         app.dependency_overrides[get_db] = own_session
         app.dependency_overrides[get_session_factory] = self.factory
         app.dependency_overrides[get_current_user_id] = lambda: self.user_id
+        app.dependency_overrides[get_gateway] = lambda: fake
         try:
             transport = httpx.ASGITransport(app=app)
             async with httpx.AsyncClient(transport=transport, base_url="http://localhost") as c:
@@ -92,6 +99,9 @@ async def committed_world(engine: AsyncEngine, **model: Any) -> AsyncIterator[Co
         s.add(row)
         await s.flush()
         project = await ProjectRepository(s, user.id).add(name="Committed")
+        await ProviderCredentialRepository(s, user.id).add_key(
+            provider="openai", api_key="sk-test-committed-0000"
+        )
         await s.commit()
         world = Committed(engine, user.id, project.id, row.id)
     try:
