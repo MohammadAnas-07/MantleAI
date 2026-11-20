@@ -351,6 +351,31 @@ async def test_cost_guard_with_and_without_force(
     assert (await get(client, r.json()["id"]))["status"] == "waiting_for_approval"
 
 
+async def test_estimate_matches_the_start_and_creates_nothing(
+    client: httpx.AsyncClient, session: AsyncSession, world: AgentWorld,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    payload = {"run_type": "plan", "model_id": str(world.model_id),
+               "requirement_id": str(world.memory["req_login"])}  # fmt: skip
+    r = await client.post(f"{runs_url(world)}/estimate", json=payload)
+    assert r.status_code == 200, r.text
+    found = r.json()
+    assert found["steps"] == 2 and found["input_tokens"] > 0 and found["over_limit"] is False
+    assert world.fake.calls == []
+    assert (await client.get(runs_url(world))).json()["items"] == []
+
+    monkeypatch.setattr(settings, "agent_run_cost_limit_usd", Decimal("0.0001"))
+    over = (await client.post(f"{runs_url(world)}/estimate", json=payload)).json()
+    assert over["over_limit"] is True and Decimal(over["cost_limit_usd"]) == Decimal("0.0001")
+    started = await start(client, world)
+    assert started.status_code == 409
+    assert started.json()["error"]["details"]["estimate"]["input_tokens"] == over["input_tokens"]
+
+    # The same request checks as a start: an unknown requirement is a 404.
+    missing = {**payload, "requirement_id": str(uuid.uuid4())}
+    assert (await client.post(f"{runs_url(world)}/estimate", json=missing)).status_code == 404
+
+
 async def test_cyclic_plan_is_retried_then_fails(
     client: httpx.AsyncClient, world: AgentWorld
 ) -> None:

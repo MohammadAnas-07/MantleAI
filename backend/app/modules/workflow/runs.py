@@ -19,6 +19,7 @@ saved to memory here: that needs the user's approval (approval.py).
 
 import logging
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import select, update
@@ -143,7 +144,19 @@ def reviewer_prompt(inputs: AgentInputs, plan: Plan | None) -> ChatMessages:
 # ---- start ---------------------------------------------------------------------------------
 
 
-async def start_run(
+@dataclass
+class PreparedRun:
+    """What a start needs after the checks: the model, the stage, the stored input and the
+    estimate."""
+
+    model: ModelInfo
+    stage: StageView
+    run_input: dict[str, Any]
+    prompt_version: str
+    estimate: dict[str, Any]
+
+
+async def prepare_run(
     session: AsyncSession,
     gateway: Gateway,
     user_id: uuid.UUID,
@@ -155,12 +168,12 @@ async def start_run(
     requirement_text: str | None = None,
     use_code_context: bool = False,
     force: bool = False,
-) -> AgentRun:
-    """Check everything and create a queued run; the caller commits and starts the job.
+) -> PreparedRun:
+    """Every check a start makes except the cost guard and the one-active-run rule, and the
+    estimate. No model call (prompts are only counted).
 
     404 for another user's project or an unknown requirement; 422 without a key; 413 when the
-    prompt doesn't fit (with suggested models); 409 when a run is active or the estimate is over
-    AGENT_RUN_COST_LIMIT_USD without force. No model call happens here.
+    prompt doesn't fit (with suggested models).
     """
     await get_project(session, user_id, project_id)
     model = await chat_model_with_key(session, user_id, model_id)
@@ -183,12 +196,39 @@ async def start_run(
         first = await check_fits(session, gateway, user_id, model, reviewer_prompt(inputs, None))
         steps = [first + code_tokens]
         prompt_version = REVIEWER_PROMPT
-    run_estimate = estimate(model, steps)
-    check_cost(run_estimate, force)
+    return PreparedRun(model, stage, run_input, prompt_version, estimate(model, steps))
+
+
+async def start_run(
+    session: AsyncSession,
+    gateway: Gateway,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    *,
+    run_type: RunType,
+    model_id: uuid.UUID,
+    requirement_id: uuid.UUID | None = None,
+    requirement_text: str | None = None,
+    use_code_context: bool = False,
+    force: bool = False,
+) -> AgentRun:
+    """Check everything and create a queued run; the caller commits and starts the job.
+
+    Raises what `prepare_run` raises, and 409 when a run is active or the estimate is over
+    AGENT_RUN_COST_LIMIT_USD without force (422 model_not_priced without prices). No model
+    call happens here.
+    """
+    prepared = await prepare_run(
+        session, gateway, user_id, project_id, run_type=run_type, model_id=model_id,
+        requirement_id=requirement_id, requirement_text=requirement_text,
+        use_code_context=use_code_context, force=force,
+    )  # fmt: skip
+    check_cost(prepared.estimate, force)
     run = await create_run(
         session, user_id=user_id, project_id=project_id, run_type=run_type,
-        status=RunStatus.QUEUED, model=model, stage_id=stage.definition.id,
-        prompt_version=prompt_version, run_input=run_input, run_estimate=run_estimate,
+        status=RunStatus.QUEUED, model=prepared.model, stage_id=prepared.stage.definition.id,
+        prompt_version=prepared.prompt_version, run_input=prepared.run_input,
+        run_estimate=prepared.estimate,
     )  # fmt: skip
     logger.info("agent run queued run=%s type=%s project=%s", run.id, run_type.value, project_id)
     return run

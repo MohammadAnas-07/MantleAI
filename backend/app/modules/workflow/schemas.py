@@ -160,6 +160,19 @@ class AgentRunIn(BaseModel):
         return self
 
 
+class AgentRunEstimateOut(BaseModel):
+    """What a start would cost, before anything is created. `cost_usd` is null for a model
+    without catalog prices; `over_limit` says a start needs force."""
+
+    steps: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: Decimal | None
+    cost_limit_usd: Decimal
+    model: str
+    over_limit: bool
+
+
 class AgentRunStepOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
