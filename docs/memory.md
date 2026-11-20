@@ -10,61 +10,59 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-On `main`: Phases 1-3, the first UI (Phase 5) and the daily quota fix. On
-`feat/workflow-and-agents` (not merged yet): the workflow backend (5 stages from YAML, gates,
-events), the gap finder, Planner + Reviewer runs, and approval of drafts into memory, plus 5
-review fixes (run lock, conditional cancel, attribute escaping, unpriced models, limit checks).
-Pushed (fixes not yet); no UI. Tests: 561 backend (workflow 99% covered), 49 frontend.
-Dev database `mantle` at `0007`; the branch adds `0008` (`alembic upgrade head`).
-Not built: workflow and teaching screens, teaching notes, project profile,
-`GET /messages/{id}/context`. Not run with a real model: the click eval, `scripts/agent_demo.py`.
-Branches: 2 local (`main`, `feat/workflow-and-agents`); remote branches untouched.
-To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
-`uvicorn app.main:app --reload`; `frontend`: `npm run dev` (http://127.0.0.1:5173).
+**Summary (2026-11-20).** Mantle today: projects, keys, chat with streaming, model switching
+with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
+Planner and Reviewer (backend merged). `feat/workflow-ui` (not pushed) adds the workflow page:
+stages, checklist, gates, approve/skip/reopen/force with reasons, history, reset; gap finder;
+agent runs with an estimate, confirm, cost guard, live status, cancel and the approval view;
+agent badges and accept/reject on proposed decisions; "agent run" in activity and usage. Not
+built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
+with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
+Next: the developer reviews and pushes the branch, then one real plan run with Gemini.
+Branches: 2 local (`main`, `feat/workflow-ui`), 26 remote (untouched).
+
+Tests: 562 backend (the DB tests were not run on this branch: Docker was down), 96 frontend.
+Migration head `0008` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
+`.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-19 (workflow review fixes).
+First demo target: 2026-12-17. Last updated 2026-11-20 (workflow UI).
 
 ## Done
 
-- 2026-11-17/18: scaffold, Docker Postgres 5433, docs, `requirements.lock`, tables (`0001`),
-  Fernet, seed; LLM gateway, model switching, context builder, rolling summary, project memory
-  (`0004`). Switch demo 5/5 twice on Gemini 3.8 Flash -> 3.5 Flash Lite.
-- 2026-11-18: `feat/project-indexing-rag` (merged): `0005`, `0006`; rag `scanner`, `secret_scan`,
-  `chunker` (tree-sitter), `indexer` (incremental, vector reuse, batches, backoff, cancel, resume,
-  recovery), `search` (RRF k=60); retrieved context; SSE `warning`; `scripts/eval_retrieval.py`;
-  ADRs 0006, 0007. `fix/crlf-fixture-test`: identical-file test is line-ending independent.
-- 2026-11-18: `feat/frontend-workspace` (merged): `docs/design-app.md`; frontend (settings,
-  projects, index, memory, chat with SSE streaming, context preview, switching, activity log);
-  backend CORS + Host check, project PATCH/DELETE, operation ids, `/usage/records`,
-  `scripts/export_openapi.py`; frontend rules in `CLAUDE.md` and `rules.md` (77-84).
-- 2026-11-19: `fix/index-daily-quota-message` (merged): `quota_exhausted` never retried, run
-  `daily_quota_exhausted`, Retry-After, total wait cap, `usage_records.error_detail` (`0007`).
+- 2026-11-17/18: scaffold, Docker Postgres 5433, docs, tables, Fernet, seed; LLM gateway, model
+  switching, context builder, rolling summary, project memory. Switch demo 5/5 twice on Gemini.
+- 2026-11-18: indexing and RAG (hybrid search, RRF k=60, ADRs 0006, 0007); the first frontend
+  (`docs/design-app.md`, settings, projects, index, memory, chat, context, activity).
+- 2026-11-19: daily quota fix (`0007`); `feat/workflow-and-agents` merged: `0008`, stages YAML,
+  gates, events, gap finder, Planner + Reviewer as a plain state machine, approval of drafts,
+  and 5 review fixes (run lock, conditional cancel, attribute escaping, unpriced models, limit
+  checks); rules 85-90.
 
 ## In progress
 
-- `feat/workflow-and-agents`: `0008` (`project_workflows`, `workflow_events`, `agent_runs`,
-  `agent_run_steps`); `workflow/stages.yaml`, `state.py`, `gap_finder.py`, `runs.py` (plain state
-  machine), `approval.py`, prompts `*_v1.txt`; `app/core/prompt_data.py`; `suggest_models` moved
-  to llm; purpose `agent_run`; rules 85-90. Review fixes: decide locks the run; job and cancel use
-  conditional updates; `defang_attr`; 422 `model_not_priced` unless `AGENT_ALLOW_UNPRICED_MODELS`;
-  422 `draft_limits_changed`. Next: push the fixes, open the PR; demo after the merge.
-- Click eval (`eval_retrieval.py --project-path --questions --estimate-only`, 25 questions): run 1
-  stopped at 926/1,429 segments (Gemini daily limit); resume.
+- `feat/workflow-ui` (committed, not pushed): `/projects/:id/workflow` (`features/workflow`,
+  `features/agents`), `/projects/:id/memory/:itemId`, `ReasonDialog`, `QueryError`,
+  `Dialog` focuses `[data-autofocus]`. Backend: memory items show `source_agent_run_id` and
+  `stage_key`; `POST /projects/{id}/agent-runs/estimate` (same checks as a start, no run).
+  Next: run the DB tests with Docker up, push, open the PR, one real plan run.
+- Click eval (`eval_retrieval.py`, 25 questions): run 1 stopped at 926/1,429 segments
+  (Gemini daily limit); resume.
 
 ## Next
 
 The developer decides (full decision text: `docs/architecture.md`). Candidates:
-1. Run the click eval (clone command in the YAML header; ~348k tokens, ~$0.05 with Gemini), then
-   the Phase 3 demo (index the Mantle repo, ask, switch models, ask again).
-2. `GET /messages/{id}/context` (rows exist), then the Phase 2 demo script.
-3. Run `scripts/agent_demo.py` with Gemini; then the workflow screen (frontend branch).
+1. A real plan run in the UI with Gemini (checklist in the PR), then the Phase 4 demo.
+2. Run the click eval, then the Phase 3 demo (index the Mantle repo, ask, switch, ask again).
+3. `GET /messages/{id}/context`, then the Phase 2 demo script.
 4. `feat/project-profile` (before `feat/teaching-layer`).
-5. Not built: message cancel, project description/archive, typed models for `dict` responses.
+5. Not built: message cancel, project description/archive, typed models for `dict` responses
+   (agent run `result`, `estimate`, `warnings`), `POST /memory/{id}/approve|reject`.
 
 ## Known cleanup
 
 - Run list endpoints load steps with one query per run (N+1); transitions load memory twice.
 - `list_gap_runs` and `runs.list_runs` duplicate one query; `memory_trimmed` has two shapes.
+- Workflow GET returns every event (no paging); the UI shows the latest 20 and a "show all".
 
 ## Decisions
 
@@ -91,6 +89,7 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 | 2026-11-19 | Used-up quota = per-day quota id or requested wait > 10 min; anything else stays `rate_limited`; `error_detail` keeps only sanitized structured fields | No guessing; provider text can echo prompts | rule 51 |
 | 2026-11-19 | No LangGraph: Planner -> Reviewer -> user approval as a plain state machine in PostgreSQL; no revision loop; reopen replaces request-changes; gap finder is an analysis call, not a third agent; purpose `agent_run` | User's choice; two fixed steps | 0004 |
 | 2026-11-19 | Workflow GET writes nothing (state stored on first change); approve/skip take `stage_id`; drafts saved only on approval, tasks `todo`, decisions `proposed` | Rule 28; one of two racing approvals must lose | `api-outline.md` |
+| 2026-11-20 | Workflow UI is its own page in the workspace; the estimate comes from `POST .../agent-runs/estimate` before a confirm; proposed decisions are accepted through `PATCH /memory/{id}` (status) | The AI panel is too narrow for the approval list; no start without a real number | `api-outline.md` |
 | 2026-11-18 | Allowed hosts localhost/127.0.0.1 any port (400 `invalid_host`); CORS only the dev origins; project default model lives in project settings | DNS rebinding; user's choice | `security.md` |
 
 ## Known issues and gotchas
@@ -124,6 +123,8 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
   the real dev DB. Switch `get_current_user_id` instead. Concurrency tests commit to `mantle_test`
   and clean up. `defang` turns `</source>` into `&lt;/source>` (the `>` stays).
 - **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`**. Backend tests use `http://localhost`.
+- **Testing Library role queries are slow on a long plan**: wait for a text first, then
+  `getByRole`. Hidden "sr-only" prefixes lose their space in jsdom names: use `aria-label`.
 - **What FakeProvider tests can't prove:** real summary, plan and review quality, real token
   counts and streaming, retrieval quality (fake embeddings are bag-of-words). Only the scripts
   (`switch_demo.py`, `eval_retrieval.py`, `agent_demo.py`) with real keys do.
