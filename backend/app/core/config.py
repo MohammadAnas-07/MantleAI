@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # A rate limit is "quota exhausted" (never retried) when the provider asks for a wait
     # longer than this, or names a per-day quota. Shorter waits are ordinary rate limits.
     llm_quota_exhausted_min_wait_seconds: float = Field(default=600.0, ge=0)
+    # Every provider call (chat, embeddings, key test) gives up after this many seconds of
+    # silence: the HTTP timeout, so for a stream it is the wait between two parts, not the
+    # whole reply. A stall then ends as provider_unavailable instead of hanging.
+    llm_timeout_seconds: float = Field(default=120.0, gt=0)
 
     # ---- project indexing (rag) ----
     # Used when the user has not picked an embedding model in their settings.

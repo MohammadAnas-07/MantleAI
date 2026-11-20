@@ -188,7 +188,10 @@ class LiteLLMBackend:
         self, model: str, messages: ChatMessages, *, api_key: str, max_tokens: int | None
     ) -> AsyncIterator[StreamItem]:
         litellm = _litellm()
-        kwargs: dict[str, Any] = {"stream_options": {"include_usage": True}}
+        kwargs: dict[str, Any] = {
+            "stream_options": {"include_usage": True},
+            "timeout": settings.llm_timeout_seconds,
+        }
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
         try:
@@ -219,7 +222,9 @@ class LiteLLMBackend:
         input_type: EmbedInputType | None = None,
     ) -> EmbedResult:
         litellm = _litellm()
-        kwargs = embed_kwargs(model, dimensions, input_type)
+        kwargs = embed_kwargs(model, dimensions, input_type) | {
+            "timeout": settings.llm_timeout_seconds
+        }
         try:
             response = await litellm.aembedding(model=model, input=texts, api_key=api_key, **kwargs)
         except Exception as exc:
