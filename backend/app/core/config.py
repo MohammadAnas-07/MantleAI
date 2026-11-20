@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "INFO"
     database_url: str = "postgresql+asyncpg://mantle:mantle@127.0.0.1:5433/mantle"
+    # Read only by the test suite (tests/db_guard.py). No default on purpose: without it the
+    # tests stop instead of guessing a database.
+    test_database_url: str | None = None
     # Fernet key that encrypts provider API keys. Required; the app refuses to start without it.
     master_encryption_key: str = ""
     # Dimension of the pgvector `chunks.embedding` column. Changing it needs a new Alembic

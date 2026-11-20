@@ -163,8 +163,17 @@ pytest
 ruff check .
 ```
 
-Database tests use a separate database, `mantle_test`, which they create if it's missing; they
-never touch `mantle`. If PostgreSQL is down, those tests are skipped and the rest still pass.
+The tests use only the database in `TEST_DATABASE_URL` (in `backend/.env`, see `.env.example`),
+and its name must end in `_test`. If the setting is missing or names another database (such as
+`mantle`), pytest stops at once with exit code 4 and the fix, before anything connects. The tests
+never create a database. Create it once, with Docker running:
+
+```powershell
+docker exec mantleai-db-1 psql -U mantle -d postgres -c "CREATE DATABASE mantle_test OWNER mantle;"
+```
+
+pytest prints `test database: ...` in its header, so you can see which one it uses. If
+PostgreSQL is down, database tests are skipped and the rest still pass.
 `ruff format .` reformats the code.
 
 ## The web app (frontend)

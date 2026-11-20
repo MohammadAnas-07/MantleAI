@@ -1,16 +1,27 @@
 """Checks on the app as it really starts, in a fresh interpreter (the test process itself has
 already imported every model, which would hide a missing import)."""
 
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+from app.core.config import settings
 
 BACKEND = Path(__file__).resolve().parents[1]
 
 
 def run(code: str) -> str:
+    # The child reads backend/.env too: give it the test database (conftest already swapped
+    # it in), so its engine can never point at the dev database.
+    env = {**os.environ, "DATABASE_URL": settings.database_url}
     result = subprocess.run(
-        [sys.executable, "-c", code], cwd=BACKEND, capture_output=True, text=True, timeout=120
+        [sys.executable, "-c", code],
+        cwd=BACKEND,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
     assert result.returncode == 0, result.stderr
     return result.stdout.strip()

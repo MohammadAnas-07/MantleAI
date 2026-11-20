@@ -2,18 +2,18 @@
 
 import pytest
 from sqlalchemy import URL, text
-from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.db.models import Base
 from tests.conftest import alembic_run
+from tests.db_guard import guarded_engine
 
 pytestmark = pytest.mark.db
 
 
 async def public_tables(url: URL) -> set[str]:
-    engine = create_async_engine(url, poolclass=NullPool)
+    engine = guarded_engine(url, poolclass=NullPool)
     try:
         async with engine.connect() as conn:
             rows = await conn.execute(
@@ -25,7 +25,7 @@ async def public_tables(url: URL) -> set[str]:
 
 
 async def scalar(url: URL, sql: str) -> object:
-    engine = create_async_engine(url, poolclass=NullPool)
+    engine = guarded_engine(url, poolclass=NullPool)
     try:
         async with engine.connect() as conn:
             return await conn.scalar(text(sql))
@@ -35,7 +35,7 @@ async def scalar(url: URL, sql: str) -> object:
 
 async def execute(url: URL, *statements: str) -> list[tuple[object, ...]]:
     """Run statements in one committed transaction; return the rows of the last one."""
-    engine = create_async_engine(url, poolclass=NullPool)
+    engine = guarded_engine(url, poolclass=NullPool)
     try:
         async with engine.begin() as conn:
             result = None
