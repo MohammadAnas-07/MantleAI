@@ -941,7 +941,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Health
+         * @description API status, `database` up or down, and `keys`: none, ok, unreadable (the master key
+         *     can't decrypt a saved provider key) or unknown. Answers within about 2 s; never raises.
+         */
         get: operations["health"];
         put?: never;
         post?: never;
@@ -1299,6 +1303,11 @@ export interface components {
             last_tested_at: string | null;
             /** Provider */
             provider: string;
+            /**
+             * Readable
+             * @default true
+             */
+            readable: boolean;
         };
         /**
          * CredentialTestIn
