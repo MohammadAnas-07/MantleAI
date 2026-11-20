@@ -324,7 +324,7 @@ def read_text(path: Path, max_bytes: int) -> ReadResult:
         return skip(SkipReason.EMPTY)
     if any(len(line) > MAX_LINE_CHARS for line in text.split("\n")):
         return skip(SkipReason.LONG_LINES)
-    if looks_like_secret(text):
+    if looks_like_secret(text, path.name):
         return skip(SkipReason.POSSIBLE_SECRET)
     return ReadResult(text, None, after.st_size, after.st_mtime_ns)
 
