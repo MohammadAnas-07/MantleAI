@@ -12,20 +12,21 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 **Summary (2026-11-20).** Mantle today: projects, keys, chat with streaming, model switching
 with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
-Planner and Reviewer (backend merged). `feat/workflow-ui` (pushed, PR opened) adds the workflow page:
-stages, checklist, gates, approve/skip/reopen/force with reasons, history, reset; gap finder;
-agent runs with an estimate, confirm, cost guard, live status, cancel and the approval view;
-agent badges and accept/reject on proposed decisions; "agent run" in activity and usage. Not
+Planner and Reviewer, and the workflow page (stages, gap finder, agent runs, approval; merged).
+An audit (2026-11-20, report outside the repo, A-001..A-022) found 2 Critical, 3 High issues.
+`fix/test-database-guard` (not pushed) fixes A-001: tests use only `TEST_DATABASE_URL` (name
+ends in `_test`) and stop with exit 4 otherwise. Next fix branches: secret detection,
+untrusted output and prompts, error handling and logs, run concurrency, docs catch-up. Not
 built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
 with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
-Next: one real plan run with Gemini in the UI (checklist in the PR description).
-Branches: 2 local (`main`, `feat/workflow-ui`), 26 remote (untouched).
+Next: the developer adds `TEST_DATABASE_URL` to `backend/.env`; then `fix/index-secret-detection`.
+Branches: 2 local (`main`, `fix/test-database-guard`), 27 remote (untouched).
 
-Tests: 562 backend and 96 frontend pass; estimate checked on the running API (Gemini, $0.015).
+Tests: 579 backend (97% coverage) and 96 frontend pass. pytest needs `TEST_DATABASE_URL`.
 Migration head `0008` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-20 (workflow UI).
+First demo target: 2026-12-17. Last updated 2026-11-20 (test database guard).
 
 ## Done
 
@@ -40,11 +41,9 @@ First demo target: 2026-12-17. Last updated 2026-11-20 (workflow UI).
 
 ## In progress
 
-- `feat/workflow-ui` (pushed, PR opened 2026-11-20): `/projects/:id/workflow` (`features/workflow`,
-  `features/agents`), `/projects/:id/memory/:itemId`, `ReasonDialog`, `QueryError`,
-  `Dialog` focuses `[data-autofocus]`. Backend: memory items show `source_agent_run_id` and
-  `stage_key`; `POST /projects/{id}/agent-runs/estimate` (same checks as a start, no run).
-  Next: one real plan run in the browser.
+- `fix/test-database-guard`: `tests/db_guard.py` (check, `guarded_engine`), `pytest_configure`
+  swaps the app's `DATABASE_URL` for the test URL; no auto-create of the test database.
+- Workflow UI (merged 2026-11-20): next is one real plan run in the browser.
 - Click eval (`eval_retrieval.py`, 25 questions): run 1 stopped at 926/1,429 segments
   (Gemini daily limit); resume.
 
@@ -119,8 +118,9 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 - **Python heredocs in Git Bash turn `\n` in code into real newlines** (three times): use the Edit tool.
 - **Several uvicorns can listen on 8000; the oldest answers** (`netstat -ano | findstr :8000`).
   An unhandled 500 has no CORS headers, so the browser shows "Can't reach the API".
-- **Leaving a nested `api_client` clears ALL dependency overrides**: the outer client then hits
-  the real dev DB. Switch `get_current_user_id` instead. Concurrency tests commit to `mantle_test`
+- **Leaving a nested `api_client` clears ALL dependency overrides**: the outer client then uses
+  the app's own session (now the test DB, since the guard). Switch `get_current_user_id` instead.
+  Concurrency tests commit to `mantle_test`
   and clean up. `defang` turns `</source>` into `&lt;/source>` (the `>` stays).
 - **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`**. Backend tests use `http://localhost`.
 - **Testing Library role queries are slow on a long plan**: wait for a text first, then
@@ -133,7 +133,7 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 
 - Windows 11, PowerShell 5.1 (Git Bash also available). Python 3.14; venv `backend\.venv`. Code must work on 3.12+.
 - Docker container `mantleai-db-1`, image `pgvector/pgvector:pg16` (pgvector 0.8.7), volume `pgdata`.
-- `DATABASE_URL=postgresql+asyncpg://mantle:mantle@127.0.0.1:5433/mantle` (local dev only); tests use `mantle_test`.
+- `DATABASE_URL=...5433/mantle` (dev only); tests use `TEST_DATABASE_URL=...5433/mantle_test`.
 - API: `uvicorn app.main:app --reload` from `backend` → `http://127.0.0.1:8000` (`/health`, `/docs`).
 - Frontend: Node 24.18 / npm 11.16; `npm run dev` from `frontend` → `http://127.0.0.1:5173`.
 - GitHub remote: `origin` → `MohammadAnas-07/MantleAI`, default branch `main`.
