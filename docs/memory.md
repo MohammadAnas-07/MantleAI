@@ -14,20 +14,21 @@ Working memory for any AI tool and for the developer. Read it before every task.
 with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
 Planner and Reviewer, and the workflow page (stages, gap finder, agent runs, approval; merged).
 An audit (2026-11-20, report outside the repo, A-001..A-022) found 2 Critical, 3 High issues.
-A-001 is merged (tests use only `TEST_DATABASE_URL`, name ends in `_test`, else exit 4).
-`fix/index-secret-detection` (not pushed) fixes A-002/A-011: wider secret rules, re-check on a
-rules change (`0009`). Next: untrusted output and prompts, errors and logs, concurrency, docs. Not
+Merged: A-001 (tests use only `TEST_DATABASE_URL`), A-002/A-011 (wider secret rules, `0009`).
+`fix/untrusted-output-and-prompts` (not pushed) fixes A-003/A-007: no images or unsafe links
+from model output, a CSP in the build, defanged summary prompt. Next: errors and logs (A-004,
+A-005), run concurrency, docs catch-up. Not
 built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
 with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
-Next: the developer adds `TEST_DATABASE_URL` to `backend/.env` and re-indexes every project
-(old segments may hold secrets); then `fix/untrusted-output-and-prompts`.
-Branches: 2 local (`main`, `fix/index-secret-detection`), 28 remote (untouched).
+Next: the developer adds `TEST_DATABASE_URL` to `backend/.env`, runs `alembic upgrade head`
+and re-indexes every project; then `fix/error-handling-and-logs`.
+Branches: 2 local (`main`, `fix/untrusted-output-and-prompts`), 29 remote (untouched).
 
-Tests: 718 backend and 96 frontend pass. pytest needs `TEST_DATABASE_URL`.
+Tests: 722 backend and 112 frontend pass. pytest needs `TEST_DATABASE_URL`.
 Migration head `0009` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-20 (secret detection).
+First demo target: 2026-12-17. Last updated 2026-11-20 (untrusted output).
 
 ## Done
 
@@ -40,10 +41,9 @@ First demo target: 2026-12-17. Last updated 2026-11-20 (secret detection).
 
 ## In progress
 
-- `fix/index-secret-detection`: `rag/secret_scan.py` (formats, DB URLs, assignments, names,
-  `RULES_VERSION`), `documents.scan_version` (`0009`), skip report counts secrets without paths.
-  On this repo it skips 13 test files with fake keys and `docker-compose.yml` of 320.
-- Workflow UI (merged 2026-11-20): next is one real plan run in the browser.
+- `fix/untrusted-output-and-prompts`: `lib/safeUrl.ts`, `Markdown.tsx` (SafeLink, BlockedImage),
+  `lib/csp.ts` + build plugin in `vite.config.ts` (dev has no CSP), lint bans
+  `dangerouslySetInnerHTML`; `summary.py`, `system_text` and `pinned.py` use `core.prompt_data`.
 - Click eval (`eval_retrieval.py`, 25 questions): run 1 stopped at 926/1,429 segments
   (Gemini daily limit); resume.
 

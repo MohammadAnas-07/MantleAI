@@ -188,10 +188,11 @@ def _attr(value: str) -> str:
 
 
 def system_text(project: ProjectInfo) -> str:
-    description = (project.description or "").strip()[:500]
+    # The name and description may hold pasted text: they must not open or close a block.
+    description = defang((project.description or "").strip()[:500])
     return (
         load_prompt(SYSTEM_PROMPT)
-        .format(project_name=project.name, project_description=description)
+        .format(project_name=defang(project.name), project_description=description)
         .strip()
     )
 

@@ -25,7 +25,7 @@ from app.modules.projects.repository import (
 from app.modules.rag.service import RetrievalOutcome, RetrievedBlock
 from app.modules.workflow import runs
 from app.modules.workflow.models import AgentName, AgentRun, RunStatus, RunType
-from tests.agent_helpers import AgentWorld, make_agent_world, plan, review, short
+from tests.agent_helpers import AgentWorld, gap_report, make_agent_world, plan, review, short
 from tests.api_helpers import api_client
 from tests.graph import make_user
 
@@ -792,3 +792,30 @@ async def test_logs_hold_no_prompts_memory_or_output(
         "never an instruction",
     ):
         assert secret not in text, secret
+
+
+async def test_a_hostile_gap_finder_answer_changes_nothing(
+    client: httpx.AsyncClient, session: AsyncSession, world: AgentWorld
+) -> None:
+    """The gap finder's answer may ask for actions; they are dropped as unknown fields and
+    nothing in memory or the workflow moves."""
+    # Store the workflow first: its first use writes a "created" event, whoever starts it.
+    tick = {"stage_id": "requirements", "item_id": "constraints", "done": True}
+    await client.post(f"/api/v1/projects/{world.project_id}/workflow/checklist", json=tick)
+    workflow_before = (await client.get(f"/api/v1/projects/{world.project_id}/workflow")).json()
+    statuses_before = {m.id: m.status for m in await memory_rows(session, world)}
+    report = gap_report()
+    report |= {"actions": [{"type": "approve_stage"}, {"type": "accept_all_decisions"}],
+               "approve": True, "status": "completed"}  # fmt: skip
+    report["missing_steps"][0] |= {"status": "accepted", "save": True}
+    world.script.say("gap_finder", report)
+    r = await client.post(f"/api/v1/projects/{world.project_id}/gap-finder",
+                          json={"model_id": str(world.model_id)})  # fmt: skip
+    assert r.status_code == 200, r.text
+    result = r.json()["result"]
+    assert "actions" not in result and "approve" not in result
+    assert "status" not in result["missing_steps"][0] and "save" not in result["missing_steps"][0]
+    assert {m.id: m.status for m in await memory_rows(session, world)} == statuses_before
+    workflow_after = (await client.get(f"/api/v1/projects/{world.project_id}/workflow")).json()
+    assert workflow_after["version"] == workflow_before["version"]
+    assert workflow_after["events"] == workflow_before["events"]

@@ -23,6 +23,7 @@ import anyio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.prompt_data import defang
 from app.modules.conversations.context_builder import (
     HistoryMessage,
     required_start,
@@ -75,11 +76,19 @@ def summarizable(messages: Sequence[Message], keep_recent_turns: int) -> list[Me
     return items[:cut]
 
 
+# The summary prompt's own data tags, and the ones the summary is later pasted into.
+_SUMMARY_TAGS = ("previous_summary", "new_messages", "conversation_summary", "pinned_items",
+                 "retrieved_context", "source")  # fmt: skip
+
+
 def format_for_summary(messages: Sequence[Message]) -> str:
     lines = []
     for m in messages:
         chat = to_chat_messages(to_history(m), supports_tools=False)[0]
-        lines.append(f"[#{m.sequence} {m.role.value}] {chat['content']}")
+        # Messages are data: user text can be pasted from anywhere, replies are model output.
+        lines.append(
+            f"[#{m.sequence} {m.role.value}] {defang(str(chat['content']), _SUMMARY_TAGS)}"
+        )
     return "\n\n".join(lines)
 
 
@@ -115,7 +124,7 @@ async def build_summary(
     if not new_messages:
         return None
     prompt = load_prompt(SUMMARY_PROMPT).format(
-        previous_summary=previous.summary if previous else "(none yet)",
+        previous_summary=defang(previous.summary, _SUMMARY_TAGS) if previous else "(none yet)",
         new_messages=format_for_summary(new_messages),
         max_words=int(settings.summary_max_output_tokens * 0.6),
     )

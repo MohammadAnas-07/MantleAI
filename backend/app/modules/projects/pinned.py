@@ -10,13 +10,13 @@ reuse it. Item text is user-authored but may hold pasted content, so anything th
 data delimiters or a chat-template boundary is defanged, and each item is one line.
 """
 
-import re
 import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from app.core.config import settings
+from app.core.prompt_data import defang
 
 TRUNCATED = " [truncated]"
 _OPEN, _CLOSE = "<pinned_items>", "</pinned_items>"
@@ -33,14 +33,8 @@ _PRIORITY_RANK = {
     "task": {"high": 0, "medium": 1, "low": 2, None: 3},
 }
 
-# Our own data tags (open and close) and common chat-template boundaries.
-_MARKERS = re.compile(
-    r"</?\s*(pinned_items|conversation_summary|retrieved_context|source)\b"
-    r"|<\||\|>"
-    r"|\[/?INST\]"
-    r"|<</?SYS>>",
-    re.IGNORECASE,
-)
+# Our own data tags; app.core.prompt_data also covers chat-template boundaries.
+_TAGS = ("pinned_items", "conversation_summary", "retrieved_context", "source", "project_memory")
 
 
 class MemoryRow(Protocol):
@@ -79,12 +73,10 @@ class PinnedSelection:
     tokens: int = 0
 
 
-_DEFANG = str.maketrans({"<": "‹", ">": "›", "[": "(", "]": ")"})
-
-
 def neutralize(text: str) -> str:
-    """Defang delimiters and chat-template markers; ordinary `<` and `>` stay as they are."""
-    return _MARKERS.sub(lambda m: m.group(0).translate(_DEFANG), text)
+    """Defang delimiters and chat-template markers with the shared helper; ordinary `<` and
+    `>` stay as they are."""
+    return defang(text, _TAGS)
 
 
 def _one_line(text: str) -> str:
