@@ -5,7 +5,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "../lib/api/endpoints";
-import type { IndexRun, Message, MemoryKind } from "../lib/api/types";
+import type { AgentRun, IndexRun, Message, MemoryKind } from "../lib/api/types";
 
 export const keys = {
   health: ["health"] as const,
@@ -25,6 +25,13 @@ export const keys = {
   conversation: (id: string) => ["conversation", id] as const,
   messages: (id: string) => ["messages", id] as const,
   preview: (id: string, modelId: string) => ["preview", id, modelId] as const,
+  memoryItem: (id: string) => ["memory-item", id] as const,
+  workflow: (projectId: string) => ["workflow", projectId] as const,
+  gapRuns: (projectId: string) => ["gap-runs", projectId] as const,
+  agentRuns: (projectId: string) => ["agent-runs", projectId] as const,
+  // The project is part of the key, so a poll that answers after a project switch lands in
+  // the old project's cache entry and never in the new one's.
+  agentRun: (projectId: string, runId: string) => ["agent-run", projectId, runId] as const,
 };
 
 export const useHealth = () =>
@@ -128,4 +135,44 @@ export const useHandoffPreview = (id: string, modelId: string | null) =>
     queryKey: keys.preview(id, modelId ?? ""),
     queryFn: ({ signal }) => api.handoffPreview(id, modelId ?? "", { signal }),
     enabled: Boolean(modelId),
+  });
+
+export const useMemoryItem = (id: string) =>
+  useQuery({
+    queryKey: keys.memoryItem(id),
+    queryFn: ({ signal }) => api.memoryItem(id, { signal }),
+  });
+
+export const useWorkflow = (projectId: string) =>
+  useQuery({
+    queryKey: keys.workflow(projectId),
+    queryFn: ({ signal }) => api.workflow(projectId, { signal }),
+  });
+
+export const useGapRuns = (projectId: string) =>
+  useQuery({
+    queryKey: keys.gapRuns(projectId),
+    queryFn: ({ signal }) => api.gapRuns(projectId, { signal }),
+  });
+
+export const useAgentRuns = (projectId: string) =>
+  useQuery({
+    queryKey: keys.agentRuns(projectId),
+    queryFn: ({ signal }) => api.agentRuns(projectId, { signal }),
+  });
+
+/** Queued or running: the backend may still change it on its own. */
+export const isRunActive = (run: AgentRun | undefined): boolean =>
+  run?.status === "queued" || run?.status === "running";
+
+export const AGENT_RUN_POLL_MS = 1_500;
+
+export const useAgentRun = (projectId: string, runId: string | null) =>
+  useQuery({
+    queryKey: keys.agentRun(projectId, runId ?? ""),
+    queryFn: ({ signal }) => api.agentRun(runId ?? "", { signal }),
+    enabled: Boolean(runId),
+    // Poll while the job runs; stop at waiting_for_approval or any end state. TanStack stops
+    // polling on unmount and aborts the request in flight through `signal`.
+    refetchInterval: (query) => (isRunActive(query.state.data) ? AGENT_RUN_POLL_MS : false),
   });

@@ -1,4 +1,4 @@
-import { FolderPlus, MessageSquarePlus, MessagesSquare, Folder } from "lucide-react";
+import { FolderPlus, MessageSquarePlus, MessagesSquare, Folder, Workflow } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router";
 
@@ -69,6 +69,13 @@ export function Explorer({
           ))}
         </ul>
       </div>
+      {projectId ? (
+        <NavLink to={`/projects/${projectId}/workflow`} className={linkClass}>
+          <span className="inline-flex items-center gap-1.5">
+            <Workflow aria-hidden className="size-4" /> Workflow and agents
+          </span>
+        </NavLink>
+      ) : null}
       {projectId ? (
         <ConversationList key={projectId} projectId={projectId} conversationId={conversationId} />
       ) : null}

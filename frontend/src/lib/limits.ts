@@ -12,6 +12,9 @@ export const limits = {
   credentialLabel: 100,
   apiKeyMin: 8,
   apiKeyMax: 500,
+  // WORKFLOW_REASON_MAX_LENGTH and AGENT_REQUIREMENT_MAX_CHARS (app/core/config.py)
+  workflowReason: 500,
+  requirementText: 4000,
 } as const;
 
 /** Memory statuses and priorities per kind (backend: projects/memory_service.py). */

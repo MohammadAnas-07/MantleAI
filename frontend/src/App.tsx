@@ -3,9 +3,11 @@ import { useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 
 import { ConversationRoute } from "./features/conversations/ConversationView";
+import { MemoryItemRoute } from "./features/memory/MemoryItemPage";
 import { HomePage } from "./features/projects/HomePage";
 import { ProjectRoute } from "./features/projects/ProjectPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
+import { WorkflowRoute } from "./features/workflow/WorkflowPage";
 import { AppShell } from "./layout/AppShell";
 import { makeQueryClient } from "./lib/queryClient";
 
@@ -17,6 +19,8 @@ export function AppRoutes() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/projects/:projectId" element={<ProjectRoute />} />
         <Route path="/projects/:projectId/c/:conversationId" element={<ConversationRoute />} />
+        <Route path="/projects/:projectId/workflow" element={<WorkflowRoute />} />
+        <Route path="/projects/:projectId/memory/:itemId" element={<MemoryItemRoute />} />
         <Route path="*" element={<p>Page not found.</p>} />
       </Routes>
     </AppShell>
