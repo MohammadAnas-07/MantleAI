@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import CurrentUserId, DbSession
 from app.core.errors import AppError, NotFound
 from app.core.repositories import AuditEventRepository
+from app.modules.llm.crypto import can_decrypt
 from app.modules.llm.gateway import Gateway
-from app.modules.llm.models import ModelKind
+from app.modules.llm.models import ModelKind, ProviderCredential
 from app.modules.llm.providers import PROVIDERS
 from app.modules.llm.repository import (
     ModelConfigRepository,
@@ -60,10 +61,16 @@ async def list_providers(session: DbSession, user_id: CurrentUserId) -> list[Pro
     ]
 
 
+def credential_out(row: ProviderCredential) -> CredentialOut:
+    out = CredentialOut.model_validate(row)
+    out.readable = can_decrypt(row.encrypted_key)
+    return out
+
+
 @router.get("/credentials")
 async def list_credentials(session: DbSession, user_id: CurrentUserId) -> list[CredentialOut]:
     rows = await ProviderCredentialRepository(session, user_id).list(limit=200)
-    return [CredentialOut.model_validate(r) for r in rows]
+    return [credential_out(r) for r in rows]
 
 
 @router.post("/credentials", status_code=201)
@@ -87,7 +94,7 @@ async def add_credential(
         details={"provider": credential.provider},
     )
     await session.commit()
-    return CredentialOut.model_validate(credential)
+    return credential_out(credential)
 
 
 @router.post("/credentials/{credential_id}/test")

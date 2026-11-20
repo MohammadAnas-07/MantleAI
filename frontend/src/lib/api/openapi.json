@@ -819,6 +819,11 @@
           "provider": {
             "title": "Provider",
             "type": "string"
+          },
+          "readable": {
+            "default": true,
+            "title": "Readable",
+            "type": "boolean"
           }
         },
         "required": [
@@ -6563,6 +6568,7 @@
     },
     "/health": {
       "get": {
+        "description": "API status, `database` up or down, and `keys`: none, ok, unreadable (the master key\ncan't decrypt a saved provider key) or unknown. Answers within about 2 s; never raises.",
         "operationId": "health",
         "responses": {
           "200": {

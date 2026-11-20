@@ -12,6 +12,7 @@ import { api } from "../../lib/api/endpoints";
 import { errorMessage } from "../../lib/api/errors";
 import { lineRange } from "../../lib/format";
 import { limits } from "../../lib/limits";
+import { llmErrorText } from "../../lib/llmErrors";
 import type { Message } from "../../lib/api/types";
 import { MessageList, type ShownMessage } from "./MessageList";
 import { useHandoffNote, type SwitchReason } from "../../hooks/useHandoffNote";
@@ -207,7 +208,7 @@ function ProblemNotice({
       <p>
         {busy
           ? "A reply is already being generated for this conversation. Wait for it to finish."
-          : problem.message}
+          : llmErrorText(problem.code, problem.message)}
       </p>
       {problem.suggested.length > 0 ? (
         <div className="mt-2">

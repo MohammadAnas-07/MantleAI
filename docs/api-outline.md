@@ -16,7 +16,7 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/health` | API status and database `up`/`down` |
+| GET | `/health` | API status, database `up`/`down`, and `keys`: `none`, `ok`, `unreadable` (the current `MASTER_ENCRYPTION_KEY` can't decrypt the newest saved key of some provider) or `unknown` (database down). A status word only, never a key or ciphertext; answers within about 2 s and never fails |
 | GET | `/api/v1/me` | The current user (in v0.1, always the default local user) |
 | GET | `/api/v1/audit-events` | List recent audit events (filter by type) |
 
@@ -28,13 +28,17 @@ come from a default catalog added by `python -m app.db.seed`; an embedding model
 if its dimension matches `EMBEDDING_DIMENSIONS`. Gateway errors use the codes `rate_limited`
 (429, a short limit: retrying can help), `quota_exhausted` (429, the quota is used up, for example
 a per-day quota, or the provider asked for a wait over `LLM_QUOTA_EXHAUSTED_MIN_WAIT_SECONDS`;
-never retried), `context_too_long` (413), `auth_failed` (401), `provider_unavailable` (503),
-`no_credential` and `model_unavailable` (422).
+never retried), `context_too_long` (413), `auth_failed` (401), `provider_unavailable` (503,
+also when the provider is silent for `LLM_TIMEOUT_SECONDS`), `no_credential`,
+`credential_unreadable` (a key is saved but the current master key can't decrypt it; the message
+says to restore the previous master key or enter the key again; the saved key is left as it is)
+and `model_unavailable` (422). Any error no handler knows is a 500 `internal_error` in the same
+error shape, with CORS headers, and only its type is logged.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/api/v1/providers` | List supported providers, whether a key is set, and whether the provider can do embeddings |
-| GET | `/api/v1/credentials` | List saved keys (label, provider, last 4 characters only) |
+| GET | `/api/v1/credentials` | List saved keys (label, provider, last 4 characters only, and `readable`: false when the current master key can't decrypt it) |
 | POST | `/api/v1/credentials` | Save a key `{provider, label, api_key}` (encrypted, never returned) |
 | POST | `/api/v1/credentials/{id}/test` | Body `{}`. Make a tiny test call with this key (1 output token, logged as `key_test`); returns `{ok, error_code, model_id, tested_at}` |
 | DELETE | `/api/v1/credentials/{id}` | Delete a key |

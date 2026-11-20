@@ -14,21 +14,21 @@ Working memory for any AI tool and for the developer. Read it before every task.
 with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
 Planner and Reviewer, and the workflow page (stages, gap finder, agent runs, approval; merged).
 An audit (2026-11-20, report outside the repo, A-001..A-022) found 2 Critical, 3 High issues.
-Merged: A-001 (tests use only `TEST_DATABASE_URL`), A-002/A-011 (wider secret rules, `0009`).
-`fix/untrusted-output-and-prompts` (not pushed) fixes A-003/A-007: no images or unsafe links
-from model output, a CSP in the build, defanged summary prompt. Next: errors and logs (A-004,
-A-005), run concurrency, docs catch-up. Not
+Merged: A-001 (test DB guard), A-002/A-011 (secret rules, `0009`), A-003/A-007 (no remote
+images or unsafe links, CSP in the build, defanged prompts). `fix/logging-and-key-errors` (not
+pushed) fixes A-004 (`credential_unreadable`, `/health` keys), A-005 (no text in logs), A-006
+(LLM_TIMEOUT_SECONDS), A-009 (internal error mid-reply). Next: run concurrency, docs. Not
 built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
 with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
 Next: the developer adds `TEST_DATABASE_URL` to `backend/.env`, runs `alembic upgrade head`
-and re-indexes every project; then `fix/error-handling-and-logs`.
-Branches: 2 local (`main`, `fix/untrusted-output-and-prompts`), 29 remote (untouched).
+and re-indexes every project; then `fix/run-concurrency-and-queries`.
+Branches: 2 local (`main`, `fix/logging-and-key-errors`), 30 remote (untouched).
 
-Tests: 722 backend and 112 frontend pass. pytest needs `TEST_DATABASE_URL`.
+Tests: 742 backend and 117 frontend pass, none flaky. pytest needs `TEST_DATABASE_URL`.
 Migration head `0009` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-20 (untrusted output).
+First demo target: 2026-12-17. Last updated 2026-11-20 (key errors and logs).
 
 ## Done
 
@@ -41,11 +41,10 @@ First demo target: 2026-12-17. Last updated 2026-11-20 (untrusted output).
 
 ## In progress
 
-- `fix/untrusted-output-and-prompts`: `lib/safeUrl.ts`, `Markdown.tsx` (SafeLink, BlockedImage),
-  `lib/csp.ts` + build plugin in `vite.config.ts` (dev has no CSP), lint bans
-  `dangerouslySetInnerHTML`; `summary.py`, `system_text` and `pinned.py` use `core.prompt_data`.
-- Click eval (`eval_retrieval.py`, 25 questions): run 1 stopped at 926/1,429 segments
-  (Gemini daily limit); resume.
+- `fix/logging-and-key-errors`: `llm/key_status.py`, `CredentialUnreadable`,
+  `UnhandledErrorMiddleware` (inside CORS), `/health` on the request session, `hide_parameters`,
+  `repr=False` secrets, filter on uvicorn; `lib/llmErrors.ts`. A-019 left (config, not errors).
+- Click eval (25 questions): run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
 
@@ -123,6 +122,7 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
   Concurrency tests commit to `mantle_test`
   and clean up. `defang` turns `</source>` into `&lt;/source>` (the `>` stays).
 - **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`**. Backend tests use `http://localhost`.
+- **PostgreSQL error text can quote the bad value** even with `hide_parameters`: log types only.
 - **Testing Library role queries are slow on a long plan**: wait for a text first, then
   `getByRole`. Hidden "sr-only" prefixes lose their space in jsdom names: use `aria-label`.
 - **What FakeProvider tests can't prove:** real summary, plan and review quality, real token

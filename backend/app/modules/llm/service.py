@@ -15,6 +15,7 @@ from app.modules.llm.crypto import MasterKeyError, key_hint, validate_master_key
 from app.modules.llm.errors import (
     AuthFailed,
     ContextTooLong,
+    CredentialUnreadable,
     LLMError,
     ModelUnavailable,
     NoCredential,
@@ -23,6 +24,7 @@ from app.modules.llm.errors import (
     RateLimited,
 )
 from app.modules.llm.gateway import ChatDelta, ChatDone, ChatEvent, Gateway, UsageLinks
+from app.modules.llm.key_status import KeyStatus, key_status, unreadable_providers
 from app.modules.llm.models import ModelConfig, ModelKind, UsagePurpose, UsageTrigger
 from app.modules.llm.repository import (
     ModelConfigRepository,
@@ -199,9 +201,11 @@ __all__ = [
     "ChatEvent",
     "ChatMessages",
     "ContextTooLong",
+    "CredentialUnreadable",
     "EmbedInputType",
     "EmbeddingModelInfo",
     "Gateway",
+    "KeyStatus",
     "LLMError",
     "MasterKeyError",
     "ModelInfo",
@@ -222,10 +226,12 @@ __all__ = [
     "get_gateway",
     "get_model_settings",
     "key_hint",
+    "key_status",
     "list_chat_models",
     "providers_with_keys",
     "seed_default_models",
     "suggest_models",
+    "unreadable_providers",
     "validate_master_key",
 ]
 

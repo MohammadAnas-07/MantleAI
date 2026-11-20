@@ -52,6 +52,23 @@ class NoCredential(LLMError):
     code = "no_credential"
 
 
+class CredentialUnreadable(LLMError):
+    """A key is saved for the provider, but the current MASTER_ENCRYPTION_KEY can't decrypt it
+    (the master key changed or is a different one). The saved key is left as it is."""
+
+    status_code = 422
+    code = "credential_unreadable"
+
+
+def credential_unreadable(provider: str) -> CredentialUnreadable:
+    return CredentialUnreadable(
+        f"The saved {provider} API key can't be decrypted with the current "
+        "MASTER_ENCRYPTION_KEY. Restore the previous master key in backend/.env, or enter "
+        f"the {provider} key again in Settings.",
+        details={"provider": provider},
+    )
+
+
 class ModelUnavailable(LLMError):
     """The model doesn't exist, is disabled, or is the wrong kind for the call."""
 

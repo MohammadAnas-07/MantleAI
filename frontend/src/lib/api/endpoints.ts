@@ -48,7 +48,11 @@ const GAP_FINDER_TIMEOUT_MS = 420_000;
 
 export const api = {
   health: (o: Opts = {}) =>
-    apiFetch<{ status: string; database: string }>("/health", { ...o, timeoutMs: 5_000 }),
+    // keys: none | ok | unreadable (the master key can't decrypt a saved key) | unknown
+    apiFetch<{ status: string; database: string; keys?: string }>("/health", {
+      ...o,
+      timeoutMs: 5_000,
+    }),
 
   // ---- settings ----
   providers: (o: Opts = {}) => apiFetch<Provider[]>("/api/v1/providers", o),

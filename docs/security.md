@@ -23,6 +23,7 @@ A basic threat model for v0.1: one user, running locally, using their own API ke
 | --- | --- |
 | Risk | Keys leak from the database, API responses, logs or git. |
 | MVP | Encrypt keys with Fernet using `MASTER_ENCRYPTION_KEY` from `backend/.env`, which is git-ignored. Without that key, a database dump is useless. The API never returns a key, only the last 4 characters. Keys are decrypted only inside the `llm` module, just before a call. `.env` is never committed. |
+| Wrong or changed master key | A missing or malformed `MASTER_ENCRYPTION_KEY` stops the app at startup. A valid key that differs from the one the provider keys were saved with is reported, not hidden: calls fail with `credential_unreadable` (restore the previous master key, or enter the key again), `/health` says `keys: unreadable` and the UI shows a banner, the credentials list marks each unreadable key, and startup logs a count. Nothing is printed except a count and provider names in the UI; saved keys are never changed or deleted automatically, and a key entered again is saved as a new row through the normal path. |
 | Later | OS keychain (Windows Credential Manager) instead of a key in `.env`. Key rotation. Per-project key scopes and spend limits. |
 
 ### 2. Prompt injection
@@ -105,9 +106,9 @@ message could quote content.
 ### 6. Logs
 | | |
 | --- | --- |
-| Risk | Keys, prompts or code end up in log files or tracebacks. |
-| MVP | Log metadata only (model, tokens, latency, status, ids), never prompts, replies, keys or file contents. A logging filter masks anything that looks like a key or `Authorization` header. LiteLLM's verbose and debug logging stays off. `.env` and log files are git-ignored. |
-| Later | Structured logs, a user setting for optional local prompt logging, and log retention limits. |
+| Risk | Keys, prompts, message text, memory or code end up in log files or tracebacks. |
+| MVP | **Logged:** event names, ids, counts, token numbers, latency, status, stable error codes and exception type names; the route of an unhandled error; per model call one line `llm call model=... purpose=... trigger=... status=... error=... input_tokens=... output_tokens=... latency_ms=...`. **Never logged:** prompts, replies, message text, memory text, file contents or file paths from an index, keys, ciphertext, the master key, the database password, `Authorization` headers, provider error text and exception messages (they can quote any of these). At the source: error paths log `type(exc).__name__` only; provider errors are logged as type, HTTP status and the sanitized `usage_records.error_detail` fields; request validation errors drop the input; the SQL engine runs with `hide_parameters=True`; settings print no secret (`repr=False`); an unknown error is answered as `internal_error` and logged by type. **Second line:** a filter on the root and uvicorn handlers masks key shapes, Fernet tokens, `Authorization`/`api_key`/`password`/`MASTER_ENCRYPTION_KEY` assignments and SQL `[parameters: ...]`, in messages and in formatted tracebacks. **Limit:** PostgreSQL's own error text can quote a bad value, which is why exception messages are never logged. Stored error fields (`messages.error_code`, `usage_records.error_code` and `error_detail`, run `error` and `error_message`) hold codes and our own sentences, never exception text. Sentinel tests force each failure path and check that a marker in a message, memory item, file path, file content or key appears in no log line and no stored error. LiteLLM's verbose and debug logging stays off. `.env` is git-ignored. |
+| Later | Structured (JSON) logs with request ids, a user setting for optional local prompt logging, and log retention limits. |
 
 ### 7. The local API is reachable by websites and the network
 | | |

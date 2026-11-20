@@ -2,6 +2,7 @@
 and the JSON-only rule for write requests (rule 29)."""
 
 import json
+import logging
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -11,6 +12,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.errors import AppError
+
+logger = logging.getLogger(__name__)
 
 _STATUS_CODES = {
     400: "bad_request",
@@ -48,6 +51,52 @@ def install_error_handlers(app: FastAPI) -> None:
     async def http_error(_: Request, exc: StarletteHTTPException) -> JSONResponse:
         code = _STATUS_CODES.get(exc.status_code, "http_error")
         return JSONResponse(error_body(code, str(exc.detail)), exc.status_code)
+
+
+class UnhandledErrorMiddleware:
+    """An exception no handler knew becomes a 500 in the error shape (rule 27). It sits inside
+    CORSMiddleware, so the browser can read the answer instead of reporting "API unreachable".
+
+    Only the exception type and the route are logged: an exception message can quote message
+    text, memory or code (rule 53). When the response had already started (a stream), nothing
+    more can be sent; the error is logged the same way and the response just ends.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        started = False
+
+        async def tracking_send(message: dict[str, Any]) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, tracking_send)
+        except Exception as exc:
+            logger.error(
+                "unhandled error type=%s method=%s path=%s started=%s",
+                type(exc).__name__, scope.get("method"), scope.get("path"), started,
+            )  # fmt: skip
+            if started:
+                return
+            body = json.dumps(
+                error_body("internal_error", "The API hit an unexpected error. See its log.")
+            ).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 500,
+                    "headers": [(b"content-type", b"application/json")],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
 
 
 class JsonOnlyMiddleware:

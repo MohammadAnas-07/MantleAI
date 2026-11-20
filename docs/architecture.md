@@ -136,8 +136,9 @@ UI                      conversations                    projects / rag         
  |                        |   UsageRecord {purpose: rolling_summary, trigger: background}
 ```
 
-On a provider error the gateway raises a typed error (`RateLimited`, `ContextTooLong`,
-`ProviderUnavailable`, `AuthFailed`). The UI gets an SSE `error` event with a "switch model"
+On a provider error the gateway raises a typed error (`RateLimited`, `QuotaExhausted`,
+`ContextTooLong`, `ProviderUnavailable`, `AuthFailed`), and before any call `NoCredential` or
+`CredentialUnreadable` (the master key can't decrypt the saved key). The UI gets an SSE `error` event with a "switch model"
 suggestion. The assistant message is saved with status `error`, so no partial text is lost.
 
 ## Journey 2: switching models in the middle of a conversation

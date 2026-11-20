@@ -711,8 +711,10 @@ async def test_approval_is_all_or_nothing(
 
     # Fails after every task and decision row is inserted, while linking dependencies.
     monkeypatch.setattr(MemoryDependencyRepository, "add", broken)
-    with pytest.raises(RuntimeError):
-        await client.post(f"/api/v1/agent-runs/{run_id}/approve", json={"all": True})
+    r = await client.post(f"/api/v1/agent-runs/{run_id}/approve", json={"all": True})
+    # An unexpected error answers 500 in the error shape (UnhandledErrorMiddleware).
+    assert r.status_code == 500 and r.json()["error"]["code"] == "internal_error"
+    assert "disk full" not in r.text
     assert len(await memory_rows(session, world)) == before
     assert await session.scalar(select(MemoryDependency.id)) is None
     assert (await get(client, run_id))["status"] == "waiting_for_approval"

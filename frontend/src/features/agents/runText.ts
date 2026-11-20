@@ -1,6 +1,7 @@
 // Words for run types, statuses and failures, shared by every agent view.
 
 import { ApiError } from "../../lib/api/errors";
+import { hasLlmErrorText, llmErrorText } from "../../lib/llmErrors";
 import type { RunWarning, SuggestedModel } from "../../lib/api/types";
 
 export const RUN_TYPE_LABEL: Record<string, string> = {
@@ -34,7 +35,8 @@ const FAILURE_TEXT: Record<string, string> = {
 /** A failure explained for the user. Only our validation message is shown for invalid_output,
  * because it names fields and never quotes the model's answer. */
 export function failureText(code: string, backendMessage: string | null): string {
-  const text = FAILURE_TEXT[code] ?? "The run failed.";
+  const text =
+    FAILURE_TEXT[code] ?? (hasLlmErrorText(code) ? llmErrorText(code) : "The run failed.");
   if (code === "invalid_output" && backendMessage) return `${text} (${backendMessage})`;
   return text;
 }
@@ -55,6 +57,7 @@ const START_TEXT: Record<string, string> = {
 };
 
 const PROVIDER_CODES = new Set([
+  "credential_unreadable",
   "invalid_output",
   "step_timeout",
   "quota_exhausted",

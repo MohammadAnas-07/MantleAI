@@ -561,6 +561,26 @@ async def stream_reply(
                 },
             )
             return
+        except Exception as exc:
+            # A bug or a database error, not the provider and not a disconnect: say so instead
+            # of calling it a cancel, keep what arrived, and log the type only (rule 53).
+            logger.error("reply failed conversation=%s type=%s", prepared.conversation_id,
+                         type(exc).__name__)  # fmt: skip
+            with anyio.CancelScope(shield=True):
+                await stream.aclose()
+            await _finish(session, user_id, prepared, text="".join(parts),
+                          status=MessageStatus.ERROR, error_code="internal_error", done=None,
+                          gateway=gateway)  # fmt: skip
+            yield SseEvent(
+                "error",
+                {
+                    "message_id": str(prepared.assistant_message_id),
+                    "code": "internal_error",
+                    "message": "The reply stopped on an internal error. The text so far is saved.",
+                    "details": {},
+                },
+            )
+            return
         except BaseException:
             # Client disconnected (cancellation) or the server is stopping: stop the upstream
             # call, keep what arrived.

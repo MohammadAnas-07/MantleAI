@@ -58,6 +58,16 @@ def decrypt_secret(ciphertext: bytes, master_key: str | None = None) -> str:
         ) from None
 
 
+def can_decrypt(ciphertext: bytes) -> bool:
+    """Whether the current master key can decrypt a stored key. Returns nothing else: the
+    plaintext is dropped at once."""
+    try:
+        decrypt_secret(ciphertext)
+    except DecryptionError:
+        return False
+    return True
+
+
 def key_hint(plaintext: str) -> str:
     """The last 4 characters of a key, for display. Empty for keys shorter than 8 characters,
     so a hint never reveals most of a key."""

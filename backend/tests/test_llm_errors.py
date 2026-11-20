@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pytest
 
+from app.core.config import settings
 from app.modules.llm.errors import (
     AuthFailed,
     ContextTooLong,
@@ -39,6 +40,7 @@ def make(name: str) -> Exception:
         ("APIConnectionError", ProviderUnavailable),
         ("ServiceUnavailableError", ProviderUnavailable),
         ("InternalServerError", ProviderUnavailable),
+        ("Timeout", ProviderUnavailable),  # a stalled provider (LLM_TIMEOUT_SECONDS)
     ],
 )
 def test_maps_litellm_errors(name: str, expected: type[LLMError]) -> None:
@@ -237,3 +239,33 @@ def test_only_the_llm_module_imports_litellm() -> None:
         if any(check(line) for line in path.read_text(encoding="utf-8").splitlines()):
             offenders.append(str(path))
     assert offenders == []
+
+
+async def test_every_provider_call_has_a_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without one, a provider that stops answering holds a reply or an index run forever.
+    LiteLLM passes it to the HTTP client, so for a stream it limits the wait between parts."""
+    monkeypatch.setattr(settings, "llm_timeout_seconds", 42.0)
+    calls: list[dict[str, Any]] = []
+
+    async def empty_stream() -> Any:
+        return
+        yield
+
+    async def acompletion(**kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return empty_stream()
+
+    class Embedded:
+        data = [{"embedding": [0.1]}]
+        usage = None
+
+    async def aembedding(**kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return Embedded()
+
+    monkeypatch.setattr(_litellm(), "acompletion", acompletion)
+    monkeypatch.setattr(_litellm(), "aembedding", aembedding)
+    backend = LiteLLMBackend()
+    [_ async for _ in backend.stream_chat("openai/gpt-x", [], api_key="k", max_tokens=5)]
+    await backend.embed("openai/text-embedding-3-small", ["x"], api_key="k")
+    assert [c["timeout"] for c in calls] == [42.0, 42.0]

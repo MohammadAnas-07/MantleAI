@@ -32,6 +32,8 @@ class CredentialOut(BaseModel):
     last_tested_at: datetime | None
     last_test_ok: bool | None
     created_at: datetime
+    # False when the current MASTER_ENCRYPTION_KEY can't decrypt it (the master key changed).
+    readable: bool = True
 
 
 class CredentialTestIn(BaseModel):
