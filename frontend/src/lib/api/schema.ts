@@ -477,7 +477,7 @@ export interface paths {
         };
         /**
          * List Agent Runs
-         * @description Plan and review runs, newest first.
+         * @description Plan and review runs, newest first, as summaries (no drafts or steps).
          */
         get: operations["list_agent_runs"];
         put?: never;
@@ -1123,6 +1123,60 @@ export interface components {
             prompt_version: string;
             /** Status */
             status: string;
+        };
+        /**
+         * AgentRunSummaryOut
+         * @description A run in a list: status, type, model, tokens, cost and times. The plan, the review, the
+         *     input and the steps come with GET /agent-runs/{id} only.
+         */
+        AgentRunSummaryOut: {
+            /** Cancel Requested At */
+            cancel_requested_at: string | null;
+            /** Cost Usd */
+            cost_usd: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Decided At */
+            decided_at: string | null;
+            /** Error */
+            error: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Input Tokens */
+            input_tokens: number;
+            /**
+             * Model Id
+             * Format: uuid
+             */
+            model_id: string;
+            /** Output Tokens */
+            output_tokens: number;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Run Type */
+            run_type: string;
+            /** Stage Id */
+            stage_id: string | null;
+            /** Started At */
+            started_at: string | null;
+            /** Status */
+            status: string;
+        };
+        /** AgentRunSummaryPage */
+        AgentRunSummaryPage: {
+            /** Items */
+            items: components["schemas"]["AgentRunSummaryOut"][];
         };
         /** ApproveIn */
         ApproveIn: {
@@ -2160,6 +2214,8 @@ export interface components {
             current_stage_id: string | null;
             /** Events */
             events: components["schemas"]["WorkflowEventOut"][];
+            /** Events Total */
+            events_total: number;
             /**
              * Project Id
              * Format: uuid
@@ -3238,7 +3294,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AgentRunPage"];
+                    "application/json": components["schemas"]["AgentRunSummaryPage"];
                 };
             };
             /** @description Validation Error */
