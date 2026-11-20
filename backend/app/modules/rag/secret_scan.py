@@ -157,17 +157,19 @@ def _key_kind(key: str) -> str | None:
     last = words[-1]
     if last in _SECRET_WORDS:
         return "strict"
-    if last == "key":
-        return "strict" if len(words) > 1 and words[-2] in _KEY_PREFIXES else "loose"
+    if last == "key" and len(words) > 1:  # a bare `key` is a React or dictionary key
+        return "strict" if words[-2] in _KEY_PREFIXES else "loose"
     return None
 
 
 def _secret_value(kind: str, key: str, value: str) -> bool:
     if _placeholder(value) or any(c.isspace() for c in value):
         return False
+    mixed = any(c.isdigit() for c in value) or (value.lower() != value and value.upper() != value)
     if kind == "loose":
         return (
             len(value) >= 20
+            and mixed  # "created_at_descending" is an identifier, not a credential
             and not _HEX.match(value)
             and not _UUID.match(value)
             and _entropy(value) >= 3.5
@@ -175,7 +177,6 @@ def _secret_value(kind: str, key: str, value: str) -> bool:
     words = set(re.split(r"[_.\-]+", _CAMEL.sub("_", key).lower()))
     if words & _PASSWORD_WORDS:
         return len(value) >= 6
-    mixed = any(c.isdigit() for c in value) or (value.lower() != value and value.upper() != value)
     return len(value) >= 8 and (mixed or len(value) >= 16)
 
 

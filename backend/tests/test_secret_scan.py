@@ -165,6 +165,8 @@ NOT_SECRETS = [
     ("DB URL with variables", "a.yml", "url: postgres://${PGUSER}:${PGPASSWORD}@db/app"),
     ("prose about passwords", "a.md", "Choose a password: it must have 12 characters or more."),
     ("short sk- word", "a.md", "Use sk-learn for this."),
+    ("React list key", "a.tsx", '{ key: "scalability_concerns", title: "Scalability concerns" }'),
+    ("identifier next to a key name", "a.py", 'sort_key = "created_at_descending_order"'),
 ]
 
 
