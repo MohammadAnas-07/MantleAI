@@ -12,7 +12,7 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 5. Settings are read only through `app.core.config.settings`; no `os.environ` / `os.getenv` elsewhere.
 6. A module imports another module only from its `service.py`, never its `models.py`, `router.py` or `schemas.py`.
 7. Only `app/modules/llm` imports `litellm`.
-8. Only `app/modules/workflow` imports `langgraph`.
+8. LangGraph is not used in v0.1 (ADR 0004); using it later needs a new ADR, and then only `app/modules/workflow` imports `langgraph`.
 9. No file anywhere imports a `langchain*` package.
 10. Only `app/modules/rag` reads files from a project folder.
 11. Module dependencies follow the "May call" column in `docs/architecture.md`, with no cycles; `tests/test_module_boundaries.py` checks it (ADR 0006).
@@ -86,7 +86,7 @@ a PR that breaks it is not done. Background: `CLAUDE.md`, `docs/architecture.md`
 58. Commit messages are `type: short lowercase message`.
 59. Each branch has one topic, matching one roadmap item or one fix.
 60. Nobody commits directly to `main`; all changes go through a pull request.
-61. `.env` is never committed; only `backend/.env.example` is tracked.
+61. Real `.env` files are never committed; only the `.env.example` files (backend and frontend) are tracked.
 62. The word "chunk" never appears in branch names, commit messages or PR titles.
 
 ## Dependency policy

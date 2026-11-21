@@ -12,7 +12,7 @@ LLMs. It is not an LLM. Background: `docs/idea.md`, `docs/architecture.md`, `doc
 
 - Backend: Python 3.12+ (developed on 3.14), FastAPI, Pydantic v2, SQLAlchemy 2 async + asyncpg, Alembic
 - Database: PostgreSQL 16 + pgvector in Docker, on `127.0.0.1:5433`
-- LLMs: LiteLLM, only inside `modules/llm`. Agents: LangGraph, only inside `modules/workflow`
+- LLMs: LiteLLM, only inside `modules/llm`. Agents: LangGraph is not used in v0.1 (see ADR 0004)
 - Frontend: React 19 + Vite + TypeScript 5.9 (strict) + Tailwind 4, TanStack Query, react-router,
   Vitest + Testing Library + MSW, ESLint, Prettier. Design: `docs/design-app.md`
 - Tooling: ruff (line length 100), pytest + pytest-asyncio, httpx
@@ -66,7 +66,7 @@ First-time setup is in `README.md`.
 ## Core rules (full list in docs/rules.md)
 
 - **Modular monolith.** One FastAPI app, one database, no microservices.
-- **We never import `langchain*`; only `langgraph`,** and only in `modules/workflow`.
+- **We never import `langchain*`, and v0.1 uses no `langgraph` (ADR 0004).** Adding it needs a new ADR that supersedes 0004; then only in `modules/workflow`.
 - Modules call each other only through `service.py`. Only `llm` imports `litellm`; only `rag` reads project files.
 - **No secrets in code or logs.** Keys are encrypted in the database and never returned or logged.
 - **Tests never need real API keys** or network access.

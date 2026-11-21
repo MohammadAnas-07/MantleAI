@@ -10,27 +10,28 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-21).** `feat/project-profile` (not pushed): project facts are read from the
-files with no model at the end of each successful index run, stored one row per project
-(`0011`), served at `GET /projects/{id}/profile`, shown in a Profile tab, and sent to every model
-as a `<project_profile>` block (600-token cap, trimmed in a fixed order, reported). A model
-switch keeps the same text. The model-written summary with drafts and versions is split out to
-`feat/profile-summary`. Next: the developer runs `alembic upgrade head` and re-indexes.
+**Status (2026-11-21).** `chore/cleanup-and-docs-decisions` (not pushed), task 9 items 3-7
+only: the sensitive patterns comment in `core/config.py` names `rag/secret_scan.py`; rule 61
+says both `.env.example` files are tracked; CLAUDE.md's stack line says LangGraph is not used in
+v0.1 (ADR 0004); CLAUDE.md line 69, rule 8 and architecture D7 now match ADR 0004 (adding
+LangGraph later needs a new ADR that supersedes it).
+
+**Audit 2026-11-20** (A-001..A-022, report outside the repo).
+- Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
+- Open: A-015 dead code and A-016 boundary test (task 9 items 1-2, not done yet; keep
+  `ProjectProfileRepository.get_for_project`, now used); A-020 bundle and list limits (task 8).
+- Deferred: A-012 separate app role, `scripts/backup.ps1`.
 
 **Summary.** Mantle has projects, keys, streaming chat, model switching, project memory, cited
 retrieval, the profile facts and the workflow page. Not built: teaching notes, profile summary,
 `GET /messages/{id}/context`, `GET /audit-events`. Not run on a real model: a Planner run.
-Audit 2026-11-20 (A-001..A-022, report outside the repo). Fixed and merged: A-001..A-014,
-A-017..A-019, A-021, A-022 (A-012 as README backup notes). Open: A-015 dead code (task 9; keep
-`ProjectProfileRepository.get_for_project`, now used), A-016 boundary test (task 9), A-020
-bundle and list limits (task 8). Deferred: A-012 app role, `scripts/backup.ps1`.
-Branches: 2 local (`main`, `feat/project-profile`), 31 remote.
+Branches: 2 local (`main`, `chore/cleanup-and-docs-decisions`), 31 remote.
 
 Tests: 883 backend and 127 frontend pass; profile races 5/5. pytest needs `TEST_DATABASE_URL`.
 Migration head `0011` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-21 (project profile).
+First demo target: 2026-12-17. Last updated 2026-11-21 (task 9 docs decisions).
 
 ## Done
 
@@ -40,13 +41,12 @@ First demo target: 2026-12-17. Last updated 2026-11-21 (project profile).
   (`docs/design-app.md`, settings, projects, index, memory, chat, context, activity).
 - 2026-11-19/21: quota fix (`0007`); workflow and agents (`0008`, plain state machine, approval
   of drafts, 5 review fixes, rules 85-90); the workflow UI; audit fixes (`0009`, `0010`; races in
-  `tests/test_run_races.py`, query counts in `tests/query_count.py`); safe sources and scan caps.
+  `tests/test_run_races.py`, query counts in `tests/query_count.py`); safe sources and scan caps;
+  the project profile facts (`0011`, Profile tab, `<project_profile>` block).
 
 ## In progress
 
-- `feat/project-profile`: `rag/profile.py` (collector, pure), `indexer._build_profile`,
-  `ProjectProfileRepository.save` (upsert), `rag.service.profile_facts`/`get_profile`,
-  ContextBuilder `PROFILE_FIELDS`, prompt `system_v3`, `features/profile/ProfilePanel.tsx`.
+- `chore/cleanup-and-docs-decisions`: three one-line edits; A-015 and A-016 still to do.
 - Click eval (25 questions): run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
