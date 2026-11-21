@@ -81,6 +81,7 @@ from app.modules.rag.scanner import (
     read_text,
     walk,
 )
+from app.modules.rag.source import resolve_source_path
 
 logger = logging.getLogger(__name__)
 
@@ -375,7 +376,9 @@ async def _source_root(session: AsyncSession, user_id: uuid.UUID, project_id: uu
         raise NoSourcePath(
             "The project's source folder no longer exists.", details={"reason": "missing"}
         )
-    return root
+    # Checked again: the folder may have been saved before a rule existed, or a link in its
+    # path may point somewhere else now (audit A-010). 422 invalid_source_path.
+    return await asyncio.to_thread(resolve_source_path, project.root_path)
 
 
 async def estimate_index(
