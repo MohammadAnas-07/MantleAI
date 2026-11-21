@@ -88,6 +88,12 @@ class Settings(BaseSettings):
     index_max_file_bytes: int = Field(default=1_000_000, ge=1)
     index_max_files: int = Field(default=20_000, ge=1)
     index_max_chunks_per_file: int = Field(default=200, ge=1)
+    # Folder levels below the source folder that are walked; deeper folders are skipped and
+    # counted as "too_deep". Capped at 200 so the walk can't run out of stack.
+    index_max_depth: int = Field(default=40, ge=1, le=200)
+    # Files and folders one walk looks at. Past this the run fails with "too_many_entries" and
+    # changes nothing; add the bulky folders to .gitignore or raise the limit.
+    index_max_entries: int = Field(default=100_000, ge=1)
     # Extra file name patterns (gitignore syntax) that are never read, on top of the built-in
     # sensitive list in app/modules/rag/secrets.py.
     index_sensitive_patterns: list[str] = Field(default_factory=list)

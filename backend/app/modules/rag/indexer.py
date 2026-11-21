@@ -173,6 +173,7 @@ class Plan:
     report: SkipReport
     deleted: list[Document]
     files_seen: int
+    stopped: str | None = None  # the walk hit INDEX_MAX_ENTRIES: nothing may be changed
 
     def by_action(self, action: str) -> list[FilePlan]:
         return [f for f in self.files if f.action == action]
@@ -244,7 +245,10 @@ async def build_plan(
     model: EmbeddingModelInfo,
 ) -> Plan:
     """Decide what to do with every file. Reads only files that may have changed."""
-    limits = WalkLimits(settings.index_max_file_bytes, settings.index_max_files)
+    limits = WalkLimits(
+        settings.index_max_file_bytes, settings.index_max_files,
+        settings.index_max_depth, settings.index_max_entries,
+    )  # fmt: skip
     walked = await asyncio.to_thread(walk, root, limits)
     docs = await _documents(session, user_id, project_id)
     cfg = ChunkSettings.from_settings()
@@ -302,6 +306,9 @@ async def build_plan(
     seen = {p.entry.path for p in plans} | {path for path, _, _ in skipped}
     deleted = [d for path, d in docs.items() if path not in seen]
     files_seen = len(walked.files) + sum(1 for s in walked.skipped if s.reason in RECORDED_REASONS)
+    if walked.stopped is not None:
+        # A partial walk would count every file it didn't reach as deleted.
+        return Plan([], [], report, [], walked.entries_seen, walked.stopped)
     return Plan(plans, skipped, report, deleted, files_seen)
 
 
@@ -673,6 +680,12 @@ async def _execute(
     if not run.root_path or not await asyncio.to_thread(root.is_dir):
         raise _RunError("source_missing")
     plan = await build_plan(session, user_id, run.project_id, root, model)
+    if plan.stopped is not None:
+        run.files_seen, run.skip_report = plan.files_seen, plan.report.as_dict()
+        await session.commit()
+        logger.warning("index run stopped run=%s reason=%s entries=%d limit=%d", run.id,
+                       plan.stopped, plan.files_seen, settings.index_max_entries)  # fmt: skip
+        raise _RunError(plan.stopped)
     await _apply_cheap_changes(session, user_id, run.project_id, run, plan)
 
     # A row for every file that gets segments; new files start as "pending".

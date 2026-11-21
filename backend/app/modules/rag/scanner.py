@@ -9,7 +9,9 @@ Two steps, so unchanged files are never read again:
 
 Every skip has a reason code, collected in a `SkipReport`. Paths are stored relative to the
 root, in POSIX form. Symlinks (and Windows junctions) are never followed, which also rules out
-loops and links that leave the root. Nothing here logs file contents.
+loops and links that leave the root. Folders deeper than `max_depth` are not entered, and the
+walk stops after `max_entries` entries (files and folders) so one huge tree can't fill the
+documents table. Nothing here logs file contents.
 """
 
 import os
@@ -82,6 +84,8 @@ class SkipReason:
     LONG_LINES = "long_lines"
     UNREADABLE = "unreadable"
     CHANGED_WHILE_READING = "changed_while_reading"
+    TOO_DEEP = "too_deep"  # a folder below the depth limit; report only
+    TOO_MANY_ENTRIES = "too_many_entries"  # the walk stopped; the run fails with this code
 
 
 # Reasons that are listed per file in the documents table. The others (ignored folders,
@@ -115,6 +119,11 @@ class SkipReport:
         if reason not in COUNT_ONLY_REASONS and len(examples) < REPORT_EXAMPLES:
             examples.append(path)
 
+    def note(self, reason: str, count: int) -> None:
+        """A count with no example paths."""
+        self.counts[reason] = count
+        self.examples[reason] = []
+
     def as_dict(self) -> dict[str, dict[str, object]]:
         return {
             reason: {"count": self.counts[reason], "examples": self.examples[reason]}
@@ -143,6 +152,8 @@ class WalkResult:
     files: list[FileEntry] = field(default_factory=list)
     skipped: list[SkippedFile] = field(default_factory=list)
     report: SkipReport = field(default_factory=SkipReport)
+    entries_seen: int = 0
+    stopped: str | None = None  # a reason code when the walk stopped early
 
     def skip(self, path: str, reason: str, size: int = 0) -> None:
         self.skipped.append(SkippedFile(path, reason, size))
@@ -153,6 +164,8 @@ class WalkResult:
 class WalkLimits:
     max_file_bytes: int
     max_files: int
+    max_depth: int = 40  # folder levels below the root
+    max_entries: int = 100_000  # files and folders looked at
 
 
 def _is_link(entry: os.DirEntry[str]) -> bool:
@@ -203,7 +216,7 @@ def walk(root: Path, limits: WalkLimits) -> WalkResult:
     sensitive = sensitive_spec()
     root_spec = _gitignore(root)
     specs = [(PurePosixPath("."), root_spec)] if root_spec else []
-    _walk_dir(root, root, PurePosixPath("."), specs, sensitive, limits, result)
+    _walk_dir(root, root, PurePosixPath("."), specs, sensitive, limits, result, depth=0)
     return result
 
 
@@ -215,6 +228,8 @@ def _walk_dir(
     sensitive: pathspec.GitIgnoreSpec,
     limits: WalkLimits,
     result: WalkResult,
+    *,
+    depth: int,
 ) -> None:
     try:
         with os.scandir(directory) as it:
@@ -224,6 +239,13 @@ def _walk_dir(
         return
 
     for entry in entries:
+        if result.stopped is not None:
+            return
+        if result.entries_seen >= limits.max_entries:
+            result.stopped = SkipReason.TOO_MANY_ENTRIES
+            result.report.note(SkipReason.TOO_MANY_ENTRIES, result.entries_seen)
+            return
+        result.entries_seen += 1
         rel = entry.name if str(rel_dir) == "." else f"{rel_dir}/{entry.name}"
         if _is_link(entry):
             result.skip(rel, SkipReason.SYMLINK)
@@ -240,10 +262,16 @@ def _walk_dir(
             if _ignored(specs, f"{rel}/"):
                 result.skip(f"{rel}/", SkipReason.GITIGNORED)
                 continue
+            if depth + 1 > limits.max_depth:
+                result.skip(f"{rel}/", SkipReason.TOO_DEEP)
+                continue
             child = Path(entry.path)
             child_spec = _gitignore(child)
             child_specs = specs + [(PurePosixPath(rel), child_spec)] if child_spec else specs
-            _walk_dir(root, child, PurePosixPath(rel), child_specs, sensitive, limits, result)
+            _walk_dir(
+                root, child, PurePosixPath(rel), child_specs, sensitive, limits, result,
+                depth=depth + 1,
+            )  # fmt: skip
             continue
 
         if entry.name == ".gitignore":
