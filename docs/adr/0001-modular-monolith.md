@@ -18,9 +18,9 @@ Dependencies point one way: `llm` and `projects` depend on nothing, and there ar
 
 ## Alternatives considered
 
-- **Microservices from the start:** more deployments, network calls and failure modes, and no
+- Microservices from the start: more deployments, network calls and failure modes, and no
   benefit for one user.
-- **A plain monolith with no module rules:** fastest at first, but modules would get tangled and
+- A plain monolith with no module rules: fastest at first, but modules would get tangled and
   extracting a service later would be very hard.
 
 ## Consequences

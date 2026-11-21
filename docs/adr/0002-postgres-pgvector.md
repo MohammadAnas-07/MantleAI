@@ -11,17 +11,17 @@ separate vector database too early."
 ## Decision
 
 Use PostgreSQL 16 with the pgvector extension (Docker image `pgvector/pgvector:pg16`) for
-**both** structured data and embeddings. Access it with SQLAlchemy 2 (async) and asyncpg, and
+both structured data and embeddings. Access it with SQLAlchemy 2 (async) and asyncpg, and
 manage the schema with Alembic. Embeddings live in `chunks.embedding` with an HNSW index using
 cosine distance, always filtered by `project_id`.
 
 ## Alternatives considered
 
-- **A separate vector database (Qdrant, Chroma, Pinecone):** a second system to run and keep in
+- A separate vector database (Qdrant, Chroma, Pinecone): a second system to run and keep in
   sync, and no joins with project data.
-- **SQLite + a vector extension:** simpler to install, but weaker async and concurrency support,
+- SQLite + a vector extension: simpler to install, but weaker async and concurrency support,
   and it would have to be migrated before going multi-user.
-- **Keep vectors in memory or files (FAISS):** lost on restart, no transactions, no filtering by
+- Keep vectors in memory or files (FAISS): lost on restart, no transactions, no filtering by
   project.
 
 ## Consequences
