@@ -1,372 +1,119 @@
 # Mantle AI
 
-Mantle AI is a developer workspace for working with multiple LLMs.
+Mantle is a local, open-source workspace for building software with several LLMs. It is not an
+LLM: it calls the providers you choose, with your own API keys.
 
-This is **chunk 0**: the project skeleton only. There is one endpoint, `GET /health`, which tells you
-whether the API is running and whether it can reach the database.
+When a model hits its limit mid-task, you copy the chat into another one and spend about 10
+minutes explaining the project again. Mantle keeps the project's requirements, decisions, tasks,
+a rolling conversation summary and the indexed code in a local database, so the next model picks
+up where the last one stopped. It is for one developer on their own machine (`docs/idea.md`).
 
-## Project layout
+## Status
 
-```
-backend/    Python API (FastAPI). All Python commands are run from this folder.
-frontend/   Placeholder. React + Vite + TypeScript + Tailwind come in a later chunk.
-docs/       Project documents.
-.vscode/    Editor settings and a debug configuration.
-docker-compose.yml   Starts a local PostgreSQL database (with pgvector) in Docker.
-```
+Version 0.1 is not finished. One developer builds it. Works today, in the API and the web app:
 
-## What you need installed
+- Projects, encrypted provider keys with a test call, and streaming chat.
+- Model switching mid-conversation, with a preview. The old model is never called.
+- Project memory (requirements, decisions, tasks), pinned into every prompt.
+- Indexing a local folder, hybrid code search, and answers that cite `path:lines`.
+- A project profile (languages, dependencies, commands) read from the files without a model.
+- The workflow page: five stages with human approval, a gap finder, and Planner and Reviewer
+  runs whose drafts are saved only when you approve them.
 
-- Python 3.12 or newer (3.14 is fine)
-- Docker Desktop (open it and wait until it says "Engine running")
-- Git and VS Code
+Not yet run on a real model: a Planner and Reviewer run. Streaming and switching have been run
+for real only with Google Gemini models.
 
-## First-time setup (Windows PowerShell)
+Planned, not built: teaching notes and the concepts list, a model-written profile summary,
+`GET /messages/{id}/context`, `GET /audit-events`, sandboxed command execution and login. The
+order is in `docs/roadmap.md`.
 
-Open PowerShell in the project folder (the folder that contains this README). In VS Code:
-**Terminal → New Terminal**.
+## How it works
 
-### 1. Go into the backend folder
+One FastAPI process, split into modules, with PostgreSQL 16 and pgvector in Docker, and a React
+app in the browser. Every model call goes through one gateway module (built on LiteLLM), which
+logs it to a usage table. A context builder assembles each prompt from the system prompt, pinned
+memory, the project profile, the rolling summary, retrieved code and recent messages, within the
+target model's token budget. Details: `docs/architecture.md`.
+
+## Quick start
+
+You need Python 3.12 or newer, Docker Desktop (running), Node.js 22 or newer, and Git. Commands
+are for Windows PowerShell; `docs/setup.md` explains each step, configuration and backups.
 
 ```powershell
+docker compose up -d                       # PostgreSQL on 127.0.0.1:5433
 cd backend
-```
-
-All Python commands below run from `backend`.
-
-### 2. Create a virtual environment
-
-```powershell
 python -m venv .venv
-```
-
-A virtual environment is a private folder (`backend\.venv`) that holds this project's Python
-packages, so they don't mix with other projects. You only do this once.
-
-### 3. Activate the virtual environment
-
-```powershell
 .venv\Scripts\Activate.ps1
-```
-
-When it works, your prompt starts with `(.venv)`. You must activate it every time you open a new
-terminal.
-
-If you get an error like *"running scripts is disabled on this system"*, run this once, then try
-again:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-This allows locally created scripts (like `Activate.ps1`) to run, for your user only.
-
-### 4. Upgrade pip
-
-```powershell
-python -m pip install --upgrade pip
-```
-
-`pip` is Python's package installer. A recent version avoids install problems.
-
-### 5. Install the project and its dev tools
-
-```powershell
 pip install -e ".[dev]"
-```
-
-- `-e` installs the project in "editable" mode: your code changes take effect without reinstalling.
-- `.[dev]` also installs the developer tools: pytest (tests), httpx (HTTP client for tests) and ruff
-  (linter and formatter).
-
-#### Reproducible install
-
-`pyproject.toml` allows a *range* of versions for each package, so `pip install -e ".[dev]"` may
-pick newer versions on different days. `backend\requirements.lock` records the **exact** versions
-that are known to work. To get exactly those, run this from `backend` with the venv active,
-instead of step 5:
-
-```powershell
-pip install -r requirements.lock
-pip install -e . --no-deps
-```
-
-The first command installs every package at its locked version (dev tools included). The second
-installs Mantle itself in editable mode without letting pip change any versions.
-
-Which one to use:
-
-- **Normal development:** `pip install -e ".[dev]"` (step 5).
-- **Something broke after an install, a fresh machine, or CI:** the two commands above.
-
-When you change dependencies in `pyproject.toml`, install them, run the tests, and regenerate the
-lock file:
-
-```powershell
-python -m pip freeze --exclude-editable > requirements.lock
-```
-
-The lock file was made on Windows with Python 3.14. On other systems a few platform-only packages
-can differ (for example `colorama` is Windows-only).
-
-### 6. Start the database
-
-```powershell
-cd ..
-docker compose up -d
-```
-
-This starts PostgreSQL in the background (`-d`), using `docker-compose.yml`. The data is kept in a
-Docker volume called `pgdata`, so it survives restarts. To stop it later: `docker compose down`.
-
-The database is reachable only from your own computer, at **127.0.0.1, port 5433** (not the usual
-5432). Other devices on your network cannot connect to it. Port 5433 avoids a clash if PostgreSQL
-is also installed directly on Windows, which uses 5432.
-
-### 7. Create the tables and the local user
-
-Put a `MASTER_ENCRYPTION_KEY` in `backend\.env` first (see [Configuration](#configuration)). Then:
-
-```powershell
-cd backend
+Copy-Item .env.example .env                # put the next line's output after MASTER_ENCRYPTION_KEY=
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 alembic upgrade head
-python -m app.db.seed
+python -m app.db.seed                      # default local user and model catalog
+uvicorn app.main:app --reload              # http://127.0.0.1:8000, docs at /docs
 ```
 
-`alembic upgrade head` creates every table and enables pgvector. `python -m app.db.seed` creates
-the default local user and the default model catalog; running it again does nothing (and keeps
-any model changes you made). To remove all tables:
-`alembic downgrade base`.
+Without the master key the API won't start; if you lose it, saved provider keys can't be read.
 
-### 8. Start the API server
-
-```powershell
-uvicorn app.main:app --reload
-```
-
-`--reload` restarts the server automatically when you save a file. Stop it with `Ctrl+C`.
-Index runs and agent runs run inside the server process, so a restart (including one from
-`--reload` when you save a backend file) stops them; on the next start they show as failed
-with "interrupted", and you start them again. While a long index or agent run is going, run
-the API without `--reload`.
-
-### 9. Check it in your browser
-
-- <http://127.0.0.1:8000/health> should show `{"status":"ok","database":"up"}`.
-  If the database is not running you will see `"database":"down"`; the API still works.
-- <http://127.0.0.1:8000/docs> shows interactive API documentation.
-
-### 10. Run the tests and the linter
-
-Open a second terminal (keep the server running in the first), then:
-
-```powershell
-cd backend
-.venv\Scripts\Activate.ps1
-pytest
-ruff check .
-```
-
-The tests use only the database in `TEST_DATABASE_URL` (in `backend/.env`, see `.env.example`),
-and its name must end in `_test`. If the setting is missing or names another database (such as
-`mantle`), pytest stops at once with exit code 4 and the fix, before anything connects. The tests
-never create a database. Create it once, with Docker running:
-
-```powershell
-docker exec mantleai-db-1 psql -U mantle -d postgres -c "CREATE DATABASE mantle_test OWNER mantle;"
-```
-
-pytest prints `test database: ...` in its header, so you can see which one it uses. If
-PostgreSQL is down, database tests are skipped and the rest still pass.
-`ruff format .` reformats the code.
-
-## The web app (frontend)
-
-The workspace UI is in `frontend`. It needs Node.js 22 or newer (an LTS release) and the API
-running (step 8). In a second PowerShell window, from the project folder:
-
-```powershell
-cd frontend
-Copy-Item .env.example .env.local    # optional: only if the API is not on http://127.0.0.1:8000
-npm install
-npm run dev
-```
-
-Open <http://127.0.0.1:5173>. The API only accepts this origin (`CORS_ALLOWED_ORIGINS`) and the
-host names `localhost` and `127.0.0.1` (`ALLOWED_HOSTS`); open the app by one of those names.
-
-Checks, from `frontend`:
-
-```powershell
-npm run typecheck
-npm run lint
-npm run format:check
-npm run test
-npm run build
-npm run gen:api:check
-```
-
-The built app (`npm run build`, then `npm run preview` on the same port 5173, with `npm run dev`
-stopped) carries a Content-Security-Policy: no remote images, scripts or frames, and requests
-only to the app and `VITE_API_BASE_URL`. The dev server has no CSP (hot reload needs inline
-scripts). Chat replies never load images, and only `http`, `https` and `mailto` links work.
-
-`npm run gen:api` regenerates `src/lib/api/schema.ts` from the backend's OpenAPI schema (it runs
-`backend\scripts\export_openapi.py` with `backend\.venv`, no server needed). Run it after
-changing an endpoint and commit the result.
-
-### The workflow page
-
-Open a project and choose **Workflow and agents** in the explorer (or the link on the project
-page). It has three parts:
-
-- **Stages.** The five stages, the current one marked. For the stage you open you see its goal,
-  the checklist (tick and untick), and what its gate still needs. Approve it when the gate is
-  met; otherwise "Approve anyway" asks for a reason. Skip and reopen ask for a reason too.
-  Every change is in the history. Mantle never moves a stage by itself.
-- **Gap finder.** One model call on request, with the model you pick and your key. It lists
-  missing steps, risks, technical debt and scalability concerns, with links to the memory items
-  they mention. Past results stay.
-- **Planner and Reviewer.** Pick a plan run (for a requirement from memory or one you type) or a
-  review run, and a model. "Estimate cost" shows the tokens and the upper bound of the cost
-  first (no model call); the run starts when you confirm. Above `AGENT_RUN_COST_LIMIT_USD` you
-  confirm a second time. The run is polled until it ends and can be cancelled. When the plan is
-  ready you choose items, edit them, and approve or reject; only then is anything saved (tasks
-  as `todo`, decisions as `proposed`). Saved items show a "from agent run" badge in memory, and
-  a proposed decision has Accept and Reject buttons.
-
-Agent and gap finder calls show as "agent run" in the activity panel and the usage view.
-
-## Switch demo (real models)
-
-`backend\scripts\switch_demo.py` measures the Phase 1 success metric with **real, paid** calls.
-It plays 5 decisions to model A, switches to model B, asks 5 questions about those decisions and
-prints a score (pass = at least 4 of 5). The turns, questions and expected keywords are in
-`backend\scripts\switch_demo.yaml`. First save a key for both providers
-(`POST /api/v1/credentials`), then from `backend`:
-
-```powershell
-python scripts\switch_demo.py --model-a anthropic/claude-sonnet-5-5 --model-b openai/gpt-5.6
-```
-
-With only a free Google AI Studio (Gemini) key, use two Gemini models. Which models the free tier
-includes changes over time; if one answers `rate_limited` or `provider_unavailable`, try another.
-
-```powershell
-python scripts\switch_demo.py --model-a gemini/gemini-3.8-flash --model-b gemini/gemini-3.5-flash-lite
-```
-
-New catalog models appear after `python -m app.db.seed` (existing models and keys stay as they are).
+In a second terminal, run `cd frontend`, `npm install` and `npm run dev`, then open
+<http://127.0.0.1:5173>. Add a provider key in the app's settings. A free Google AI Studio key is
+enough for chat and for indexing.
 
 ## Indexing a project
 
-> **Warning: indexing sends your code to your embedding provider.** Every indexed file is split
-> into segments and each one is sent to the provider of your embedding model (by default Google,
+> Warning: indexing sends your code to your embedding provider. Every indexed file is split into
+> segments and each one is sent to the provider of your embedding model (by default Google,
 > `gemini/gemini-embedding-001`). Every chat message in an indexed project is sent there too, as
 > the search query. Free tiers (for example the free Gemini API tier) may use what you send to
 > train their models. Don't index code you are not allowed to share with that provider.
 
-Mantle skips `.env*` files, keys and certificates (`*.pem`, `*.key`, `*.pfx`, `id_*`, ...),
-`credentials*` and `secrets*` files, binaries, lock files, minified files, files over 1 MB, and
-any file whose content looks like it holds a secret (private key headers, AWS, OpenAI, Google,
-GitHub, Slack or Stripe keys). It also follows `.gitignore`. This is a safety net, not a
-guarantee; see `docs/security.md`.
+Mantle skips `.env*` files, keys and certificates, credential files, binaries, files over 1 MB,
+anything `.gitignore` matches, and any file whose content looks like it holds a secret. This is a
+safety net, not a guarantee (full list: `docs/security.md`). A cost estimate comes first, and
+indexing above `INDEX_COST_LIMIT_USD` (default $1.00) needs `force`. A run also rebuilds the
+project profile (`docs/setup.md`).
 
-From `backend`, with the API running and a Google key saved (`POST /api/v1/credentials`):
+## Privacy and security
 
-```powershell
-$p = Invoke-RestMethod -Method Post http://127.0.0.1:8000/api/v1/projects -ContentType application/json -Body '{"name": "My app", "root_path": "C:\\code\\my-app"}'
-Invoke-RestMethod -Method Post "http://127.0.0.1:8000/api/v1/projects/$($p.id)/index/estimate" -ContentType application/json -Body '{}'
-Invoke-RestMethod -Method Post "http://127.0.0.1:8000/api/v1/projects/$($p.id)/index" -ContentType application/json -Body '{}'
-```
+What leaves your machine, and when:
 
-The estimate shows the file count, segments, tokens and cost first. Indexing is refused above
-`INDEX_COST_LIMIT_USD` (default $1.00) unless you send `{"force": true}`. Re-running only embeds
-what changed. Turn code context off for one conversation with
-`PATCH /api/v1/conversations/{id}` and `{"code_context_enabled": false}`.
+- Your messages and the prompt Mantle builds go to the chat model you picked, when you send.
+- Indexed code, and each chat message in an indexed project, go to the embedding provider.
+- The rolling summary is the only call you don't start yourself. It goes to the utility model,
+  shows on its own line in the usage view, and can be turned off.
+- "Test key" makes one tiny call to that provider.
 
-`backend\scripts\eval_retrieval.py` indexes the sample project in `backend\tests\fixtures` with
-your real key and prints recall@5 and MRR for vector, text and hybrid search.
+Everything else stays in the local PostgreSQL volume. Provider keys are stored encrypted and never
+returned or logged. Logs hold ids, counts and error codes, not prompts, replies or file contents.
+Mantle never writes to your project folder and runs no shell commands. The API has no login and
+answers only your own computer (unless `ALLOW_REMOTE_CLIENTS` is on); the database listens only
+on `127.0.0.1`. Don't expose either on a network. Details: `docs/security.md`.
 
-**Project profile.** At the end of every successful index run Mantle also writes down the
-project's basics, read from the files without a model: languages, frameworks, the commands in
-`package.json`, `pyproject.toml` and the `Makefile`, dependencies, entry points and the top
-folders, each with the file it came from. Every model you chat with gets this profile, so a
-model switch keeps it. See it in the **Profile** tab of the right panel, or with
-`GET /api/v1/projects/{id}/profile`. It isn't rebuilt by itself: when the folder changed or a
-later run failed it says "may be out of date"; index again to rebuild it. Its share of each
-prompt is capped by `CONTEXT_PROFILE_MAX_TOKENS` (600).
+## Evaluation
 
-## Backup and restore
+No solid numbers yet. On 2026-11-18 the switch demo (`backend\scripts\switch_demo.py`) scored 5
+of 5 decision questions after switching from Gemini 3.8 Flash to Gemini 3.5 Flash Lite, in two
+runs: all history sent verbatim, and decisions reaching the new model only through the rolling
+summary. That is one provider, one set of 5 questions, and no saved result file. A retrieval
+evaluation on a real repository stopped at the Gemini daily limit; no result yet.
 
-All your data (conversations, memory, workflow, agent runs, the index) lives in the Docker volume
-of the `db` service. `docker compose down -v`, a damaged volume or a Docker Desktop reinstall
-deletes it, and there is no other copy. Back it up yourself, from the repo root, with the
-database running:
+## Limits and known issues
 
-```powershell
-docker compose exec -T db pg_dump -U mantle -d mantle --format=custom -f /tmp/mantle.dump
-docker compose cp db:/tmp/mantle.dump .\mantle-backup.dump
-```
+- Index and agent runs live in the server process; a restart (also `--reload`) stops them.
+- The app reads at most 100 memory items per kind, so a reference to a later item shows its id
+  instead of its title. The built app is one 600 kB script (audit finding A-020, open).
+- There is no login, and repositories don't yet check that a parent row belongs to the user
+  (to fix before auth). Don't run Mantle anywhere but your own machine.
+- Your data lives in one Docker volume with no automatic backup (see `docs/setup.md`).
+- There is no LICENSE file yet. The planned license is MIT.
 
-Restore into an empty database (stop the API first; this replaces what is there):
+## Tests and contributing
 
-```powershell
-docker compose cp .\mantle-backup.dump db:/tmp/mantle.dump
-docker compose exec -T db pg_restore -U mantle -d mantle --clean --if-exists /tmp/mantle.dump
-```
+From `backend`: `pytest`, `ruff check .` and `ruff format --check .`. From `frontend`:
+`npm run typecheck`, `npm run lint`, `npm run test` and `npm run build`. Tests need no API keys
+and no network; pytest needs a `TEST_DATABASE_URL` database ending in `_test` (`docs/setup.md`).
 
-Then run `alembic upgrade head` in `backend`. Saved API keys are encrypted with
-`MASTER_ENCRYPTION_KEY`, so keep a copy of that key with the backup (somewhere safe, not in the
-repo): without it the restored keys can't be read, and you add them again. Keep backups out of
-the repo folder; `*.dump` files are git-ignored, so one left there is never committed.
-
-Note: the database user `mantle` (password `mantle`) is the Postgres superuser of this local
-container. The port is bound to `127.0.0.1` only. Don't expose it on a network.
-
-## Configuration
-
-Settings are read from `backend\.env`. This file is for your machine only and is **not** committed to
-Git. `backend\.env.example` lists the same keys with safe example values and **is** committed. If you
-ever lose `.env`, copy the example:
-
-```powershell
-Copy-Item backend\.env.example backend\.env
-```
-
-| Key | Meaning |
-| --- | --- |
-| `APP_ENV` | `development` for local work |
-| `LOG_LEVEL` | How much logging to show (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `DATABASE_URL` | How to connect to PostgreSQL |
-| `MASTER_ENCRYPTION_KEY` | **Required.** Fernet key that encrypts your provider API keys; the API won't start without it. Generate it with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. If you lose or change it, saved provider keys can't be read |
-| `EMBEDDING_DIMENSIONS` | Dimension of the vector column (default 1536). Changing it needs a new migration and re-indexing |
-| `CORS_ALLOWED_ORIGINS` | Browser origins that may call the API, as a JSON list (default the Vite dev server on `localhost` and `127.0.0.1`, port 5173). Never `*` |
-| `ALLOWED_HOSTS` | Host names the API answers to, as a JSON list (default `localhost` and `127.0.0.1`, any port). Others get 400 `invalid_host` |
-| `DEFAULT_EMBEDDING_MODEL` | Embedding model used when you haven't picked one (default `gemini/gemini-embedding-001`) |
-| `INDEX_COST_LIMIT_USD` | Indexing is refused above this estimated cost unless `force` is sent (default `1.00`) |
-| `EMBED_BATCH_DELAY_SECONDS` | Pause between embedding batches, for free tiers with low per-minute limits (default `1.0`) |
-| `INDEX_MAX_FILE_BYTES`, `INDEX_MAX_FILES` | Skip files over this size and past this count (defaults 1 MB, 20000) |
-| `INDEX_SENSITIVE_PATTERNS` | Extra file patterns never to index, as a JSON list in gitignore syntax, for example `["private/", "*.secret"]` |
-
-All indexing and retrieval settings, with their defaults, are in `backend\app\core\config.py`.
-
-## VS Code
-
-- Install the extensions **Python** (Microsoft) and **Ruff** (Astral Software).
-- `.vscode/settings.json` points VS Code at `backend\.venv\Scripts\python.exe`, formats Python with
-  ruff on save, and enables pytest in the Testing panel (flask icon).
-- To debug the API: **Run and Debug** panel → **Backend: FastAPI (uvicorn --reload)** → green play
-  button. Breakpoints in your code will be hit.
-
-## Common errors
-
-| Problem | What it means | Fix |
-| --- | --- | --- |
-| `python : The term 'python' is not recognized` | Python is not on your PATH | Try `py` instead of `python`, or reinstall Python with **"Add python.exe to PATH"** ticked, then open a new terminal |
-| VS Code shows import errors / uses the wrong Python | VS Code picked another interpreter | `Ctrl+Shift+P` → **Python: Select Interpreter** → choose `backend\.venv\Scripts\python.exe`. Make sure you ran steps 2 and 5 first |
-| `docker compose` fails with *"cannot connect to the Docker daemon"* / pipe error | Docker Desktop is not running | Start Docker Desktop, wait for "Engine running", then run `docker compose up -d` again |
-| `/health` says `"database":"down"` | The database container is not running or not ready | Run `docker compose ps` from the project folder; if `db` is missing, run `docker compose up -d` |
-| Port already in use (8000 or 5433) | Another program is using that port | For the API: `uvicorn app.main:app --reload --port 8001`. For the database: pick another free port and change it in both `docker-compose.yml` (`"127.0.0.1:5433:5432"`) and `DATABASE_URL` in `backend\.env` |
-| `/health` says `"database":"down"` and the log shows `role "mantle" does not exist` | The app reached a different PostgreSQL (e.g. one installed on Windows), not the Docker one | Check that `DATABASE_URL` uses the same port as `docker-compose.yml` (5433) |
-| `ModuleNotFoundError: No module named 'app'` | Command run from the wrong folder or venv not active | `cd backend`, activate the venv (step 3), and run step 5 if you haven't |
+Read `CLAUDE.md` and `docs/rules.md` first. One roadmap item per branch, named
+`type/short-topic` (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`). Commits are
+`type: short lowercase message`. Nobody commits to `main`; every change goes through a pull
+request. Never commit a `.env` file.
