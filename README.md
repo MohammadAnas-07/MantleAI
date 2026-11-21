@@ -6,7 +6,7 @@ LLM: it calls the providers you choose, with your own API keys.
 When a model hits its limit mid-task, you copy the chat into another one and spend about 10
 minutes explaining the project again. Mantle keeps the project's requirements, decisions, tasks,
 a rolling conversation summary and the indexed code in a local database, so the next model picks
-up where the last one stopped. It is for one developer on their own machine (`docs/idea.md`).
+up where the last one stopped. It is for one developer on their own machine ([idea](docs/idea.md)).
 
 ## Status
 
@@ -20,12 +20,9 @@ Version 0.1 is not finished. One developer builds it. Works today, in the API an
 - The workflow page: five stages with human approval, a gap finder, and Planner and Reviewer
   runs whose drafts are saved only when you approve them.
 
-Not yet run on a real model: a Planner and Reviewer run. Streaming and switching have been run
-for real only with Google Gemini models.
-
-Planned, not built: teaching notes and the concepts list, a model-written profile summary,
-`GET /messages/{id}/context`, `GET /audit-events`, sandboxed command execution and login. The
-order is in `docs/roadmap.md`.
+Planned, not built: teaching notes and the concepts list, a model-written project summary
+(`feat/profile-summary`, deferred), sandboxed command execution, login and accounts, the landing
+page, `GET /messages/{id}/context` and `GET /audit-events`. Order: [roadmap](docs/roadmap.md).
 
 ## How it works
 
@@ -33,12 +30,12 @@ One FastAPI process, split into modules, with PostgreSQL 16 and pgvector in Dock
 app in the browser. Every model call goes through one gateway module (built on LiteLLM), which
 logs it to a usage table. A context builder assembles each prompt from the system prompt, pinned
 memory, the project profile, the rolling summary, retrieved code and recent messages, within the
-target model's token budget. Details: `docs/architecture.md`.
+target model's token budget. Details: [docs/architecture.md](docs/architecture.md).
 
 ## Quick start
 
 You need Python 3.12 or newer, Docker Desktop (running), Node.js 22 or newer, and Git. Commands
-are for Windows PowerShell; `docs/setup.md` explains each step, configuration and backups.
+are for Windows PowerShell; [docs/setup.md](docs/setup.md) explains each step and common errors.
 
 ```powershell
 docker compose up -d                       # PostgreSQL on 127.0.0.1:5433
@@ -54,9 +51,8 @@ uvicorn app.main:app --reload              # http://127.0.0.1:8000, docs at /doc
 ```
 
 Without the master key the API won't start; if you lose it, saved provider keys can't be read.
-
 In a second terminal, run `cd frontend`, `npm install` and `npm run dev`, then open
-<http://127.0.0.1:5173>. Add a provider key in the app's settings. A free Google AI Studio key is
+<http://127.0.0.1:5173> and add a provider key in the settings. A free Google AI Studio key is
 enough for chat and for indexing.
 
 ## Indexing a project
@@ -69,9 +65,9 @@ enough for chat and for indexing.
 
 Mantle skips `.env*` files, keys and certificates, credential files, binaries, files over 1 MB,
 anything `.gitignore` matches, and any file whose content looks like it holds a secret. This is a
-safety net, not a guarantee (full list: `docs/security.md`). A cost estimate comes first, and
-indexing above `INDEX_COST_LIMIT_USD` (default $1.00) needs `force`. A run also rebuilds the
-project profile (`docs/setup.md`).
+safety net, not a guarantee (full list in [docs/security.md](docs/security.md)). A cost estimate
+comes first, and indexing above `INDEX_COST_LIMIT_USD` (default $1.00) needs `force`. Each run
+also rebuilds the project profile ([setup](docs/setup.md#the-project-profile)).
 
 ## Privacy and security
 
@@ -87,33 +83,37 @@ Everything else stays in the local PostgreSQL volume. Provider keys are stored e
 returned or logged. Logs hold ids, counts and error codes, not prompts, replies or file contents.
 Mantle never writes to your project folder and runs no shell commands. The API has no login and
 answers only your own computer (unless `ALLOW_REMOTE_CLIENTS` is on); the database listens only
-on `127.0.0.1`. Don't expose either on a network. Details: `docs/security.md`.
+on `127.0.0.1`. Don't expose either on a network. Details: [docs/security.md](docs/security.md).
 
 ## Evaluation
 
 No solid numbers yet. On 2026-11-18 the switch demo (`backend\scripts\switch_demo.py`) scored 5
-of 5 decision questions after switching from Gemini 3.8 Flash to Gemini 3.5 Flash Lite, in two
-runs: all history sent verbatim, and decisions reaching the new model only through the rolling
-summary. That is one provider, one set of 5 questions, and no saved result file. A retrieval
-evaluation on a real repository stopped at the Gemini daily limit; no result yet.
+of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash Lite, in two runs
+(all history verbatim; decisions only via the rolling summary). One provider, no saved results.
 
 ## Limits and known issues
 
-- Index and agent runs live in the server process; a restart (also `--reload`) stops them.
+- No real-use evaluation of v0.1 yet: the 2-week trial in [docs/prd.md](docs/prd.md) hasn't
+  started. The larger retrieval evaluation (25 questions on a real repository) stopped at the
+  Gemini daily limit and has no result.
+- A Planner and Reviewer run times out on Gemini 3.8 Flash; on Gemini 3.5 Flash Lite it runs.
+  Chat and switching have been run for real only on Gemini models.
 - The app reads at most 100 memory items per kind, so a reference to a later item shows its id
-  instead of its title. The built app is one 600 kB script (audit finding A-020, open).
-- There is no login, and repositories don't yet check that a parent row belongs to the user
-  (to fix before auth). Don't run Mantle anywhere but your own machine.
-- Your data lives in one Docker volume with no automatic backup (see `docs/setup.md`).
-- There is no LICENSE file yet. The planned license is MIT.
+  instead of its title, and the built app is one 600 kB script (audit A-020; the
+  `fix/list-limits-and-bundle` work is not done).
+- Index and agent runs live in the server process; a restart (also `--reload`) stops them.
+- No login, and repositories don't yet check that a parent row belongs to the user (to fix
+  before auth). Don't run Mantle anywhere but your own machine.
+- One Docker volume holds all data, with no automatic backup
+  ([backup and restore](docs/setup.md#backup-and-restore)). No LICENSE file yet; MIT is planned.
 
 ## Tests and contributing
 
 From `backend`: `pytest`, `ruff check .` and `ruff format --check .`. From `frontend`:
 `npm run typecheck`, `npm run lint`, `npm run test` and `npm run build`. Tests need no API keys
-and no network; pytest needs a `TEST_DATABASE_URL` database ending in `_test` (`docs/setup.md`).
+and no network. pytest needs a `TEST_DATABASE_URL` database ending in `_test` (see setup).
 
-Read `CLAUDE.md` and `docs/rules.md` first. One roadmap item per branch, named
-`type/short-topic` (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`). Commits are
-`type: short lowercase message`. Nobody commits to `main`; every change goes through a pull
+Read [CLAUDE.md](CLAUDE.md) and [docs/rules.md](docs/rules.md) first. One roadmap item per
+branch, named `type/short-topic` (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`). Commits
+are `type: short lowercase message`. Nobody commits to `main`; every change goes through a pull
 request. Never commit a `.env` file.
