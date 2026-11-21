@@ -238,6 +238,8 @@ const RUN_ERROR_TEXT: Record<string, string> = {
     "The embedding provider's daily quota is used up. Finished batches are saved. Try again after the provider resets the quota; the next run resumes where this one stopped.",
   rate_limit_wait_exceeded:
     "The embedding provider kept rate limiting past the wait limit. Finished batches are saved; run it again later to resume.",
+  too_many_entries:
+    "The folder has more files and folders than one run looks at (INDEX_MAX_ENTRIES). Nothing was changed. Add bulky folders to .gitignore, or raise the limit in backend/.env.",
 };
 
 function RunCard({
