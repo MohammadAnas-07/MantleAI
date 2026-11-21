@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     # between batches is EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS (900), so keep this above it.
     index_run_stale_seconds: float = Field(default=1800.0, gt=0)
     # Extra file name patterns (gitignore syntax) that are never read, on top of the built-in
-    # sensitive list in app/modules/rag/secrets.py.
+    # sensitive list in app/modules/rag/secret_scan.py.
     index_sensitive_patterns: list[str] = Field(default_factory=list)
     # Indexing is refused above this estimated cost unless the request sends force=true.
     # An app setting in v0.1; it moves to the user's settings when auth arrives.
