@@ -148,6 +148,17 @@ def migrated_database() -> URL:
 
 
 @pytest.fixture(autouse=True)
+def fake_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """pytest's temp folders sit under the real home's AppData on Windows, which the source
+    folder check refuses. Tests get a separate empty home folder instead."""
+    from app.modules.rag import source
+
+    home = tmp_path_factory.mktemp("home")
+    monkeypatch.setattr(source, "user_home", lambda: home)
+    return home
+
+
+@pytest.fixture(autouse=True)
 def test_master_key(monkeypatch: pytest.MonkeyPatch) -> str:
     """A fresh, generated master key for every test. Never a real key."""
     key = Fernet.generate_key().decode()

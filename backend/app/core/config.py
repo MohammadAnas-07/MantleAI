@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Anything else is refused, which stops DNS rebinding: a page on evil.example whose name
     # later resolves to 127.0.0.1 still sends "Host: evil.example".
     allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+    # Requests from another computer get 403 unless this is on. Mantle has no login, so only
+    # turn it on behind your own access control.
+    allow_remote_clients: bool = False
     cors_allowed_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )
@@ -88,6 +91,16 @@ class Settings(BaseSettings):
     index_max_file_bytes: int = Field(default=1_000_000, ge=1)
     index_max_files: int = Field(default=20_000, ge=1)
     index_max_chunks_per_file: int = Field(default=200, ge=1)
+    # Folder levels below the source folder that are walked; deeper folders are skipped and
+    # counted as "too_deep". Capped at 200 so the walk can't run out of stack.
+    index_max_depth: int = Field(default=40, ge=1, le=200)
+    # Files and folders one walk looks at. Past this the run fails with "too_many_entries" and
+    # changes nothing; add the bulky folders to .gitignore or raise the limit.
+    index_max_entries: int = Field(default=100_000, ge=1)
+    # A running index run whose row hasn't changed for this long has lost its job: a cancel
+    # then ends it at once. The job writes the row after every batch, and the longest wait
+    # between batches is EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS (900), so keep this above it.
+    index_run_stale_seconds: float = Field(default=1800.0, gt=0)
     # Extra file name patterns (gitignore syntax) that are never read, on top of the built-in
     # sensitive list in app/modules/rag/secrets.py.
     index_sensitive_patterns: list[str] = Field(default_factory=list)

@@ -1,6 +1,7 @@
 """One error shape for the whole API (rule 27): {"error": {"code", "message", "details"}},
 and the JSON-only rule for write requests (rule 29)."""
 
+import ipaddress
 import json
 import logging
 from typing import Any
@@ -11,6 +12,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from app.core.config import settings
 from app.core.errors import AppError
 
 logger = logging.getLogger(__name__)
@@ -155,6 +157,53 @@ def host_allowed(value: str, allowed: list[str]) -> bool:
         if host == e_host and (e_port is None or e_port == port):
             return True
     return False
+
+
+def client_is_loopback(client: tuple[str, int] | None) -> bool:
+    """True for 127.0.0.0/8, ::1 and IPv4-mapped loopback. No address (a Unix socket) is local;
+    a name that is not an address is not."""
+    if client is None:
+        return True
+    try:
+        address = ipaddress.ip_address(client[0])
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    return address.is_loopback
+
+
+class LoopbackClientMiddleware:
+    """Refuse requests from another computer (403 `remote_client_refused`) unless
+    ALLOW_REMOTE_CLIENTS is on. uvicorn listens on 127.0.0.1 by default; this holds when someone
+    starts it with --host 0.0.0.0, where the Host check alone can be passed by sending
+    `Host: localhost`. The setting is read per request."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] in ("http", "websocket")
+            and not settings.allow_remote_clients
+            and not client_is_loopback(scope.get("client"))
+        ):
+            body = json.dumps(
+                error_body(
+                    "remote_client_refused",
+                    "Mantle only answers requests from this computer.",
+                )
+            ).encode()
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 403,
+                    "headers": [(b"content-type", b"application/json")],
+                }
+            )
+            await send({"type": "http.response.body", "body": body})
+            return
+        await self.app(scope, receive, send)
 
 
 class AllowedHostsMiddleware:

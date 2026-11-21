@@ -31,7 +31,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -81,6 +81,7 @@ from app.modules.rag.scanner import (
     read_text,
     walk,
 )
+from app.modules.rag.source import resolve_source_path
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +173,7 @@ class Plan:
     report: SkipReport
     deleted: list[Document]
     files_seen: int
+    stopped: str | None = None  # the walk hit INDEX_MAX_ENTRIES: nothing may be changed
 
     def by_action(self, action: str) -> list[FilePlan]:
         return [f for f in self.files if f.action == action]
@@ -243,8 +245,14 @@ async def build_plan(
     model: EmbeddingModelInfo,
 ) -> Plan:
     """Decide what to do with every file. Reads only files that may have changed."""
-    limits = WalkLimits(settings.index_max_file_bytes, settings.index_max_files)
+    limits = WalkLimits(
+        settings.index_max_file_bytes, settings.index_max_files,
+        settings.index_max_depth, settings.index_max_entries,
+    )  # fmt: skip
     walked = await asyncio.to_thread(walk, root, limits)
+    if walked.stopped is not None:
+        # Nothing is read. A partial walk would count every file it didn't reach as deleted.
+        return Plan([], [], walked.report, [], walked.entries_seen, walked.stopped)
     docs = await _documents(session, user_id, project_id)
     cfg = ChunkSettings.from_settings()
     name = model.litellm_model
@@ -375,7 +383,9 @@ async def _source_root(session: AsyncSession, user_id: uuid.UUID, project_id: uu
         raise NoSourcePath(
             "The project's source folder no longer exists.", details={"reason": "missing"}
         )
-    return root
+    # Checked again: the folder may have been saved before a rule existed, or a link in its
+    # path may point somewhere else now (audit A-010). 422 invalid_source_path.
+    return await asyncio.to_thread(resolve_source_path, project.root_path)
 
 
 async def estimate_index(
@@ -444,12 +454,32 @@ async def start_index(
 
 
 async def request_cancel(session: AsyncSession, run: IndexRun) -> IndexRun:
-    """A queued run is cancelled now; a running one stops before its next batch."""
+    """A queued run is cancelled now; a running one stops before its next batch. A running run
+    whose row hasn't changed for INDEX_RUN_STALE_SECONDS has lost its job (it died while the
+    server stayed up), so it is cancelled now too."""
     if run.status == IndexRunStatus.QUEUED:
         run.status = IndexRunStatus.CANCELLED
         run.finished_at = _now()
     elif run.status == IndexRunStatus.RUNNING:
-        run.cancel_requested_at = _now()
+        stamp = _now()
+        await session.flush()
+        # Before setting cancel_requested_at: that write refreshes updated_at.
+        ended = await session.execute(
+            update(IndexRun)
+            .where(
+                IndexRun.user_id == run.user_id,
+                IndexRun.id == run.id,
+                IndexRun.status == IndexRunStatus.RUNNING,
+                IndexRun.updated_at < stamp - timedelta(seconds=settings.index_run_stale_seconds),
+            )
+            .values(status=IndexRunStatus.CANCELLED, cancel_requested_at=stamp, finished_at=stamp)
+            .execution_options(synchronize_session=False)
+        )
+        if ended.rowcount:
+            logger.warning("stale index run cancelled run=%s", run.id)
+            await session.refresh(run)
+        else:
+            run.cancel_requested_at = stamp
     await session.flush()
     return run
 
@@ -670,6 +700,12 @@ async def _execute(
     if not run.root_path or not await asyncio.to_thread(root.is_dir):
         raise _RunError("source_missing")
     plan = await build_plan(session, user_id, run.project_id, root, model)
+    if plan.stopped is not None:
+        run.files_seen, run.skip_report = plan.files_seen, plan.report.as_dict()
+        await session.commit()
+        logger.warning("index run stopped run=%s reason=%s entries=%d limit=%d", run.id,
+                       plan.stopped, plan.files_seen, settings.index_max_entries)  # fmt: skip
+        raise _RunError(plan.stopped)
     await _apply_cheap_changes(session, user_id, run.project_id, run, plan)
 
     # A row for every file that gets segments; new files start as "pending".
@@ -765,6 +801,10 @@ async def run_index_job(
         if not session.is_active or session.in_transaction():
             await session.rollback()
         await session.refresh(run)
+        if run.status != IndexRunStatus.RUNNING:
+            # A cancel ended it as stale while this job was still going: the cancel stands.
+            logger.warning("index run already ended run=%s status=%s", run_id, run.status.value)
+            return
         run.status, run.error, run.finished_at = status, error, _now()
         await session.commit()
         logger.info(

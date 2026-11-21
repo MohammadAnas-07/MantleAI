@@ -272,6 +272,29 @@ describe("index panel", () => {
     expect(screen.getByText("daily_quota_exhausted")).toBeInTheDocument();
     expect(screen.getByText(/Try again after the provider resets the quota/)).toBeInTheDocument();
   });
+
+  it("explains a run that stopped at the file and folder limit", async () => {
+    const starts: boolean[] = [];
+    server.use(
+      http.get(`${API}/api/v1/index-runs/r1`, () =>
+        HttpResponse.json(
+          run("failed", {
+            error: "too_many_entries",
+            files_seen: 100000,
+            skip_report: { too_many_entries: { count: 100000, examples: [] } },
+          }),
+        ),
+      ),
+      ...indexHandlers(["failed"], starts),
+    );
+    const { user } = renderApp(`/projects/${PROJECT_ID}`);
+    await openIndexTab(user);
+    await user.click(await screen.findByRole("button", { name: "Estimate" }));
+    await user.click(await screen.findByRole("button", { name: "Start indexing" }));
+    await user.click(await screen.findByRole("button", { name: "Index anyway" }));
+    expect(await screen.findByText("Run failed")).toBeInTheDocument();
+    expect(screen.getByText(/Nothing was changed/)).toBeInTheDocument();
+  });
 });
 
 const task = (id: string, title: string, deps: string[] = []): MemoryItem => ({

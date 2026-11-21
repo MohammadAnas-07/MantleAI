@@ -15,6 +15,7 @@ from app.api.deps import DbSession
 from app.api.errors import (
     AllowedHostsMiddleware,
     JsonOnlyMiddleware,
+    LoopbackClientMiddleware,
     UnhandledErrorMiddleware,
     install_error_handlers,
 )
@@ -59,9 +60,22 @@ async def warn_about_unreadable_keys() -> None:
         )
 
 
+def log_client_policy() -> None:
+    """Say at startup who may call the API."""
+    if settings.allow_remote_clients:
+        logger.warning(
+            "ALLOW_REMOTE_CLIENTS is on: the API answers requests from other computers if "
+            "uvicorn listens beyond 127.0.0.1. Mantle has no login; anyone who reaches the "
+            "port can use your keys."
+        )
+    else:
+        logger.info("the API answers requests only from this computer (loopback)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging(settings.log_level)
+    log_client_policy()
     # Fail fast: without a valid master key, stored provider keys can't be used.
     validate_master_key()
     check_stage_definitions()  # a bad stages.yaml stops the app here
@@ -97,8 +111,10 @@ app.add_middleware(
     allow_credentials=False,
     max_age=600,
 )
-# Outermost: a request for a host name we don't serve gets no further.
+# A request for a host name we don't serve gets no further.
 app.add_middleware(AllowedHostsMiddleware, allowed_hosts=settings.allowed_hosts)
+# Outermost: a request from another computer gets no further (audit A-018).
+app.add_middleware(LoopbackClientMiddleware)
 install_error_handlers(app)
 app.include_router(api_router)
 

@@ -496,14 +496,14 @@ async def test_new_secret_rules_rescan_unchanged_files(
     path.write_text(path.read_text() + "\nTOKEN = 'ey" + "J" + "a" * 20 + ".eyJ" + "b" * 20
                     + "." + "c" * 20 + "'\n")  # fmt: skip
     # Older rules: they didn't know this shape.
+    current_rules = scanner.looks_like_secret
     monkeypatch.setattr(scanner, "looks_like_secret", lambda text, name="": False)
     await index_once(session, world)
     doc = (await documents(session, world))["backend/app/config.py"]
     assert doc.status == "indexed" and await count_chunks(session, world, document_id=doc.id) > 0
 
-    monkeypatch.undo()
+    monkeypatch.setattr(scanner, "looks_like_secret", current_rules)
     monkeypatch.setattr(secret_scan, "RULES_VERSION", secret_scan.RULES_VERSION + 1)
-    fast_settings(monkeypatch)
     await index_once(session, world)
     await session.refresh(doc)
     assert (doc.status, doc.skip_reason, doc.content_hash) == ("skipped", "possible secret", None)
