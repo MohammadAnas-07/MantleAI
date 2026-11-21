@@ -10,40 +10,40 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Summary (2026-11-20).** Mantle today: projects, keys, chat with streaming, model switching
-with handoff, project memory, indexing with cited retrieval, and the workflow with gap finder,
-Planner and Reviewer, and the workflow page (stages, gap finder, agent runs, approval; merged).
-An audit (2026-11-20, report outside the repo, A-001..A-022) found 2 Critical, 3 High issues.
-Merged: A-001, A-002/A-011, A-003/A-007, A-004/A-005/A-006/A-009. `fix/run-concurrency-and-queries`
-(not pushed) fixes A-008 (gap finder row committed first), A-013 (one steps query, run list
-summaries), A-014 (usage index, `0010`), A-019 (env access only in config, full .env.example),
-A-022 (README note); stale runs can be cancelled. Next: `docs/audit-catch-up`. Not
-built: teaching notes, project profile, `GET /messages/{id}/context`, message cancel. Not run
-with a real model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
-Next: the developer adds `TEST_DATABASE_URL` to `backend/.env`, runs `alembic upgrade head`
-and re-indexes every project; then `docs/audit-catch-up`.
-Branches: 2 local (`main`, `fix/run-concurrency-and-queries`), 31 remote (untouched).
+**Summary (2026-11-21).** Mantle today: projects, keys, chat with streaming, model switching
+with handoff, project memory, indexing with cited retrieval, and the workflow (stages, gap
+finder, Planner and Reviewer runs, approval) with its page. Not built: teaching notes, project
+profile, `GET /messages/{id}/context`, `GET /audit-events`, message cancel. Not run with a real
+model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
+Audit 2026-11-20 (A-001..A-022, report outside the repo). Fixed and merged: A-001..A-009,
+A-011, A-013, A-014, A-019, A-022. `docs/audit-catch-up` (not pushed): A-017 drift, A-012 backup
+notes (README). Open, code: A-010 sensitive roots, A-015 dead code, A-016 boundary test, A-018
+loopback check, A-020 bundle and 100-item memory index, A-021 scan depth. Deferred: A-012 app
+role without superuser, `scripts/backup.ps1`. Listed for the developer (code or rules side):
+config.py comment says `rag/secrets.py`; `.env.production`, `*.dump` not git-ignored; rule 61
+vs the tracked `frontend/.env.example`; CLAUDE.md "LangGraph" vs ADR 0004 (none imported).
+Next: A-015/A-016/A-018, then A-010/A-021, then A-020. Branches: 2 local, 31 remote.
 
 Tests: 763 backend and 119 frontend pass, races 5/5. pytest needs `TEST_DATABASE_URL`.
 Migration head `0010` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-20 (run concurrency and queries).
+First demo target: 2026-12-17. Last updated 2026-11-21 (docs catch-up).
 
 ## Done
 
 - 2026-11-17/18: scaffold, Docker Postgres 5433, docs, tables, Fernet, seed; LLM gateway, model
-  switching, context builder, rolling summary, project memory. Switch demo 5/5 twice on Gemini.
+  switching, context builder, rolling summary, project memory. Switch demo 5/5 twice
+  on Gemini (seen in a session; no result file saved).
 - 2026-11-18: indexing and RAG (hybrid search, RRF k=60, ADRs 0006, 0007); the first frontend
   (`docs/design-app.md`, settings, projects, index, memory, chat, context, activity).
 - 2026-11-19/20: quota fix (`0007`); workflow and agents (`0008`, plain state machine, approval
-  of drafts, 5 review fixes, rules 85-90); the workflow UI; the test database guard (A-001).
+  of drafts, 5 review fixes, rules 85-90); the workflow UI; audit fixes A-001..A-014 (`0009`,
+  `0010`; race tests in `tests/test_run_races.py`, query counts in `tests/query_count.py`).
 
 ## In progress
 
-- `fix/run-concurrency-and-queries`: `tests/test_run_races.py` (two connections, blocking fake
-  provider), `query_count.py`, `workflow/views.py`, `AGENT_RUN_STALE_SECONDS`, `EVENTS_SHOWN` 100,
-  `prepare_litellm_environment()`, migration `0010` (CONCURRENTLY, autocommit block).
+- `docs/audit-catch-up`: docs only (A-017 drift, A-012 README backup section).
 - Click eval (25 questions): run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
