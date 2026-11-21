@@ -162,16 +162,32 @@ class Chunk(UserOwnedEntity):
 
 
 class ProjectProfile(UserOwnedEntity):
-    """Facts about a project, built without an LLM at the end of each index run."""
+    """Facts about a project, built without an LLM at the end of each successful index run
+    (rag/profile.py). One row per project, replaced on every build. Every list item is an
+    object with a `source` path, the file the fact was read from."""
 
     __tablename__ = "project_profiles"
 
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), unique=True
     )
+    # {"python": 42, "typescript": 10}: indexed files per language.
     languages: Mapped[dict[str, Any]] = mapped_column(
         default=dict, server_default=text("'{}'::jsonb")
     )
-    dependencies: Mapped[list[str]] = mapped_column(default=list, server_default="[]")
-    markers: Mapped[list[str]] = mapped_column(default=list, server_default="[]")
+    # [{"name", "ecosystem", "dev", "source"}]
+    dependencies: Mapped[list[dict[str, Any]]] = mapped_column(default=list, server_default="[]")
+    # [{"name", "source"}]: dockerfile, compose, migrations, ci_workflows, tests
+    markers: Mapped[list[dict[str, Any]]] = mapped_column(default=list, server_default="[]")
+    # [{"kind", "source"}]: pyproject, requirements, package_json, lock files, ...
+    manifests: Mapped[list[dict[str, Any]]] = mapped_column(default=list, server_default="[]")
+    # [{"name", "source"}]: hints from dependency names
+    frameworks: Mapped[list[dict[str, Any]]] = mapped_column(default=list, server_default="[]")
+    # [{"name", "command", "source"}]: package.json scripts, pyproject scripts
+    commands: Mapped[list[dict[str, Any]]] = mapped_column(default=list, server_default="[]")
+    # [{"path", "files"}]: top folders, two levels at most
+    layout: Mapped[list[dict[str, Any]]] = mapped_column(default=list, server_default="[]")
+    # [{"source", "kind"}]: main.py, manage.py, src/main.tsx, ...
+    entry_points: Mapped[list[dict[str, Any]]] = mapped_column(default=list, server_default="[]")
+    built_at: Mapped[datetime | None]
     index_run_id: Mapped[uuid.UUID] = mapped_column(fk("index_runs"), index=True)
