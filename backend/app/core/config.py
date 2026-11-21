@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Anything else is refused, which stops DNS rebinding: a page on evil.example whose name
     # later resolves to 127.0.0.1 still sends "Host: evil.example".
     allowed_hosts: list[str] = Field(default_factory=lambda: ["localhost", "127.0.0.1"])
+    # Requests from another computer get 403 unless this is on. Mantle has no login, so only
+    # turn it on behind your own access control.
+    allow_remote_clients: bool = False
     cors_allowed_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
     )
