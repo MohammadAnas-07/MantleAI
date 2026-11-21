@@ -10,20 +10,20 @@ the project's decisions, tasks and reasons still there.
 
 ## Success metric
 
-**Accepted 2026-11-17:**
+Accepted 2026-11-17:
 
-> Over 2 weeks of using Mantle on a real project, at least **10 successful model switches**. A
-> switch counts as successful only if work continues within **1 minute** with **no manual
-> re-explaining**, **and** the new model answers **at least 4 of 5** decision questions
-> correctly. Today's baseline is about 10 minutes per switch.
+> Over 2 weeks of using Mantle on a real project, at least 10 successful model switches. A switch
+> counts as successful only if work continues within 1 minute with no manual re-explaining, and
+> the new model answers at least 4 of 5 decision questions correctly. Today's baseline is about
+> 10 minutes per switch.
 
-**Decision-question check (after every switch):** ask the new model 5 questions whose answers
-depend on decisions made earlier in the same conversation (for example "Which database did we
-choose, and why?"). Write the 5 questions and their expected answers down **before** the switch.
-Mark each answer correct or wrong. Below 4 of 5, the switch is a failure, whatever the time.
+Decision-question check, after every switch: ask the new model 5 questions whose answers depend
+on decisions made earlier in the same conversation (for example "Which database did we choose,
+and why?"). Write the 5 questions and their expected answers down before the switch. Mark each
+answer correct or wrong. Below 4 of 5, the switch is a failure, whatever the time.
 
-How to measure: for each switch, log the time to the first useful answer, whether you
-re-explained anything (yes/no), and the score out of 5. Usage records give the switch count.
+To measure: for each switch, log the time to the first useful answer, whether you re-explained
+anything (yes/no), and the score out of 5. Usage records give the switch count.
 
 ## Target user
 
