@@ -12,7 +12,9 @@ Indexes a project's local folder and finds code for prompts. May call `llm` (emb
   line windows otherwise), the embedder input, and the split-identifier search text.
 - `indexer.py`: the estimate, the incremental background job (batches, retries, cancel, resume)
   and startup recovery.
+- `profile.py`: project profile facts from the files one index run kept, with no model and no
+  network.
 - `search.py`: vector and full-text rankings, reciprocal rank fusion, merging nearby results.
-- `service.py`: the public interface (source, index, status, documents, search, retrieval for
-  the context builder).
+- `service.py`: the public interface (source, index, status, documents, search, profile,
+  retrieval for the context builder).
 - `router.py`, `schemas.py`: the endpoints in `docs/api-outline.md` ("RAG").

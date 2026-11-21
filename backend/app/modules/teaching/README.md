@@ -1,2 +1,4 @@
 # teaching
-Explains code and concepts step by step for learning. Not implemented yet.
+
+Teaching notes and the "concepts for this project" list. Not built yet: only the tables
+(`models.py`) and a repository exist. Planned in `feat/teaching-layer`.
