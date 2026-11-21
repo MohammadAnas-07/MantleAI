@@ -27,14 +27,14 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 
 | Status | Branch | Goal |
 | --- | --- | --- |
-| In review | `feat/project-indexing-rag` | Index a local folder into pgvector, re-index only changed files, retrieve and cite top-k chunks in chat. |
+| Done | `feat/project-indexing-rag` | Index a local folder into pgvector, re-index only changed files, retrieve and cite top-k chunks in chat. |
 
 ## [Phase 4: Workflow, agents and teaching](phases.md#phase-4-workflow-agents-and-teaching)
 
 | Status | Branch | Goal |
 | --- | --- | --- |
-| | `feat/workflow-and-agents` | Fixed workflow stages, Planner and Reviewer agents, approve, skip or reopen a stage; approve or reject a Planner draft; approval of AI-proposed memory items. |
-| | `feat/project-profile` | Build the project profile (languages, dependencies from `pyproject.toml`, `requirements.txt`, `package.json`, markers such as Dockerfile, migrations, CI) at the end of each index run, without an LLM, and serve `GET /projects/{id}/profile`. The concepts list in `feat/teaching-layer` reads it. Also: the profile goes into every model's context, and a Profile tab shows it. |
+| Done | `feat/workflow-and-agents` | Fixed workflow stages, Planner and Reviewer agents, approve, skip or reopen a stage; approve or reject a Planner draft; approval of AI-proposed memory items. |
+| Done | `feat/project-profile` | Build the project profile (languages, dependencies from `pyproject.toml`, `requirements.txt`, `package.json`, markers such as Dockerfile, migrations, CI) at the end of each index run, without an LLM, and serve `GET /projects/{id}/profile`. The concepts list in `feat/teaching-layer` reads it. Also: the profile goes into every model's context, and a Profile tab shows it. |
 | | `feat/profile-summary` | A model-written profile summary (purpose, architecture, conventions, constraints) on request only: estimate and confirm first, purpose `project_profile`, a draft until approved, edited or rejected, immutable versions with a current pointer and history (`project_profile_versions` in `projects`; the run in `agent_runs`). Added 2026-11-21 when the facts were split from the summary. |
 | | `feat/teaching-layer` | Project-aware "what, why, how" teaching notes on request, and the rule-based concepts list. |
 
@@ -42,7 +42,8 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 
 | Status | Branch | Goal |
 | --- | --- | --- |
-| | `feat/frontend-workspace` | React + Vite + TS + Tailwind UI for everything above (design in `docs/design-app.md`). |
+| Done | `feat/frontend-workspace` | React + Vite + TS + Tailwind UI for everything above (design in `docs/design-app.md`). The teaching screen waits for its backend. |
+| Done | `feat/workflow-ui` | The workflow page: stages, the gap finder, and Planner and Reviewer runs with approval. |
 
 ## [Phase 6: Safe execution, accounts and open-source release](phases.md#phase-6-safe-execution-accounts-and-open-source-release)
 
@@ -52,5 +53,3 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 | | `feat/authentication` | User accounts and sessions, so Mantle can run beyond one local user. |
 | | `chore/ci-and-deployment` | GitHub Actions for lint and tests, a production build and deployment setup. |
 | | `feat/landing-page` | Marketing landing page using `docs/design-landing.md` (after conflict C1 is resolved). |
-
-## Later / ideas
