@@ -33,7 +33,7 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 
 | Status | Branch | Goal |
 | --- | --- | --- |
-| | `feat/workflow-and-agents` | Fixed workflow stages, Planner and Reviewer agents, approve, request changes or skip; approval of AI-proposed memory items. |
+| | `feat/workflow-and-agents` | Fixed workflow stages, Planner and Reviewer agents, approve, skip or reopen a stage; approve or reject a Planner draft; approval of AI-proposed memory items. |
 | | `feat/project-profile` | Build the project profile (languages, dependencies from `pyproject.toml`, `requirements.txt`, `package.json`, markers such as Dockerfile, migrations, CI) at the end of each index run, without an LLM, and serve `GET /projects/{id}/profile`. The concepts list in `feat/teaching-layer` reads it. |
 | | `feat/teaching-layer` | Project-aware "what, why, how" teaching notes on request, and the rule-based concepts list. |
 

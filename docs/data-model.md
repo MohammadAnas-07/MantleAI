@@ -7,7 +7,7 @@ Conventions:
 
 - Every table has `id` (UUID), `created_at` and `updated_at` (UTC).
 - **Every user-data table has `user_id` → User** (not null, indexed). That is every table below
-  except User and ModelConfig. Child tables (Message, Chunk, StageState, …) carry `user_id` too,
+  except User and ModelConfig. Child tables (Message, Chunk, AgentRunStep, …) carry `user_id` too,
   so every query can filter by user directly.
 - "FK" means foreign key. Enums are stored as short strings (`VARCHAR(32)`, no PostgreSQL enum
   types and no CHECK constraints), so adding a value needs no migration.
@@ -398,7 +398,8 @@ User 1─* (every user-data table, via user_id)
                  ├─* IndexRun
                  ├─* Document 1─* Chunk
                  ├─1 ProjectProfile
-                 ├─* WorkflowRun 1─* StageState 1─* AgentRun
+                 ├─1 ProjectWorkflow 1─* WorkflowEvent
+                 ├─* AgentRun 1─* AgentRunStep
                  ├─* TeachingNote
                  ├─* ConceptSuggestion
                  └─* ExecutionRun            (later)

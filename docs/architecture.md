@@ -32,7 +32,7 @@ Recorded 2026-11-17.
 | D1 | Landing page conflicts | C1 deferred to `feat/landing-page`. C2 and C3 resolved as shown in Conflicts. |
 | D2 | Embeddings | Any embedding model the LLM gateway supports may be used (amended 2026-11-18; first default: `gemini/gemini-embedding-001` at 1536 dimensions, with document and query task types). Called through the LLM gateway. No local embedding model in v0.1. **The user needs an embeddings-capable key** for that model's provider; an Anthropic-only key can chat but cannot index. Every chunk stores its embedding model name and dimension. Changing the embedding model means re-indexing the project, because the pgvector column has a fixed dimension. |
 | D3 | Handoff summary | A configurable **utility model** setting, which defaults to the conversation's active model. A **rolling summary** is built in the background as the conversation grows, so switching models never needs a call to the old model. |
-| D4 | Workflow stages (v0.1) | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. The Reviewer checks each stage, and the user approves it. |
+| D4 | Workflow stages (v0.1) | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. The Reviewer checks each stage, and the user approves it. Amended 2026-11-21 to match the code: the Reviewer runs only when the user starts a plan run (after the Planner) or a review run; stage approval never waits for it; there is no revision loop (ADR 0004). |
 | D5 | Teaching notes | Created only when the user asks, plus a passive "concepts for this project" list in the teaching panel. No automatic pop-ups or interruptions. |
 | D6 | Database exposure | Bind PostgreSQL to `127.0.0.1:5433:5432`. **Done** in `fix/bind-database-to-localhost`. |
 | D7 | LangChain / LangGraph | We never import `langchain*`. We import only `langgraph`, and only inside `modules/workflow`. `langchain-core` arriving as a dependency of LangGraph is fine. If Planner and Reviewer can be plain Python, skip LangGraph (ADR 0004). |
@@ -101,7 +101,7 @@ Each module owns its tables and exposes a `service.py`. The arrows show who may 
 | `conversations` | Conversation, Message, ConversationSummary, ContextHandoff, MessageContext | Chat, the context builder (assembles every prompt), rolling summary, model switching | projects, rag, llm |
 | `llm` (LLM gateway) | ProviderCredential, ModelConfig, UserModelSettings, UsageRecord | Encrypted keys, model catalog, utility and embedding model settings, streaming completions, embeddings, token counting, typed errors | none |
 | `rag` | Document, Chunk, IndexRun, ProjectProfile | Validate the project folder, walk, filter, chunk, embed, store, hybrid retrieval, build the project profile (no LLM) | llm, projects (ADR 0006) |
-| `workflow` (agents) | WorkflowRun, StageState, AgentRun | Fixed stage list (D4), Planner and Reviewer agents, human approval | projects, rag, llm |
+| `workflow` (agents) | ProjectWorkflow, WorkflowEvent, AgentRun, AgentRunStep | Fixed stage list (D4), gap finder, Planner and Reviewer runs, human approval | projects, rag, llm |
 | `teaching` | TeachingNote, ConceptSuggestion | Notes on request (LLM), and the passive "concepts for this project" list built from YAML rules + the project profile (no LLM) | projects, conversations, rag, llm |
 | `execution` | ExecutionRun (later) | Run commands in a sandbox after approval. **Not in v0.1.** | (later) |
 | shared (`app/core`) | User, AuditEvent | The default local user, the current-user dependency, the audit log | none |
@@ -125,10 +125,10 @@ UI                      conversations                    projects / rag         
  |                        |   + messages after the summary, trimmed to the model's token budget
  |                        |---- stream(model_id, messages) ----------------------->| decrypt key
  |                        |                                                        |---- LiteLLM --->|
- |<== SSE "context" (sources used)                                                 |<--- tokens -----|
- |<== SSE "token" ... "token" <----------------------------------------------------|
+ |<== SSE "message_start" (sources used), "warning" if retrieval failed           |<--- tokens -----|
+ |<== SSE "delta" ... "delta" <----------------------------------------------------|
  |                        | save assistant Message (model_id), MessageContext rows, UsageRecord
- |<== SSE "done" {message_id, usage}
+ |<== SSE "message_end" {message_id, usage}, or "error" {code, message, details}
  |                        | background, only if background summaries are ON
  |                        | and the messages not yet summarised > threshold:
  |                        |   complete(utility model, previous summary + new messages) ->|

@@ -288,6 +288,33 @@ what changed. Turn code context off for one conversation with
 `backend\scripts\eval_retrieval.py` indexes the sample project in `backend\tests\fixtures` with
 your real key and prints recall@5 and MRR for vector, text and hybrid search.
 
+## Backup and restore
+
+All your data (conversations, memory, workflow, agent runs, the index) lives in the Docker volume
+of the `db` service. `docker compose down -v`, a damaged volume or a Docker Desktop reinstall
+deletes it, and there is no other copy. Back it up yourself, from the repo root, with the
+database running:
+
+```powershell
+docker compose exec -T db pg_dump -U mantle -d mantle --format=custom -f /tmp/mantle.dump
+docker compose cp db:/tmp/mantle.dump .\mantle-backup.dump
+```
+
+Restore into an empty database (stop the API first; this replaces what is there):
+
+```powershell
+docker compose cp .\mantle-backup.dump db:/tmp/mantle.dump
+docker compose exec -T db pg_restore -U mantle -d mantle --clean --if-exists /tmp/mantle.dump
+```
+
+Then run `alembic upgrade head` in `backend`. Saved API keys are encrypted with
+`MASTER_ENCRYPTION_KEY`, so keep a copy of that key with the backup (somewhere safe, not in the
+repo): without it the restored keys can't be read, and you add them again. Keep backups out of
+the repo folder or out of git; `*.dump` files are not git-ignored.
+
+Note: the database user `mantle` (password `mantle`) is the Postgres superuser of this local
+container. The port is bound to `127.0.0.1` only. Don't expose it on a network.
+
 ## Configuration
 
 Settings are read from `backend\.env`. This file is for your machine only and is **not** committed to
