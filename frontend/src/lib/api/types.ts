@@ -11,6 +11,7 @@ export type ProjectCreate = Schemas["ProjectCreate"];
 export type ProjectPatch = Schemas["ProjectPatch"];
 export type IndexStatus = Schemas["IndexStatusOut"];
 export type IndexRun = Schemas["RunOut"];
+export type ProjectProfile = Schemas["ProjectProfileOut"];
 export type RunStarted = Schemas["RunStarted"];
 export type DocumentPage = Schemas["DocumentPageOut"];
 export type IndexedFile = Schemas["DocumentOut"];
@@ -100,6 +101,14 @@ export interface HandoffPreview {
     max_tokens: number;
     used: SourceReport[];
     dropped: DroppedSource[];
+  };
+  // The project profile section: fields sent, and fields left out with the reason
+  // (profile_budget: over CONTEXT_PROFILE_MAX_TOKENS; context_budget: the whole request).
+  profile: {
+    tokens: number;
+    max_tokens: number;
+    fields: string[];
+    dropped: { field: string; reason: string }[];
   };
   has_key: boolean;
   will_build_summary: boolean;

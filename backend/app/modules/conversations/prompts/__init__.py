@@ -6,7 +6,7 @@ from pathlib import Path
 
 PROMPTS_DIR = Path(__file__).resolve().parent
 
-SYSTEM_PROMPT = "system_v2"
+SYSTEM_PROMPT = "system_v3"
 SUMMARY_PROMPT = "summary_v1"
 
 

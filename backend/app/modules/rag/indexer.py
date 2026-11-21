@@ -72,6 +72,8 @@ from app.modules.rag.models import (
     IndexRun,
     IndexRunStatus,
 )
+from app.modules.rag.profile import collect_facts, lock_paths_of, read_manifest
+from app.modules.rag.repository import ProjectProfileRepository
 from app.modules.rag.scanner import (
     RECORDED_REASONS,
     FileEntry,
@@ -174,6 +176,7 @@ class Plan:
     deleted: list[Document]
     files_seen: int
     stopped: str | None = None  # the walk hit INDEX_MAX_ENTRIES: nothing may be changed
+    lock_paths: list[str] = field(default_factory=list)  # for the profile; seen by name only
 
     def by_action(self, action: str) -> list[FilePlan]:
         return [f for f in self.files if f.action == action]
@@ -309,7 +312,7 @@ async def build_plan(
     seen = {p.entry.path for p in plans} | {path for path, _, _ in skipped}
     deleted = [d for path, d in docs.items() if path not in seen]
     files_seen = len(walked.files) + sum(1 for s in walked.skipped if s.reason in RECORDED_REASONS)
-    return Plan(plans, skipped, report, deleted, files_seen)
+    return Plan(plans, skipped, report, deleted, files_seen, None, lock_paths_of(walked.skipped))
 
 
 # ---- estimate ------------------------------------------------------------------------------
@@ -767,6 +770,35 @@ async def _execute(
         )
         if number + 1 < len(batches) and settings.embed_batch_delay_seconds:
             await _sleep(settings.embed_batch_delay_seconds)
+    await _build_profile(session, user_id, run, plan)
+
+
+async def _build_profile(
+    session: AsyncSession, user_id: uuid.UUID, run: IndexRun, plan: Plan
+) -> None:
+    """Rebuild the project profile from this run's files. No model call. A failure is logged
+    by type and leaves the last profile; it never fails the run, whose index is complete."""
+    started = time.monotonic()
+    files = [f.entry for f in plan.files]
+    try:
+        facts = await asyncio.to_thread(
+            collect_facts, files, plan.lock_paths,
+            lambda entry: read_manifest(entry, settings.index_max_file_bytes),
+        )  # fmt: skip
+        async with session.begin_nested():
+            await ProjectProfileRepository(session, user_id).save(
+                run.project_id, run.id, facts, _now()
+            )
+        await session.commit()
+    except Exception as exc:
+        # Type only: a message could quote a manifest.
+        logger.warning("profile build failed run=%s type=%s", run.id, type(exc).__name__)
+        return
+    logger.info(
+        "profile built run=%s files=%d dependencies=%d commands=%d ms=%d", run.id, len(files),
+        len(facts["dependencies"]), len(facts["commands"]),
+        int((time.monotonic() - started) * 1000),
+    )  # fmt: skip
 
 
 async def run_index_job(

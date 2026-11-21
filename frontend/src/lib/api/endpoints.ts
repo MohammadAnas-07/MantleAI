@@ -31,6 +31,7 @@ import type {
   ModelSettingsPatch,
   Project,
   ProjectCreate,
+  ProjectProfile,
   ProjectPatch,
   Provider,
   RunStarted,
@@ -106,6 +107,8 @@ export const api = {
       timeoutMs: 120_000,
     }),
   run: (runId: string, o: Opts = {}) => apiFetch<IndexRun>(`/api/v1/index-runs/${runId}`, o),
+  profile: (id: string, o: Opts = {}) =>
+    apiFetch<ProjectProfile>(`/api/v1/projects/${id}/profile`, o),
   cancelRun: (runId: string) =>
     apiFetch<IndexRun>(`/api/v1/index-runs/${runId}/cancel`, { method: "POST", body: {} }),
   documents: (id: string, status: string | null, o: Opts = {}) =>

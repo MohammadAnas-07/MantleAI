@@ -683,6 +683,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Profile
+         * @description The project profile: facts read from the files at the end of the last successful index
+         *     run, without a model, each with its source file. Never rebuilt here.
+         */
+        get: operations["get_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/search": {
         parameters: {
             query?: never;
@@ -1261,6 +1282,17 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** CommandOut */
+        CommandOut: {
+            /** Command */
+            command: string;
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Source */
+            source: string;
+        };
         /** ConversationCreate */
         ConversationCreate: {
             /**
@@ -1408,6 +1440,17 @@ export interface components {
              */
             depends_on_id: string;
         };
+        /** DependencyOut */
+        DependencyOut: {
+            /** Dev */
+            dev: boolean;
+            /** Ecosystem */
+            ecosystem: string;
+            /** Name */
+            name: string;
+            /** Source */
+            source: string;
+        };
         /** DocumentOut */
         DocumentOut: {
             /** Embedding Model */
@@ -1457,6 +1500,13 @@ export interface components {
          * @enum {string}
          */
         DocumentStatus: "pending" | "indexed" | "skipped";
+        /** EntryPointOut */
+        EntryPointOut: {
+            /** Kind */
+            kind: string;
+            /** Source */
+            source: string;
+        };
         /** GapFinderIn */
         GapFinderIn: {
             /**
@@ -1543,6 +1593,32 @@ export interface components {
             reindex_reasons: string[];
             /** Root Path */
             root_path: string | null;
+        };
+        /** LanguageShareOut */
+        LanguageShareOut: {
+            /** Files */
+            files: number;
+            /** Name */
+            name: string;
+            /**
+             * Share
+             * @description Share of the counted files, 0 to 1.
+             */
+            share: number;
+        };
+        /** LayoutOut */
+        LayoutOut: {
+            /** Files */
+            files: number;
+            /** Path */
+            path: string;
+        };
+        /** ManifestOut */
+        ManifestOut: {
+            /** Kind */
+            kind: string;
+            /** Source */
+            source: string;
         };
         /** MeOut */
         MeOut: {
@@ -1820,6 +1896,47 @@ export interface components {
             /** Name */
             name?: string | null;
         };
+        /**
+         * ProjectProfileOut
+         * @description Facts read from the project's files by the last successful index run, without a model.
+         *     All text comes from the repository: show it as plain text.
+         */
+        ProjectProfileOut: {
+            /** Built */
+            built: boolean;
+            /** Built At */
+            built_at: string | null;
+            /** Commands */
+            commands: components["schemas"]["CommandOut"][];
+            /** Dependencies */
+            dependencies: components["schemas"]["DependencyOut"][];
+            /** Entry Points */
+            entry_points: components["schemas"]["EntryPointOut"][];
+            /** Frameworks */
+            frameworks: components["schemas"]["SourcedNameOut"][];
+            /** Index Run Id */
+            index_run_id: string | null;
+            /** Languages */
+            languages: components["schemas"]["LanguageShareOut"][];
+            /** Layout */
+            layout: components["schemas"]["LayoutOut"][];
+            /** Manifests */
+            manifests: components["schemas"]["ManifestOut"][];
+            /** Markers */
+            markers: components["schemas"]["SourcedNameOut"][];
+            /** Out Of Date */
+            out_of_date: boolean;
+            /**
+             * Out Of Date Reasons
+             * @description source_changed | index_changed
+             */
+            out_of_date_reasons: string[];
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+        };
         /** ProviderOut */
         ProviderOut: {
             /** Has Key */
@@ -1975,6 +2092,16 @@ export interface components {
         SourceIn: {
             /** Root Path */
             root_path: string;
+        };
+        /** SourcedNameOut */
+        SourcedNameOut: {
+            /** Name */
+            name: string;
+            /**
+             * Source
+             * @description The file this fact was read from.
+             */
+            source: string;
         };
         /** StageDefinitionOut */
         StageDefinitionOut: {
@@ -3803,6 +3930,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectProfileOut"];
                 };
             };
             /** @description Validation Error */

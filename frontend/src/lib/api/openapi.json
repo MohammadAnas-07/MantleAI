@@ -785,6 +785,34 @@
         "title": "ChecklistItemOut",
         "type": "object"
       },
+      "CommandOut": {
+        "properties": {
+          "command": {
+            "title": "Command",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "command",
+          "source",
+          "kind"
+        ],
+        "title": "CommandOut",
+        "type": "object"
+      },
       "ConversationCreate": {
         "properties": {
           "model_id": {
@@ -1113,6 +1141,34 @@
         "title": "DependencyIn",
         "type": "object"
       },
+      "DependencyOut": {
+        "properties": {
+          "dev": {
+            "title": "Dev",
+            "type": "boolean"
+          },
+          "ecosystem": {
+            "title": "Ecosystem",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "ecosystem",
+          "dev",
+          "source"
+        ],
+        "title": "DependencyOut",
+        "type": "object"
+      },
       "DocumentOut": {
         "properties": {
           "embedding_model": {
@@ -1248,6 +1304,24 @@
         ],
         "title": "DocumentStatus",
         "type": "string"
+      },
+      "EntryPointOut": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "kind"
+        ],
+        "title": "EntryPointOut",
+        "type": "object"
       },
       "GapFinderIn": {
         "properties": {
@@ -1453,6 +1527,66 @@
           "active_run_id"
         ],
         "title": "IndexStatusOut",
+        "type": "object"
+      },
+      "LanguageShareOut": {
+        "properties": {
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "share": {
+            "description": "Share of the counted files, 0 to 1.",
+            "title": "Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "files",
+          "share"
+        ],
+        "title": "LanguageShareOut",
+        "type": "object"
+      },
+      "LayoutOut": {
+        "properties": {
+          "files": {
+            "title": "Files",
+            "type": "integer"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "files"
+        ],
+        "title": "LayoutOut",
+        "type": "object"
+      },
+      "ManifestOut": {
+        "properties": {
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source"
+        ],
+        "title": "ManifestOut",
         "type": "object"
       },
       "MeOut": {
@@ -2414,6 +2548,130 @@
         "title": "ProjectPatch",
         "type": "object"
       },
+      "ProjectProfileOut": {
+        "description": "Facts read from the project's files by the last successful index run, without a model.\nAll text comes from the repository: show it as plain text.",
+        "properties": {
+          "built": {
+            "title": "Built",
+            "type": "boolean"
+          },
+          "built_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Built At"
+          },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/CommandOut"
+            },
+            "title": "Commands",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/DependencyOut"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "entry_points": {
+            "items": {
+              "$ref": "#/components/schemas/EntryPointOut"
+            },
+            "title": "Entry Points",
+            "type": "array"
+          },
+          "frameworks": {
+            "items": {
+              "$ref": "#/components/schemas/SourcedNameOut"
+            },
+            "title": "Frameworks",
+            "type": "array"
+          },
+          "index_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index Run Id"
+          },
+          "languages": {
+            "items": {
+              "$ref": "#/components/schemas/LanguageShareOut"
+            },
+            "title": "Languages",
+            "type": "array"
+          },
+          "layout": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutOut"
+            },
+            "title": "Layout",
+            "type": "array"
+          },
+          "manifests": {
+            "items": {
+              "$ref": "#/components/schemas/ManifestOut"
+            },
+            "title": "Manifests",
+            "type": "array"
+          },
+          "markers": {
+            "items": {
+              "$ref": "#/components/schemas/SourcedNameOut"
+            },
+            "title": "Markers",
+            "type": "array"
+          },
+          "out_of_date": {
+            "title": "Out Of Date",
+            "type": "boolean"
+          },
+          "out_of_date_reasons": {
+            "description": "source_changed | index_changed",
+            "items": {
+              "type": "string"
+            },
+            "title": "Out Of Date Reasons",
+            "type": "array"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "built",
+          "built_at",
+          "index_run_id",
+          "out_of_date",
+          "out_of_date_reasons",
+          "languages",
+          "frameworks",
+          "commands",
+          "markers",
+          "manifests",
+          "dependencies",
+          "entry_points",
+          "layout"
+        ],
+        "title": "ProjectProfileOut",
+        "type": "object"
+      },
       "ProviderOut": {
         "properties": {
           "has_key": {
@@ -2889,6 +3147,25 @@
           "root_path"
         ],
         "title": "SourceIn",
+        "type": "object"
+      },
+      "SourcedNameOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "description": "The file this fact was read from.",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "source"
+        ],
+        "title": "SourcedNameOut",
         "type": "object"
       },
       "StageDefinitionOut": {
@@ -6025,6 +6302,50 @@
         "summary": "Pinned Preview",
         "tags": [
           "conversations"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/profile": {
+      "get": {
+        "description": "The project profile: facts read from the files at the end of the last successful index\nrun, without a model, each with its source file. Never rebuilt here.",
+        "operationId": "get_profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectProfileOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Profile",
+        "tags": [
+          "rag"
         ]
       }
     },

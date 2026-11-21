@@ -107,6 +107,7 @@ export const preview = (modelId: string, hasKey = true): HandoffPreview => ({
   ],
   dropped: [],
   pinned: { tokens: 0, max_tokens: 1000, included: 0, dropped: [] },
+  profile: { tokens: 0, max_tokens: 600, fields: [], dropped: [] },
   retrieved: {
     tokens: 400,
     max_tokens: 268_771,

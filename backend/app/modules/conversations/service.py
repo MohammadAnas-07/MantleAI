@@ -77,7 +77,12 @@ from app.modules.projects.service import (
     pinned_block,
     pinned_selection,
 )
-from app.modules.rag.service import RetrievedBlock, blocks_for_chunks, retrieve_for_context
+from app.modules.rag.service import (
+    RetrievedBlock,
+    blocks_for_chunks,
+    profile_facts,
+    retrieve_for_context,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +200,8 @@ async def load_inputs(
         retrieved = await last_retrieved(session, user_id, conversation)
     project = await get_project(session, user_id, conversation.project_id)
     pinned = await select_pinned_for(session, gateway, user_id, conversation.project_id, model)
+    # The same stored facts for every model, so a switch carries the profile unchanged.
+    profile = await profile_facts(session, user_id, conversation.project_id)
     summary_row = await ConversationSummaryRepository(session, user_id).latest(conversation.id)
     after = summary_row.to_sequence if summary_row else 0
     messages = await MessageRepository(session, user_id).in_order(
@@ -216,6 +223,7 @@ async def load_inputs(
         history=history,
         retrieved=retrieved,
         pinned_dropped=pinned.dropped,
+        profile=profile,
     )
 
 
@@ -269,6 +277,12 @@ def context_report(built: BuiltContext) -> dict[str, Any]:
             "max_tokens": pinned_token_budget(built.model),
             "included": built.pinned_included,
             "dropped": dropped_report(built.pinned_dropped),
+        },
+        "profile": {
+            "tokens": built.profile_tokens,
+            "max_tokens": built.profile_max_tokens,
+            "fields": built.profile_fields,
+            "dropped": [{"field": f, "reason": r} for f, r in built.profile_dropped],
         },
         "retrieved": {
             "tokens": built.retrieved_tokens,

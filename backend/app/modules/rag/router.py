@@ -18,6 +18,7 @@ from app.modules.rag.schemas import (
     EmptyIn,
     IndexStartIn,
     IndexStatusOut,
+    ProjectProfileOut,
     RunOut,
     RunStarted,
     SearchHitOut,
@@ -43,6 +44,36 @@ def status_out(status: service.IndexStatus) -> IndexStatusOut:
         files=status.files,
         active_run_id=status.active_run_id,
     )
+
+
+def profile_out(view: service.ProfileView) -> ProjectProfileOut:
+    facts = view.facts
+    if facts is None:
+        return ProjectProfileOut(
+            project_id=view.project_id, built=False, built_at=None, index_run_id=None,
+            out_of_date=False, out_of_date_reasons=[], languages=[], frameworks=[], commands=[],
+            markers=[], manifests=[], dependencies=[], entry_points=[], layout=[],
+        )  # fmt: skip
+    total = sum(facts.languages.values()) or 1
+    languages = sorted(facts.languages.items(), key=lambda kv: (-kv[1], kv[0]))
+    return ProjectProfileOut.model_validate({
+        "project_id": view.project_id, "built": True, "built_at": facts.built_at,
+        "index_run_id": view.index_run_id, "out_of_date": bool(view.out_of_date_reasons),
+        "out_of_date_reasons": list(view.out_of_date_reasons),
+        "languages": [{"name": n, "files": c, "share": round(c / total, 4)} for n, c in languages],
+        "frameworks": facts.frameworks, "commands": facts.commands, "markers": facts.markers,
+        "manifests": facts.manifests, "dependencies": facts.dependencies,
+        "entry_points": facts.entry_points, "layout": facts.layout,
+    })  # fmt: skip
+
+
+@router.get("/projects/{project_id}/profile")
+async def get_profile(
+    project_id: uuid.UUID, session: DbSession, user_id: CurrentUserId
+) -> ProjectProfileOut:
+    """The project profile: facts read from the files at the end of the last successful index
+    run, without a model, each with its source file. Never rebuilt here."""
+    return profile_out(await service.get_profile(session, user_id, project_id))
 
 
 @router.put("/projects/{project_id}/source")

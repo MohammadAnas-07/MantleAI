@@ -142,3 +142,50 @@ async def test_0010_index_up_and_down_keeps_the_usage_rows(migrated_database: UR
             f"DELETE FROM users WHERE id = '{user}'",
             f"DELETE FROM model_configs WHERE id = '{model}'",
         )
+
+
+async def test_0011_profile_columns_up_and_down(migrated_database: URL) -> None:
+    """0011 adds the profile fact columns; a downgrade drops only them, and the row and its
+    0001 columns (languages, dependencies, markers) stay."""
+    ids = {
+        "user": "00000000-0000-0000-0000-00000000aa11",
+        "project": "00000000-0000-0000-0000-00000000cc11",
+        "run": "00000000-0000-0000-0000-00000000dd11",
+        "profile": "00000000-0000-0000-0000-00000000ee11",
+        "model": "00000000-0000-0000-0000-00000000bb11",
+    }
+    columns = (
+        "SELECT count(*) FROM information_schema.columns WHERE table_name = 'project_profiles'"
+        " AND column_name IN ('manifests', 'frameworks', 'commands', 'layout', 'entry_points',"
+        " 'built_at')"
+    )
+    row = f"SELECT languages::text FROM project_profiles WHERE id = '{ids['profile']}'"
+    assert await scalar(migrated_database, columns) == 6
+    await execute(
+        migrated_database,
+        f"INSERT INTO users (id, display_name) VALUES ('{ids['user']}', 'm')",
+        f"INSERT INTO projects (id, user_id, name) VALUES ('{ids['project']}', '{ids['user']}',"
+        " 'p')",
+        "INSERT INTO model_configs (id, provider, litellm_model, display_name, kind,"
+        f" context_window, supports_tools, enabled) VALUES ('{ids['model']}', 'openai',"
+        " 'fake/e11', 'e11', 'embedding', 1000, false, true)",
+        "INSERT INTO index_runs (id, user_id, project_id, status, embedding_model_id) VALUES"
+        f" ('{ids['run']}', '{ids['user']}', '{ids['project']}', 'succeeded', '{ids['model']}')",
+        "INSERT INTO project_profiles (id, user_id, project_id, index_run_id, languages,"
+        f" commands) VALUES ('{ids['profile']}', '{ids['user']}', '{ids['project']}',"
+        f" '{ids['run']}', '{{\"python\": 3}}', '[{{\"name\": \"test\"}}]')",
+    )
+    try:
+        alembic_run("downgrade", "0010")
+        assert await scalar(migrated_database, columns) == 0
+        assert await scalar(migrated_database, row) == '{"python": 3}'
+        alembic_run("upgrade", "head")
+        assert await scalar(migrated_database, columns) == 6
+        assert await scalar(migrated_database, row) == '{"python": 3}'
+    finally:
+        alembic_run("upgrade", "head")
+        await execute(
+            migrated_database,
+            f"DELETE FROM users WHERE id = '{ids['user']}'",
+            f"DELETE FROM model_configs WHERE id = '{ids['model']}'",
+        )

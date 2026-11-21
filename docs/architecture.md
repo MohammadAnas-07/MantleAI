@@ -71,10 +71,13 @@ Recorded 2026-11-17.
 13. The "concepts for this project" list is rule-based and free (no LLM, D10). It's refreshed when
     the user asks, after an index run finishes, and after a workflow stage is approved. It only
     appears in the teaching panel.
-14. The project profile is built without an LLM at the end of each index run. It records the
-    languages, the dependencies read from manifest files (`pyproject.toml`, `requirements.txt`,
-    `package.json`) and markers such as a Dockerfile, a compose file, a migrations folder or CI
-    workflows. The concept rules live in a YAML file inside the `teaching` module.
+14. The project profile is built without an LLM at the end of each successful index run, from
+    the files that run kept (`rag/profile.py`). It records the languages, the dependencies read
+    from manifest files (`pyproject.toml`, `requirements*.txt`, `package.json`), framework
+    hints, commands (package scripts, pyproject scripts, Makefile targets), entry points, the
+    top folders, and markers such as a Dockerfile, a compose file, a migrations folder or CI
+    workflows. Every fact keeps its source file. The ContextBuilder sends it to every model
+    (journey 1), so a model switch keeps it. A model-written summary is a later branch. The concept rules live in a YAML file inside the `teaching` module.
 
 ## System overview
 
@@ -119,8 +122,9 @@ UI                      conversations                    projects / rag         
  |----------------------->| save user Message (user_id = local user)
  |                        | build context:
  |                        |   system prompt
+ |                        |   + pinned project memory ----->| projects.list_memory()
+ |                        |   + project profile  ---------->| rag.profile_facts()
  |                        |   + latest ConversationSummary (if any)
- |                        |   + project memory  ----------->| projects.list_memory()
  |                        |   + retrieved code  ----------->| rag.retrieve(query, k)
  |                        |   + messages after the summary, trimmed to the model's token budget
  |                        |---- stream(model_id, messages) ----------------------->| decrypt key
@@ -196,7 +200,18 @@ UI  POST /projects/{id}/index {force?}
                 RateLimited -> back off and retry; cancel checked between batches
           file finished -> old chunks deleted, hash set; deleted files removed
           IndexRun -> succeeded {files_indexed, files_skipped, chunks, tokens, cost}
+          project profile rebuilt from this run's files (no LLM; an error is logged by type
+          and keeps the old profile; the run still succeeds)
 UI  GET /index-runs/{run_id}  (polling until done)
+
+The profile in every prompt (inside Journey 1's "build context")
+  -> rag.profile_facts(): the stored facts, the same for every model, so a switch keeps them
+  -> ContextBuilder: a <project_profile> block after pinned memory, at most
+     CONTEXT_PROFILE_MAX_TOKENS (600); fields leave in this order: layout, entry points,
+     dependencies, manifests, markers, commands, frameworks, languages
+  -> over the whole budget: after the summary and before pinned memory, same order
+  -> every field left out is in the context report ("profile layout", reason profile_budget
+     or context_budget); values defanged, one line each
 
 Answering (inside Journey 1's "build context")
   query = the latest user message (skipped when the conversation turned code context off)

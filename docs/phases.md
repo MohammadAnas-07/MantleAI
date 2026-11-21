@@ -103,8 +103,9 @@ citations still work.
 - [ ] Answers cite real `path:lines`, and the "sources used" view lists them. (Partly: the prompt
   carries `<source path lines>` blocks, `message_start` lists the sources and `message_contexts`
   stores them; `GET /messages/{id}/context` and a real-model demo are not done.)
-- [ ] The project profile (languages, dependencies, markers) is built without an LLM. Moved to
-  its own branch, `feat/project-profile` (Phase 4, before `feat/teaching-layer`, which needs it).
+- [x] The project profile (languages, dependencies, markers, commands, entry points, folders)
+  is built without an LLM at the end of each successful index run and sent to every model
+  (`feat/project-profile`, Phase 4, before `feat/teaching-layer`, which reads it).
 
 **Also built:** hybrid search (vector + full text, reciprocal rank fusion), a cost estimate and
 limit before indexing, resumable runs with rate-limit backoff, a per-conversation switch for

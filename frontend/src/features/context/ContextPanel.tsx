@@ -10,6 +10,7 @@ import type { SourceReport } from "../../lib/api/types";
 const SECTION_NAMES: Record<string, string> = {
   system: "System prompt",
   pinned_items: "Pinned memory",
+  project_profile: "Project profile",
   conversation_summary: "Summary",
   recent_messages: "Recent messages",
   retrieved_context: "Project code",
@@ -106,6 +107,12 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
                 ))}
               </ul>
             </section>
+          ) : null}
+          {p.profile.dropped.length > 0 ? (
+            <p className="text-muted">
+              Project profile fields left out: {p.profile.dropped.map((d) => d.field).join(", ")} (
+              {[...new Set(p.profile.dropped.map((d) => d.reason))].join(", ")}).
+            </p>
           ) : null}
           {p.pinned.dropped.length > 0 ? (
             <p className="text-muted">

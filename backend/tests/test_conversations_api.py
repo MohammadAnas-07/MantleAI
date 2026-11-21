@@ -338,7 +338,8 @@ async def test_handoff_preview_shows_sections_and_never_keys(
     assert response.status_code == 200
     preview = response.json()
     assert [s["name"] for s in preview["sections"]] == [
-        "system", "pinned_items", "conversation_summary", "recent_messages", "retrieved_context",
+        "system", "pinned_items", "project_profile", "conversation_summary", "recent_messages",
+        "retrieved_context",
     ]  # fmt: skip
     assert preview["total_tokens"] <= preview["budget"]
     assert preview["budget"] == 200_000 - 500 - 20_000
