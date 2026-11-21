@@ -267,13 +267,31 @@ summarized.
   `ix_chunks_project_id_embedding_model`. No unique `(document_id, ordinal)` since `0005`: while a
   changed file is being indexed, its old and new segments exist side by side.
 
-**ProjectProfile**: facts about the project, built **without an LLM** at the end of each index
-run. One row per project. The table exists; filling it is `feat/project-profile`.
+**ProjectProfile** (`project_profiles`, `app/modules/rag/profile.py`): facts about the project,
+built **without an LLM** at the end of each successful index run, from the files that run kept.
+One row per project, replaced on every build with an upsert (two builds at once leave one row).
+A failed or cancelled run leaves it as it was. Every list item has a `source`: the file it was
+read from. Lists are capped and sorted, so the same folder gives the same facts.
 - `user_id` → User, `project_id` → Project (unique)
-- `languages` (JSON, for example `{"python": 42, "typescript": 10}`, the file counts)
-- `dependencies` (JSON, names read from `pyproject.toml`, `requirements.txt`, `package.json`)
-- `markers` (JSON, for example `dockerfile`, `compose`, `migrations`, `ci_workflows`, `tests`)
-- `index_run_id` → IndexRun (the run that built it)
+- `languages` (JSON, for example `{"python": 42, "typescript": 10}`: indexed files per language)
+- `dependencies` (JSON list of `{name, ecosystem: python|node, dev, source}`, at most 200; names
+  from `pyproject.toml` (project, optional and dependency groups, Poetry), `requirements*.txt`
+  and `package.json` (dependencies, devDependencies))
+- `markers` (JSON list of `{name, source}`: `dockerfile`, `compose`, `migrations`,
+  `ci_workflows`, `tests`)
+- `manifests` (`0011`, JSON list of `{kind, source}`: `pyproject`, `requirements`,
+  `package_json`, `makefile`, `lock_file`)
+- `frameworks` (`0011`, JSON list of `{name, source}`: hints from dependency names, a fixed map)
+- `commands` (`0011`, JSON list of `{name, command, source, kind: script|make|inferred}`, at most
+  30, each command at most 200 characters; one that looks like a secret is left out)
+- `layout` (`0011`, JSON list of `{path, files}`: folders one and two levels deep, at most 40)
+- `entry_points` (`0011`, JSON list of `{source, kind}`: `main.py`, `manage.py`, `src/main.tsx`
+  and the like, at most 15)
+- `built_at` (`0011`), `index_run_id` → IndexRun (the run that built it)
+
+Manifests more than three folders deep, or under `tests`, `fixtures`, `examples`, `samples` or
+`docs`, are not read. A model-written summary with versions is a later branch
+(`feat/profile-summary`).
 
 **Changing the embedding model:** the `embedding` column has one fixed dimension, the setting
 `EMBEDDING_DIMENSIONS` in `app/core/config.py` (default 1536; HNSW allows at most 2000).
@@ -397,7 +415,7 @@ User 1─* (every user-data table, via user_id)
                  ├─* MemoryItem
                  ├─* IndexRun
                  ├─* Document 1─* Chunk
-                 ├─1 ProjectProfile
+                 ├─1 ProjectProfile          (facts, no LLM)
                  ├─1 ProjectWorkflow 1─* WorkflowEvent
                  ├─* AgentRun 1─* AgentRunStep
                  ├─* TeachingNote

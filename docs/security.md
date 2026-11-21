@@ -85,6 +85,19 @@ counts as a secret, or whose name is now sensitive, loses its stored segments an
 Text that already went to the embedding provider, or into earlier chat replies and summaries,
 can't be recalled: rotate any key that was indexed.
 
+**The project profile** (`rag/profile.py`) is built from the same files an index run kept, so
+`.gitignore` matches, sensitive names (`.env`, keys), links and folders over the limits are
+never part of it. It reads only `pyproject.toml`, `requirements*.txt`, `package.json` and
+`Makefile`, at most three folders deep and not under test, fixture, example or docs folders,
+through the indexing reader: a manifest that looks like it holds a secret is skipped whole, and
+a command that looks like a secret is left out. It may contain: language counts, dependency
+names (no versions), framework names, script and make commands (200 characters at most), file
+and folder paths. It never contains file contents, values from `.env` files, versions, or
+anything a model wrote. In a prompt it is a `<project_profile>` block whose values are defanged
+and put on one line each; the system prompt (`system_v3`) says it is data. The UI shows it as
+plain text, with no links or HTML. Logs carry the run id, counts and timings only; a build error
+is logged by type and never fails the index run.
+
 Logs from indexing and retrieval hold paths, counts, error codes and timings only, never file
 contents or query text. An unexpected error is logged by its type name, because an exception
 message could quote content.

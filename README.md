@@ -288,6 +288,15 @@ what changed. Turn code context off for one conversation with
 `backend\scripts\eval_retrieval.py` indexes the sample project in `backend\tests\fixtures` with
 your real key and prints recall@5 and MRR for vector, text and hybrid search.
 
+**Project profile.** At the end of every successful index run Mantle also writes down the
+project's basics, read from the files without a model: languages, frameworks, the commands in
+`package.json`, `pyproject.toml` and the `Makefile`, dependencies, entry points and the top
+folders, each with the file it came from. Every model you chat with gets this profile, so a
+model switch keeps it. See it in the **Profile** tab of the right panel, or with
+`GET /api/v1/projects/{id}/profile`. It isn't rebuilt by itself: when the folder changed or a
+later run failed it says "may be out of date"; index again to rebuild it. Its share of each
+prompt is capped by `CONTEXT_PROFILE_MAX_TOKENS` (600).
+
 ## Backup and restore
 
 All your data (conversations, memory, workflow, agent runs, the index) lives in the Docker volume
