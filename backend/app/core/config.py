@@ -97,6 +97,10 @@ class Settings(BaseSettings):
     # Files and folders one walk looks at. Past this the run fails with "too_many_entries" and
     # changes nothing; add the bulky folders to .gitignore or raise the limit.
     index_max_entries: int = Field(default=100_000, ge=1)
+    # A running index run whose row hasn't changed for this long has lost its job: a cancel
+    # then ends it at once. The job writes the row after every batch, and the longest wait
+    # between batches is EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS (900), so keep this above it.
+    index_run_stale_seconds: float = Field(default=1800.0, gt=0)
     # Extra file name patterns (gitignore syntax) that are never read, on top of the built-in
     # sensitive list in app/modules/rag/secrets.py.
     index_sensitive_patterns: list[str] = Field(default_factory=list)

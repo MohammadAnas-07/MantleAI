@@ -31,7 +31,7 @@ import uuid
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -454,12 +454,32 @@ async def start_index(
 
 
 async def request_cancel(session: AsyncSession, run: IndexRun) -> IndexRun:
-    """A queued run is cancelled now; a running one stops before its next batch."""
+    """A queued run is cancelled now; a running one stops before its next batch. A running run
+    whose row hasn't changed for INDEX_RUN_STALE_SECONDS has lost its job (it died while the
+    server stayed up), so it is cancelled now too."""
     if run.status == IndexRunStatus.QUEUED:
         run.status = IndexRunStatus.CANCELLED
         run.finished_at = _now()
     elif run.status == IndexRunStatus.RUNNING:
-        run.cancel_requested_at = _now()
+        stamp = _now()
+        await session.flush()
+        # Before setting cancel_requested_at: that write refreshes updated_at.
+        ended = await session.execute(
+            update(IndexRun)
+            .where(
+                IndexRun.user_id == run.user_id,
+                IndexRun.id == run.id,
+                IndexRun.status == IndexRunStatus.RUNNING,
+                IndexRun.updated_at < stamp - timedelta(seconds=settings.index_run_stale_seconds),
+            )
+            .values(status=IndexRunStatus.CANCELLED, cancel_requested_at=stamp, finished_at=stamp)
+            .execution_options(synchronize_session=False)
+        )
+        if ended.rowcount:
+            logger.warning("stale index run cancelled run=%s", run.id)
+            await session.refresh(run)
+        else:
+            run.cancel_requested_at = stamp
     await session.flush()
     return run
 
@@ -781,6 +801,10 @@ async def run_index_job(
         if not session.is_active or session.in_transaction():
             await session.rollback()
         await session.refresh(run)
+        if run.status != IndexRunStatus.RUNNING:
+            # A cancel ended it as stale while this job was still going: the cancel stands.
+            logger.warning("index run already ended run=%s status=%s", run_id, run.status.value)
+            return
         run.status, run.error, run.finished_at = status, error, _now()
         await session.commit()
         logger.info(
