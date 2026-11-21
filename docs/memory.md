@@ -16,19 +16,18 @@ finder, Planner and Reviewer runs, approval) with its page. Not built: teaching 
 profile, `GET /messages/{id}/context`, `GET /audit-events`, message cancel. Not run with a real
 model: a Planner/Reviewer run (seen `provider_unavailable` once), the click eval.
 Audit 2026-11-20 (A-001..A-022, report outside the repo). Fixed and merged: A-001..A-009,
-A-011, A-013, A-014, A-019, A-022. `docs/audit-catch-up` (not pushed): A-017 drift, A-012 backup
-notes (README). Open, code: A-010 sensitive roots, A-015 dead code, A-016 boundary test, A-018
-loopback check, A-020 bundle and 100-item memory index, A-021 scan depth. Deferred: A-012 app
-role without superuser, `scripts/backup.ps1`. Listed for the developer (code or rules side):
-config.py comment says `rag/secrets.py`; `.env.production`, `*.dump` not git-ignored; rule 61
-vs the tracked `frontend/.env.example`; CLAUDE.md "LangGraph" vs ADR 0004 (none imported).
-Next: A-015/A-016/A-018, then A-010/A-021, then A-020. Branches: 2 local, 31 remote.
+A-011..A-014, A-017, A-019, A-022 (A-012 as README backup notes). `fix/indexing-and-local-safety`
+(not pushed): A-010 (sensitive folders refused at save and start), A-018 (403 for non-loopback
+clients), A-021 (depth and entry caps), `.gitignore` `.env.*` and `*.dump`, stale index runs
+can be cancelled. Open: A-015 dead code, A-016 boundary test (task 9), A-020 bundle and list
+limits (task 8). Deferred: A-012 app role, `scripts/backup.ps1`. Task 9 also fixes the
+config.py comment, rule 61 and the CLAUDE.md "LangGraph" line. Branches: 2 local, 31 remote.
 
-Tests: 763 backend and 119 frontend pass, races 5/5. pytest needs `TEST_DATABASE_URL`.
+Tests: 845 backend and 120 frontend pass. pytest needs `TEST_DATABASE_URL`.
 Migration head `0010` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
 `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
 Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-21 (docs catch-up).
+First demo target: 2026-12-17. Last updated 2026-11-21 (indexing and local safety).
 
 ## Done
 
@@ -43,7 +42,8 @@ First demo target: 2026-12-17. Last updated 2026-11-21 (docs catch-up).
 
 ## In progress
 
-- `docs/audit-catch-up`: docs only (A-017 drift, A-012 README backup section).
+- `fix/indexing-and-local-safety`: `rag/source.py` `sensitive_reason`, scanner caps,
+  `LoopbackClientMiddleware`, `fake_home` autouse fixture (pytest temp is under AppData).
 - Click eval (25 questions): run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
@@ -59,7 +59,7 @@ The developer decides (full decision text: `docs/architecture.md`). Candidates:
 ## Known cleanup
 
 - `list_gap_runs`/`runs.list_runs` repeat a query; `memory_trimmed` has two shapes (not audited).
-- A dead index job (server still up) stays `running` until a restart; agent runs can be cancelled.
+- `test_agent_runs.py::test_step_timeout` (0.01 s timeout) failed once in a full run; flaky.
 
 ## Decisions
 
