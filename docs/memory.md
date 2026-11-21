@@ -13,8 +13,8 @@ Working memory for any AI tool and for the developer. Read it before every task.
 **Status (2026-11-21).** `chore/cleanup-and-docs-decisions` (not pushed), task 9 items 3-7
 only: the sensitive patterns comment in `core/config.py` names `rag/secret_scan.py`; rule 61
 says both `.env.example` files are tracked; CLAUDE.md's stack line says LangGraph is not used in
-v0.1 (ADR 0004). CLAUDE.md line 69 ("only `langgraph`, and only in `modules/workflow`") still
-allows LangGraph; left as is, the developer decides.
+v0.1 (ADR 0004); CLAUDE.md line 69, rule 8 and architecture D7 now match ADR 0004 (adding
+LangGraph later needs a new ADR that supersedes it).
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
