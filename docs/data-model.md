@@ -6,7 +6,7 @@ Everything lives in one PostgreSQL database. Each table is owned by exactly one 
 Conventions:
 
 - Every table has `id` (UUID), `created_at` and `updated_at` (UTC).
-- **Every user-data table has `user_id` → User** (not null, indexed). That is every table below
+- Every user-data table has `user_id` → User (not null, indexed). That is every table below
   except User and ModelConfig. Child tables (Message, Chunk, AgentRunStep, …) carry `user_id` too,
   so every query can filter by user directly.
 - "FK" means foreign key. Enums are stored as short strings (`VARCHAR(32)`, no PostgreSQL enum
@@ -37,15 +37,15 @@ is deleting. The deferred check runs at commit, when the cascade is complete.
 
 | Kind | What | Where |
 | --- | --- | --- |
-| **Vector** | Embeddings of project file chunks | `chunks.embedding` (pgvector, HNSW index, cosine) |
-| **Structured** | Everything else: users, projects, memory, messages, summaries, keys, usage, workflow, notes, audit | Normal tables, normal queries |
+| Vector | Embeddings of project file chunks | `chunks.embedding` (pgvector, HNSW index, cosine) |
+| Structured | Everything else: users, projects, memory, messages, summaries, keys, usage, workflow, notes, audit | Normal tables, normal queries |
 
-Memory items, tasks and decisions are **not** embedded in v0.1. They are fetched with normal
+Memory items, tasks and decisions are not embedded in v0.1. They are fetched with normal
 queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 
 ## Shared (`app/core`)
 
-**User**
+User
 - `display_name`
 - `is_local_default` (bool)
 - v0.1 has exactly one row, the default local user, with the fixed id
@@ -53,7 +53,7 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
   (`python -m app.db.seed`, safe to run twice), not by a migration. Auth later adds login fields;
   it doesn't change other tables.
 
-**AuditEvent**: security-relevant actions only.
+AuditEvent: security-relevant actions only.
 - `user_id` → User
 - `event_type` (for example `credential.added`, `index.started`, `stage.approved`)
 - `entity_type`, `entity_id`
@@ -61,7 +61,7 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 
 ## projects module
 
-**Project**
+Project
 - `user_id` → User
 - `name`, `description`
 - `root_path`: the local folder to index (nullable). Validated by the rag module (absolute,
@@ -69,9 +69,10 @@ queries (for example "open tasks" or "accepted decisions"), as `vision.md` asks.
 - `default_model_id` → ModelConfig (nullable)
 - `archived_at` (nullable)
 
-**MemoryItem**: requirements, decisions and tasks in one table. Written by the user through the
-API, or saved from an agent run's drafts when the user approves them (never by an LLM alone). Statuses and priorities are per kind, checked in
-`app/modules/projects/memory_service.py`. Edits are last-write-wins (no version check).
+MemoryItem: requirements, decisions and tasks in one table. Written by the user through the
+API, or saved from an agent run's drafts when the user approves them (never by an LLM alone).
+Statuses and priorities are per kind, checked in `app/modules/projects/memory_service.py`.
+Edits are last-write-wins (no version check).
 - `user_id` → User, `project_id` → Project
 - `kind`: `requirement` | `decision` | `task`
 - `title` (one line, at most `MEMORY_TITLE_MAX_LENGTH` = 200), `body` (at most
@@ -94,7 +95,7 @@ API, or saved from an agent run's drafts when the user approves them (never by a
 - `source_message_id` → Message (nullable), `source_agent_run_id` → AgentRun (nullable)
 - `stage_key` (nullable): the workflow stage it came from
 
-**MemoryDependency**: task `task_id` depends on task `depends_on_id`.
+MemoryDependency: task `task_id` depends on task `depends_on_id`.
 - `user_id` → User, `project_id` → Project, `task_id` → MemoryItem, `depends_on_id` → MemoryItem
   (both CASCADE: deleting a task removes its links)
 - Unique `(task_id, depends_on_id)`; a duplicate link is ignored. CHECK `task_id <> depends_on_id`.
@@ -102,7 +103,7 @@ API, or saved from an agent run's drafts when the user approves them (never by a
   refused (409). A task is `is_blocked` (computed, not stored) while any dependency isn't `done`;
   marking a blocked task done is allowed.
 
-**Pinned memory** (not a table): what the ContextBuilder sends as `<pinned_items>`, built by
+Pinned memory (not a table): what the ContextBuilder sends as `<pinned_items>`, built by
 `app/modules/projects/pinned.py`. Order: accepted decisions; approved `must` then `should`
 requirements; open tasks (`in_progress`, `todo`, `blocked`, then by priority); inside a group
 `created_at`, then id. At most `PINNED_MAX_DECISIONS` / `_REQUIREMENTS` / `_TASKS` (30 each) and
@@ -113,7 +114,7 @@ defanged.
 
 ## conversations module
 
-**Conversation**
+Conversation
 - `user_id` → User, `project_id` → Project
 - `title`: set from the first 60 characters of the first message when empty (no LLM call)
 - `current_model_id` → ModelConfig: a switch changes only this
@@ -124,7 +125,7 @@ defanged.
   retrieved for this conversation, so no query embedding is made
 - A lock older than `CONVERSATION_LOCK_TIMEOUT_SECONDS` (600) is stale and can be taken over.
 
-**Message**
+Message
 - `user_id` → User, `conversation_id` → Conversation
 - `sequence`: 1, 2, 3, ... per conversation (unique with `conversation_id`); the conversation's
   order, independent of timestamps
@@ -135,12 +136,13 @@ defanged.
   `{"type": "tool_result", "tool_call_id", "content", "is_error"}`. v0.1 agents have no tools, so
   only text parts are written for now; the format is ready for tools later.
 - `model_id` → ModelConfig: the model that produced it (nullable for user messages)
-- `status`: `complete` | `streaming` | `error` | `cancelled` (`cancelled` = incomplete: the client disconnected and the partial text was kept)
+- `status`: `complete` | `streaming` | `error` | `cancelled` (`cancelled` = incomplete: the client
+  disconnected and the partial text was kept)
 - `error_code` (nullable)
 - `token_count`: tokens of this message's own content (for fitting history into a window)
 - `input_tokens`, `output_tokens` (nullable): provider-reported usage of the call that produced it
 
-**ConversationSummary**: the rolling summary, built in the background, or at switch time when
+ConversationSummary: the rolling summary, built in the background, or at switch time when
 background summaries are off. A new row is added each time it's updated; the current one is the
 row with the highest `to_sequence`. It is incremental: previous summary + messages after its
 `to_sequence`. The latest user message and the last `CONTEXT_KEEP_RECENT_TURNS` turns are never
@@ -154,7 +156,7 @@ summarized.
 - `built_at`: `background` | `switch`
 - `token_count`
 
-**ContextHandoff**: one row per model switch.
+ContextHandoff: one row per model switch.
 - `user_id` → User, `conversation_id` → Conversation
 - `from_model_id`, `to_model_id` → ModelConfig
 - `reason`: `user_choice` | `rate_limit` | `context_limit` | `provider_error`
@@ -165,7 +167,7 @@ summarized.
 - `note` (JSON): the handoff note shown to the user, built without an LLM and never sent to a
   model: messages carried verbatim, summary range and tokens, pinned items, what was dropped
 
-**MessageContext**: what was used to answer one message.
+MessageContext: what was used to answer one message.
 - `user_id` → User, `message_id` → Message
 - `source_type`: `chunk` | `memory_item` | `summary`
 - `source_id` (UUID of the Chunk, MemoryItem or ConversationSummary)
@@ -176,14 +178,14 @@ summarized.
 
 ## llm module (LLM gateway)
 
-**ProviderCredential**
+ProviderCredential
 - `user_id` → User
 - `provider`: `openai` | `anthropic` | `google` | `voyage` | …
 - `label`
 - `encrypted_key` (bytes, Fernet), `key_hint` (last 4 characters)
 - `last_tested_at`, `last_test_ok`
 
-**ModelConfig**: shared catalog, not user data (no `user_id`).
+ModelConfig: shared catalog, not user data (no `user_id`).
 - `provider`, `litellm_model` (for example `openai/text-embedding-3-small`), `display_name`
 - `kind`: `chat` | `embedding`
 - `supports_tools` (bool): when false, tool-call history is sent to the model as plain text
@@ -191,21 +193,21 @@ summarized.
 - `input_cost_per_mtok`, `output_cost_per_mtok` (nullable)
 - `enabled`
 
-**UserModelSettings**: one row per user.
+UserModelSettings: one row per user.
 - `user_id` → User (unique)
-- `utility_model_id` → ModelConfig (nullable: **null means "use the conversation's active model"**)
+- `utility_model_id` → ModelConfig (nullable: null means "use the conversation's active model")
 - `embedding_model_id` → ModelConfig (nullable until the user picks one; the intended default is a
   small OpenAI or Voyage model)
 - `background_summary_enabled` (bool, default true): when false, no rolling-summary calls run in
   the background, and the summary is built at switch time instead (D10)
 
-**UsageRecord**
+UsageRecord
 - `user_id` → User
 - `model_id` → ModelConfig
 - `purpose`: `chat` | `rolling_summary` | `switch_summary` | `embedding` | `agent_run` |
   `teaching` | `key_test` (the tiny call made by "test key"); `agent` is an old, unused value
 - `trigger`: `user` (the user directly asked) | `background` (they didn't). The usage view shows
-  each `background` purpose as its own line. **Every LLM call writes a row; no exceptions.**
+  each `background` purpose as its own line. Every LLM call writes a row; no exceptions.
 - `project_id`, `conversation_id`, `message_id`, `agent_run_id` (all nullable)
 - `input_tokens`, `output_tokens`, `cost_usd`, `latency_ms`
 - `status`: `success` | `error` | `cancelled`, `error_code`
@@ -217,7 +219,7 @@ summarized.
 
 ## rag module
 
-**IndexRun**: one indexing job (migration `0005`).
+IndexRun: one indexing job (migration `0005`).
 - `user_id` → User, `project_id` → Project
 - `status`: `queued` | `running` | `succeeded` | `failed` | `cancelled` (`done` before `0005`).
   At most one `queued` or `running` run per project: partial unique index
@@ -225,16 +227,17 @@ summarized.
   set to `failed` with `error` = `interrupted`.
 - `files_seen`, `files_indexed`, `files_skipped`, `files_unchanged`, `chunks_created`, `tokens`
   (estimated, about 4 characters each), `cost_estimate_usd`
-- `error` (nullable: an error code such as `rate_limited`, `auth_failed`, `source_missing`,
+- `error` (nullable): an error code such as `rate_limited`, `auth_failed`, `source_missing`,
   `interrupted`, `internal_error`, `daily_quota_exhausted` (the provider's quota is used up; not
   retried, run it again after the reset to resume) or `rate_limit_wait_exceeded` (retries of one
-  batch would wait longer than `EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS`)), `started_at`, `finished_at`, `cancel_requested_at`
+  batch would wait longer than `EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS`)
+- `started_at`, `finished_at`, `cancel_requested_at`
 - `force` (bool): started above the cost limit on purpose
 - `embedding_model_id` → ModelConfig, plus snapshots `embedding_model` (name) and `root_path`
 - `estimate` (JSON): the estimate checked before the run; `skip_report` (JSON): count and up to
   5 example paths per skip reason
 
-**Document**: one file of the project.
+Document: one file of the project.
 - `user_id` → User, `project_id` → Project
 - `path` (relative to `root_path`, POSIX form), unique per project
 - `status`: `pending` (its segments are being embedded) | `indexed` | `skipped`
@@ -251,7 +254,7 @@ summarized.
   content was last checked with; an older or null value makes the next run read the file again
 - `last_index_run_id` → IndexRun
 
-**Chunk**: one segment of a document ("chunk" in table and column names).
+Chunk: one segment of a document ("chunk" in table and column names).
 - `user_id` → User, `document_id` → Document, `project_id` → Project (copied here for fast filtering)
 - `ordinal`, `text`, `start_line`, `end_line` (1-based, inclusive, on the LF text), `token_count`
 - `language`, `chunk_type` (`function` | `class` | `method` | `module` | `section` | `lines`),
@@ -267,8 +270,8 @@ summarized.
   `ix_chunks_project_id_embedding_model`. No unique `(document_id, ordinal)` since `0005`: while a
   changed file is being indexed, its old and new segments exist side by side.
 
-**ProjectProfile** (`project_profiles`, `app/modules/rag/profile.py`): facts about the project,
-built **without an LLM** at the end of each successful index run, from the files that run kept.
+ProjectProfile (`project_profiles`, `app/modules/rag/profile.py`): facts about the project,
+built without an LLM at the end of each successful index run, from the files that run kept.
 One row per project, replaced on every build with an upsert (two builds at once leave one row).
 A failed or cancelled run leaves it as it was. Every list item has a `source`: the file it was
 read from. Lists are capped and sorted, so the same folder gives the same facts.
@@ -293,12 +296,13 @@ Manifests more than three folders deep, or under `tests`, `fixtures`, `examples`
 `docs`, are not read. A model-written summary with versions is a later branch
 (`feat/profile-summary`).
 
-**Changing the embedding model:** the `embedding` column has one fixed dimension, the setting
+Changing the embedding model: the `embedding` column has one fixed dimension, the setting
 `EMBEDDING_DIMENSIONS` in `app/core/config.py` (default 1536; HNSW allows at most 2000).
-Migration `0001` froze it at 1536. **Changing the setting needs a new migration** that alters the
+Migration `0001` froze it at 1536. Changing the setting needs a new migration that alters the
 column and rebuilds the HNSW index (`ix_chunks_embedding_hnsw`, cosine), and every project must
-be re-indexed. `tests/test_migrations.py` fails if the database and the setting disagree. Vectors from different models can't be compared, so changing
-the model means re-indexing the project. Retrieval only uses chunks whose `embedding_model`
+be re-indexed. `tests/test_migrations.py` fails if the database and the setting disagree.
+Vectors from different models can't be compared, so changing the model means re-indexing the
+project. Retrieval only uses chunks whose `embedding_model`
 matches the query's model. A model with a different dimension also needs a migration to change
 the column. The user's embedding model is `user_model_settings.embedding_model_id`, else
 `DEFAULT_EMBEDDING_MODEL` (`gemini/gemini-embedding-001`, asked for 1536 dimensions; its native
@@ -311,7 +315,7 @@ size is 3072). A project whose chunks were made with another model is `needs_rei
 Migration `0008` replaced the unused `workflow_runs` and `stage_states` tables of `0001` and
 reshaped `agent_runs` (its old rows could not be mapped to a project and were deleted).
 
-**ProjectWorkflow** (`project_workflows`): one row per project, stored on the first change
+ProjectWorkflow (`project_workflows`): one row per project, stored on the first change
 (until then a project reads as the first stage; GET writes nothing).
 - `user_id` → User, `project_id` → Project (unique, CASCADE)
 - `status`: `active` | `completed`
@@ -326,7 +330,7 @@ Stage definitions are not a table: `app/modules/workflow/stages.yaml` (id, title
 checklist items with `required`, artifact rules `min_memory_items` with `kind`, optional
 `statuses` and `min`), checked at startup.
 
-**WorkflowEvent** (`workflow_events`): append-only. The ORM refuses updates and a trigger
+WorkflowEvent (`workflow_events`): append-only. The ORM refuses updates and a trigger
 (`workflow_events_no_update`) refuses `UPDATE` in the database; rows go only with their project.
 - `user_id`, `project_id`, `workflow_id` → ProjectWorkflow
 - `seq` (identity): the sort order (events of one transaction share `created_at`)
@@ -334,7 +338,7 @@ checklist items with `required`, artifact rules `min_memory_items` with `kind`, 
 - `stage_id`, `item_id`, `actor` (`user`), `reason`, `forced`, `details` (JSON, for example the
   unmet gate items a forced approval passed over)
 
-**AgentRun** (`agent_runs`): one Planner + Reviewer run, one Reviewer-only run, or one gap
+AgentRun (`agent_runs`): one Planner + Reviewer run, one Reviewer-only run, or one gap
 finder run.
 - `user_id`, `project_id` → Project (CASCADE), `model_id` → ModelConfig
 - `run_type`: `plan` | `review` | `gap_finder`
@@ -352,7 +356,7 @@ finder run.
 - `cancel_requested_at`, `started_at`, `finished_at`, `decided_at`, `decision_reason`
 - `saved_item_ids` (JSON list): memory items created when the user approved it
 
-**AgentRunStep** (`agent_run_steps`): one model call (with at most one retry).
+AgentRunStep (`agent_run_steps`): one model call (with at most one retry).
 - `user_id`, `run_id` → AgentRun (CASCADE), `model_id` → ModelConfig
 - `position`, `agent`: `planner` | `reviewer` | `gap_finder`, `prompt_version`
 - `status`: `succeeded` | `failed`, `attempts`, `input_tokens_estimate`
@@ -364,15 +368,15 @@ UsageRecord with `purpose = agent_run`, `trigger = user` and `agent_run_id`.
 
 ## teaching module
 
-**TeachingNote**: only created when the user asks.
+TeachingNote: only created when the user asks.
 - `user_id` → User, `project_id` → Project
 - `concept` (for example "database indexing")
 - `what`, `why_here`, `how` (markdown sections)
 - `source_message_id` → Message (nullable), `stage_key` (nullable)
 - `model_id` → ModelConfig
 
-**ConceptSuggestion**: the passive "concepts for this project" list. It's built by the
-rule-based selector only, with **no LLM call**. An LLM is called only when the user asks for an
+ConceptSuggestion: the passive "concepts for this project" list. It's built by the
+rule-based selector only, with no LLM call. An LLM is called only when the user asks for an
 explanation, which creates a TeachingNote.
 - `user_id` → User, `project_id` → Project
 - `rule_id`, `concept`
@@ -397,7 +401,7 @@ its approved workflow stages.
 
 ## execution module (Later, not created in v0.1; no table exists yet)
 
-**ExecutionRun**
+ExecutionRun
 - `user_id` → User, `project_id` → Project, `requested_by_agent_run_id` → AgentRun (nullable)
 - `command`, `sandbox_image`
 - `status`: `pending_approval` | `approved` | `running` | `done` | `failed` | `rejected`
