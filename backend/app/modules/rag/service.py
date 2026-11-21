@@ -43,6 +43,7 @@ from app.modules.rag.models import (
     IndexRun,
     IndexRunStatus,
 )
+from app.modules.rag.repository import ProjectProfileRepository
 from app.modules.rag.search import Block, Hit, SearchMode, hybrid_search, merge_adjacent
 from app.modules.rag.source import InvalidSourcePath, validate_source_path
 
@@ -105,6 +106,40 @@ class RetrievedBlock:
 def _block(b: Block) -> RetrievedBlock:
     return RetrievedBlock(b.path, b.start_line, b.end_line, b.language, b.symbol, b.text,
                           b.score, b.vector_rank, b.text_rank, tuple(b.chunk_ids))  # fmt: skip
+
+
+# ---- project profile -------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ProfileFacts:
+    """The facts of a project profile (rag/profile.py), as stored. Repository text: untrusted."""
+
+    built_at: datetime | None
+    languages: dict[str, int]
+    frameworks: list[dict[str, Any]]
+    commands: list[dict[str, Any]]
+    manifests: list[dict[str, Any]]
+    dependencies: list[dict[str, Any]]
+    entry_points: list[dict[str, Any]]
+    layout: list[dict[str, Any]]
+    markers: list[dict[str, Any]] = field(default_factory=list)
+
+
+async def profile_facts(
+    session: AsyncSession, user_id: uuid.UUID, project_id: uuid.UUID
+) -> ProfileFacts | None:
+    """The project's profile facts, or None before the first successful index run. One query,
+    filtered by user; the caller has already checked the project."""
+    row = await ProjectProfileRepository(session, user_id).get_for_project(project_id)
+    if row is None:
+        return None
+    return ProfileFacts(
+        built_at=row.built_at, languages=dict(row.languages), frameworks=list(row.frameworks),
+        commands=list(row.commands), manifests=list(row.manifests),
+        dependencies=list(row.dependencies), entry_points=list(row.entry_points),
+        layout=list(row.layout), markers=list(row.markers),
+    )  # fmt: skip
 
 
 # ---- status ----------------------------------------------------------------------------------

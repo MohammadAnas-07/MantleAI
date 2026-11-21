@@ -161,6 +161,9 @@ class Settings(BaseSettings):
     retrieval_rrf_k: int = Field(default=60, ge=1)
     # Share of the context budget the retrieved code may use.
     retrieved_max_share: float = Field(default=0.30, gt=0, le=1)
+    # Tokens the project profile may use in a prompt; past this, its least important fields are
+    # left out (and listed in the context report).
+    context_profile_max_tokens: int = Field(default=600, ge=0)
 
 
 @lru_cache
