@@ -7,7 +7,8 @@ user's `user_id` (see `docs/security.md`). Every write request must send
 
 Browsers may call the API only from `CORS_ALLOWED_ORIGINS` (the Vite dev server), and only with
 a Host header in `ALLOWED_HOSTS` (localhost or 127.0.0.1); any other host gets 400
-`invalid_host`. The frontend's types come from this API's OpenAPI schema
+`invalid_host`. A client on another computer gets 403 `remote_client_refused` unless
+`ALLOW_REMOTE_CLIENTS` is on. The frontend's types come from this API's OpenAPI schema
 (`frontend/src/lib/api/schema.ts`, `npm run gen:api`).
 
 Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": "...", "details": {}}}`.
@@ -111,13 +112,13 @@ or running run per project (409 `index_in_progress`); a server restart marks a l
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| PUT | `/api/v1/projects/{id}/source` | Set or change the folder to index `{root_path}`. Must be absolute, exist, be a readable folder; a filesystem root, the home folder or a folder above it is refused (422 `invalid_source_path`, `details.reason`). Stored as the real path. Indexed data stays; a new folder makes the project `needs_reindex` (`source_changed`) until it is indexed again. Returns the index status |
+| PUT | `/api/v1/projects/{id}/source` | Set or change the folder to index `{root_path}`. Must be absolute, exist, be a readable folder; a filesystem root, the home folder or a folder above it, a system folder, or a credential or profile folder is refused (422 `invalid_source_path`, `details.reason`: `filesystem_root`, `home`, `system_folder`, `sensitive_folder`; the list is in `docs/security.md`). Stored as the real path. Indexed data stays; a new folder makes the project `needs_reindex` (`source_changed`) until it is indexed again. Returns the index status |
 | GET | `/api/v1/projects/{id}/index` | Index status: `indexed`, `last_indexed_at`, `needs_reindex`, `reindex_reasons` (`embedding_model_changed`, `source_changed`), `embedding_models`, `files`, `active_run_id` |
-| POST | `/api/v1/projects/{id}/index/estimate` | Body `{}`. What indexing would do now: files to index, unchanged, skipped and deleted; segments to embed and reused; tokens (about 4 characters each); cost; provider and model; the limit; the skip report. Reads the folder; no model call |
-| POST | `/api/v1/projects/{id}/index` | Start (re-)indexing `{force?}`. Returns 202 `{run_id, status, estimate}`. 422 `no_source_path`, `model_unavailable` or `no_credential`; 409 `index_in_progress`; 409 `cost_limit_exceeded` (with `details.estimate`) when the estimate is above `INDEX_COST_LIMIT_USD` and `force` is not true |
+| POST | `/api/v1/projects/{id}/index/estimate` | Body `{}`. The source folder is checked again first (422 `invalid_source_path`). What indexing would do now: files to index, unchanged, skipped and deleted; segments to embed and reused; tokens (about 4 characters each); cost; provider and model; the limit; the skip report. Reads the folder; no model call |
+| POST | `/api/v1/projects/{id}/index` | Start (re-)indexing `{force?}`. Returns 202 `{run_id, status, estimate}`. 422 `no_source_path`, `invalid_source_path` (the folder is checked again), `model_unavailable` or `no_credential`; 409 `index_in_progress`; 409 `cost_limit_exceeded` (with `details.estimate`) when the estimate is above `INDEX_COST_LIMIT_USD` and `force` is not true |
 | GET | `/api/v1/projects/{id}/index-runs` | List index runs, newest first (`limit`) |
-| GET | `/api/v1/index-runs/{run_id}` | One run: status, error, counters (`files_seen`, `files_indexed`, `files_skipped`, `files_unchanged`, `chunks_created`, `tokens`, `cost_estimate_usd`), estimate, skip report (count and example paths per reason) |
-| POST | `/api/v1/index-runs/{run_id}/cancel` | Body `{}`. A queued run is cancelled at once; a running one stops before its next batch (finished batches stay) |
+| GET | `/api/v1/index-runs/{run_id}` | One run: status, error, counters (`files_seen`, `files_indexed`, `files_skipped`, `files_unchanged`, `chunks_created`, `tokens`, `cost_estimate_usd`), estimate, skip report (count and example paths per reason; `too_deep` counts folders below `INDEX_MAX_DEPTH`). `error` `too_many_entries` means the walk reached `INDEX_MAX_ENTRIES`: nothing was changed, and the report holds the count with no paths |
+| POST | `/api/v1/index-runs/{run_id}/cancel` | Body `{}`. A queued run is cancelled at once; a running one stops before its next batch (finished batches stay). A running run whose row hasn't changed for `INDEX_RUN_STALE_SECONDS` (1800) has lost its job and is cancelled at once; if the job was alive after all, its end keeps the cancel |
 | GET | `/api/v1/projects/{id}/documents` | Files of the index by path: `status` (`pending`, `indexed`, `skipped`), `skip_reason`, language, size, lines, `parse_fallback`. Filter `status`; `limit`, `offset`; `counts` per status. Folders and `.gitignore` matches are only counted in the run's skip report |
 | DELETE | `/api/v1/projects/{id}/index` | Remove all file rows and chunks of the project (runs stay as history). 409 while a run is active |
 | POST | `/api/v1/projects/{id}/search` | **Dev only** (404 unless `APP_ENV=development`). `{query, top_k?, mode?: hybrid \| vector \| text, path_prefix?, language?}`. Embeds the query and returns merged results with path, lines, language, symbol, `vector_rank`, `text_rank`, fused `score` and text, plus `needs_reindex`. 422 `invalid_query` when the query is empty or over `RETRIEVAL_QUERY_MAX_CHARS`, or `top_k` is over `RETRIEVAL_MAX_TOP_K`; 409 `not_indexed`; no match is an empty list |

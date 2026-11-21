@@ -310,7 +310,7 @@ docker compose exec -T db pg_restore -U mantle -d mantle --clean --if-exists /tm
 Then run `alembic upgrade head` in `backend`. Saved API keys are encrypted with
 `MASTER_ENCRYPTION_KEY`, so keep a copy of that key with the backup (somewhere safe, not in the
 repo): without it the restored keys can't be read, and you add them again. Keep backups out of
-the repo folder or out of git; `*.dump` files are not git-ignored.
+the repo folder; `*.dump` files are git-ignored, so one left there is never committed.
 
 Note: the database user `mantle` (password `mantle`) is the Postgres superuser of this local
 container. The port is bound to `127.0.0.1` only. Don't expose it on a network.
