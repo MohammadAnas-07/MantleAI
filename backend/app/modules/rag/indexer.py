@@ -250,6 +250,9 @@ async def build_plan(
         settings.index_max_depth, settings.index_max_entries,
     )  # fmt: skip
     walked = await asyncio.to_thread(walk, root, limits)
+    if walked.stopped is not None:
+        # Nothing is read. A partial walk would count every file it didn't reach as deleted.
+        return Plan([], [], walked.report, [], walked.entries_seen, walked.stopped)
     docs = await _documents(session, user_id, project_id)
     cfg = ChunkSettings.from_settings()
     name = model.litellm_model
@@ -306,9 +309,6 @@ async def build_plan(
     seen = {p.entry.path for p in plans} | {path for path, _, _ in skipped}
     deleted = [d for path, d in docs.items() if path not in seen]
     files_seen = len(walked.files) + sum(1 for s in walked.skipped if s.reason in RECORDED_REASONS)
-    if walked.stopped is not None:
-        # A partial walk would count every file it didn't reach as deleted.
-        return Plan([], [], report, [], walked.entries_seen, walked.stopped)
     return Plan(plans, skipped, report, deleted, files_seen)
 
 
