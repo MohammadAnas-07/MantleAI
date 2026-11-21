@@ -66,7 +66,7 @@ First-time setup is in `README.md`.
 ## Core rules (full list in docs/rules.md)
 
 - **Modular monolith.** One FastAPI app, one database, no microservices.
-- **We never import `langchain*`; only `langgraph`,** and only in `modules/workflow`.
+- **We never import `langchain*`, and v0.1 uses no `langgraph` (ADR 0004).** Adding it needs a new ADR that supersedes 0004; then only in `modules/workflow`.
 - Modules call each other only through `service.py`. Only `llm` imports `litellm`; only `rag` reads project files.
 - **No secrets in code or logs.** Keys are encrypted in the database and never returned or logged.
 - **Tests never need real API keys** or network access.
