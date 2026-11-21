@@ -18,6 +18,7 @@ export const keys = {
   projects: ["projects"] as const,
   project: (id: string) => ["project", id] as const,
   indexStatus: (id: string) => ["index-status", id] as const,
+  profile: (id: string) => ["profile", id] as const,
   run: (id: string) => ["run", id] as const,
   documents: (id: string, status: string | null) => ["documents", id, status] as const,
   memory: (projectId: string, kind: MemoryKind) => ["memory", projectId, kind] as const,
@@ -81,6 +82,12 @@ export const useIndexStatus = (id: string) =>
   useQuery({
     queryKey: keys.indexStatus(id),
     queryFn: ({ signal }) => api.indexStatus(id, { signal }),
+  });
+
+export const useProfile = (id: string) =>
+  useQuery({
+    queryKey: keys.profile(id),
+    queryFn: ({ signal }) => api.profile(id, { signal }),
   });
 
 export const isActiveRun = (run: IndexRun | undefined): boolean =>

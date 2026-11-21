@@ -30,6 +30,7 @@ export function IndexPanel({ projectId }: { projectId: string }) {
 
   const refreshAll = useCallback(() => {
     void client.invalidateQueries({ queryKey: keys.indexStatus(projectId) });
+    void client.invalidateQueries({ queryKey: keys.profile(projectId) }); // rebuilt by a run
     void client.invalidateQueries({ queryKey: ["documents", projectId] });
     void client.invalidateQueries({ queryKey: keys.project(projectId) });
     void client.invalidateQueries({ queryKey: keys.projects });
