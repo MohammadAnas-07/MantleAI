@@ -19,7 +19,16 @@ const ACTION: Record<string, string> = {
 const SHOWN = 20;
 
 /** Who did what, when and why, newest first. */
-export function EventHistory({ events, stages }: { events: WorkflowEvent[]; stages: Stage[] }) {
+export function EventHistory({
+  events,
+  total,
+  stages,
+}: {
+  events: WorkflowEvent[];
+  /** All events of the workflow; the API sends only the newest ones. */
+  total: number;
+  stages: Stage[];
+}) {
   const [all, setAll] = useState(false);
   const titles = new Map(stages.map((s) => [s.id, s.title]));
   const items = new Map(stages.flatMap((s) => s.checklist.map((c) => [`${s.id}:${c.id}`, c.text])));
@@ -62,8 +71,13 @@ export function EventHistory({ events, stages }: { events: WorkflowEvent[]; stag
             setAll((v) => !v);
           }}
         >
-          {all ? "Show the latest 20" : `Show all ${newest.length}`}
+          {all ? "Show the latest 20" : `Show the latest ${newest.length}`}
         </Button>
+      ) : null}
+      {all && total > newest.length ? (
+        <p className="text-xs text-muted">
+          The {total - newest.length} oldest of {total} events are not shown.
+        </p>
       ) : null}
     </div>
   );

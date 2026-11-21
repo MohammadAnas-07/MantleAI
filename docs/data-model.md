@@ -212,6 +212,8 @@ summarized.
 - `error_detail` (nullable, up to 255 characters, migration `0007`): sanitized structured fields of
   the provider's error, for example `http=429 status=RESOURCE_EXHAUSTED quota_id=... retry_after_s=33`.
   Never the provider's free text, prompts or keys.
+- Index `ix_usage_records_user_id_created_at` (`user_id`, `created_at`, `id`, migration `0010`,
+  built concurrently): the activity log and usage totals read one user's newest calls.
 
 ## rag module
 

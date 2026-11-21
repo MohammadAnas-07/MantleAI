@@ -68,7 +68,8 @@ class WorkflowOut(BaseModel):
     current_stage_id: str | None
     version: int
     stages: list[StageOut]
-    events: list[WorkflowEventOut]
+    events: list[WorkflowEventOut]  # the newest 100, oldest first
+    events_total: int  # all events of the workflow
 
 
 class StageDefinitionOut(BaseModel):
@@ -223,6 +224,33 @@ class AgentRunOut(BaseModel):
 
 class AgentRunPage(BaseModel):
     items: list[AgentRunOut]
+
+
+class AgentRunSummaryOut(BaseModel):
+    """A run in a list: status, type, model, tokens, cost and times. The plan, the review, the
+    input and the steps come with GET /agent-runs/{id} only."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    run_type: str
+    status: str
+    stage_id: str | None
+    model_id: uuid.UUID
+    error: str | None
+    input_tokens: int
+    output_tokens: int
+    cost_usd: Decimal | None
+    cancel_requested_at: datetime | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+    decided_at: datetime | None
+
+
+class AgentRunSummaryPage(BaseModel):
+    items: list[AgentRunSummaryOut]
 
 
 class TaskEdit(BaseModel):

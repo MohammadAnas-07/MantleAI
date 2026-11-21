@@ -145,6 +145,10 @@ uvicorn app.main:app --reload
 ```
 
 `--reload` restarts the server automatically when you save a file. Stop it with `Ctrl+C`.
+Index runs and agent runs run inside the server process, so a restart (including one from
+`--reload` when you save a backend file) stops them; on the next start they show as failed
+with "interrupted", and you start them again. While a long index or agent run is going, run
+the API without `--reload`.
 
 ### 9. Check it in your browser
 

@@ -107,3 +107,38 @@ async def test_hnsw_cosine_index_exists(migrated_database: URL) -> None:
     )
     assert isinstance(indexdef, str)
     assert "hnsw" in indexdef and "vector_cosine_ops" in indexdef
+
+
+async def test_0010_index_up_and_down_keeps_the_usage_rows(migrated_database: URL) -> None:
+    """The index is built CONCURRENTLY on existing rows, and a downgrade drops only it."""
+    user, model = "00000000-0000-0000-0000-00000000aa10", "00000000-0000-0000-0000-00000000bb10"
+    index = "ix_usage_records_user_id_created_at"
+    find = f"SELECT count(*) FROM pg_indexes WHERE indexname = '{index}'"
+    rows = f"SELECT count(*) FROM usage_records WHERE user_id = '{user}'"
+    alembic_run("downgrade", "0009")
+    try:
+        assert await scalar(migrated_database, find) == 0
+        await execute(
+            migrated_database,
+            f"INSERT INTO users (id, display_name) VALUES ('{user}', 'm')",
+            "INSERT INTO model_configs (id, provider, litellm_model, display_name, kind,"
+            f" context_window, supports_tools, enabled) VALUES ('{model}', 'openai',"
+            " 'fake/m10', 'm10', 'chat', 1000, false, true)",
+            "INSERT INTO usage_records (id, user_id, model_id, purpose, trigger, status,"
+            " input_tokens, output_tokens) SELECT gen_random_uuid(),"
+            f" '{user}', '{model}', 'chat', 'user', 'success', 1, 1 FROM generate_series(1, 500)",
+        )
+        alembic_run("upgrade", "head")
+        assert await scalar(migrated_database, find) == 1
+        assert await scalar(migrated_database, rows) == 500
+        alembic_run("downgrade", "0009")
+        assert await scalar(migrated_database, find) == 0
+        assert await scalar(migrated_database, rows) == 500  # nothing deleted
+    finally:
+        alembic_run("upgrade", "head")
+        await execute(
+            migrated_database,
+            f"DELETE FROM usage_records WHERE user_id = '{user}'",
+            f"DELETE FROM users WHERE id = '{user}'",
+            f"DELETE FROM model_configs WHERE id = '{model}'",
+        )

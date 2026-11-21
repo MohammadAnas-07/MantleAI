@@ -12,7 +12,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +29,9 @@ from app.modules.workflow.models import (
 from app.modules.workflow.stages import MemoryCountRule, StageDefinition, StageList, get_stages
 
 logger = logging.getLogger(__name__)
+
+# Events in a workflow answer: the newest ones. The total is reported next to them.
+EVENTS_SHOWN = 100
 
 
 def conflict(code: str, message: str, **details: Any) -> AppError:
@@ -92,7 +95,10 @@ class StageView:
 class WorkflowView:
     workflow: ProjectWorkflow
     stages: list[StageView]
-    events: list[WorkflowEvent] = field(default_factory=list)
+    events: list[WorkflowEvent] = field(default_factory=list)  # the newest EVENTS_SHOWN
+    events_total: int = 0
+    # The memory the gates were counted from; a transition reuses it (it doesn't change it).
+    memory: list[MemoryRef] = field(default_factory=list)
 
     @property
     def current(self) -> StageView | None:
@@ -191,26 +197,52 @@ async def view(
     else:
         await get_project(session, user_id, project_id)
         workflow = await _load(session, user_id, project_id) or _default(user_id, project_id)
-    stages = get_stages()
-    _check_known(workflow, stages)
+    _check_known(workflow, get_stages())
     memory = await memory_refs(session, user_id, project_id)
-    views = [
+    result = WorkflowView(workflow, _stage_views(workflow, memory), memory=memory)
+    if events:
+        await _load_events(session, user_id, result)
+    return result
+
+
+def _stage_views(workflow: ProjectWorkflow, memory: list[MemoryRef]) -> list[StageView]:
+    return [
         StageView(
             definition=stage,
             status=_status(workflow, stage),
             ticked=set(workflow.checklist.get(stage.id, [])),
             artifacts=[(rule, _count(rule, memory)) for rule in stage.artifacts],
         )
-        for stage in stages.stages
+        for stage in get_stages().stages
     ]
-    result = WorkflowView(workflow, views)
-    if events and workflow.id is not None:
-        rows = await session.scalars(
-            select(WorkflowEvent)
-            .where(WorkflowEvent.user_id == user_id, WorkflowEvent.workflow_id == workflow.id)
-            .order_by(WorkflowEvent.seq)
+
+
+async def _load_events(session: AsyncSession, user_id: uuid.UUID, result: WorkflowView) -> None:
+    """The newest EVENTS_SHOWN events, oldest first, and the total (counted only when the
+    history is longer than that)."""
+    workflow = result.workflow
+    if workflow.id is None:
+        return
+    mine = (WorkflowEvent.user_id == user_id, WorkflowEvent.workflow_id == workflow.id)
+    rows = list(await session.scalars(
+        select(WorkflowEvent).where(*mine).order_by(WorkflowEvent.seq.desc()).limit(EVENTS_SHOWN)
+    ))  # fmt: skip
+    result.events = rows[::-1]
+    result.events_total = len(rows)
+    if len(rows) == EVENTS_SHOWN:
+        result.events_total = int(
+            await session.scalar(select(func.count()).select_from(WorkflowEvent).where(*mine)) or 0
         )
-        result.events = list(rows)
+
+
+async def _after_change(
+    session: AsyncSession, user_id: uuid.UUID, before: WorkflowView
+) -> WorkflowView:
+    """The state after a transition. `_save` refreshed the workflow; memory is what was read
+    before the change, since a transition never changes it."""
+    result = WorkflowView(before.workflow, _stage_views(before.workflow, before.memory),
+                          memory=before.memory)  # fmt: skip
+    await _load_events(session, user_id, result)
     return result
 
 
@@ -309,7 +341,7 @@ async def set_item(
     action = WorkflowAction.TICK if done else WorkflowAction.UNTICK
     await _save(session, workflow, [_event(workflow, action, stage_id, item_id=item_id)],
                 checklist=checklist)  # fmt: skip
-    return await view(session, user_id, project_id)
+    return await _after_change(session, user_id, state)
 
 
 async def _advance(
@@ -382,7 +414,7 @@ async def approve(
     await _advance(session, state, StageStatus.APPROVED, [event])
     logger.info("stage approved project=%s stage=%s forced=%s", project_id,
                 current.definition.id, bool(force and unmet))  # fmt: skip
-    return await view(session, user_id, project_id)
+    return await _after_change(session, user_id, state)
 
 
 async def skip(
@@ -394,7 +426,7 @@ async def skip(
     current = _current_or_409(state, stage_id)
     event = _event(state.workflow, WorkflowAction.SKIP, current.definition.id, reason=reason)
     await _advance(session, state, StageStatus.SKIPPED, [event])
-    return await view(session, user_id, project_id)
+    return await _after_change(session, user_id, state)
 
 
 async def reopen(
@@ -419,7 +451,7 @@ async def reopen(
                    details={"from_stage_id": workflow.current_stage_id})  # fmt: skip
     await _save(session, workflow, [event], current_stage_id=target.id,
                 status=WorkflowStatus.ACTIVE, stage_statuses=statuses)  # fmt: skip
-    return await view(session, user_id, project_id)
+    return await _after_change(session, user_id, state)
 
 
 async def reset(

@@ -1,7 +1,7 @@
 import { Button } from "../../components/ui/Button";
 import { useModelInfo } from "../../hooks/useModelInfo";
 import { formatCost, formatDateTime, formatTokens } from "../../lib/format";
-import type { AgentRun } from "../../lib/api/types";
+import type { AgentRunSummary } from "../../lib/api/types";
 import { RunStatusBadge } from "./RunBadges";
 import { RUN_TYPE_LABEL } from "./runText";
 
@@ -11,7 +11,7 @@ export function RunHistory({
   shownId,
   onShow,
 }: {
-  runs: AgentRun[];
+  runs: AgentRunSummary[];
   shownId: string | null;
   onShow: (runId: string) => void;
 }) {
