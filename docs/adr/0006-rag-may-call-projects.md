@@ -12,7 +12,7 @@ call no module.
 
 ## Decision
 
-- **rag may call projects** (through `projects/service.py` only): to check that a project exists,
+- rag may call projects (through `projects/service.py` only): to check that a project exists,
   read its `root_path`, and store a folder that rag has validated (`set_root_path`). projects
   still calls no module, so there is no cycle.
 - The routes that show a project with its index status (`GET /projects`, `POST /projects`,
@@ -35,10 +35,10 @@ The allowed directions are now:
 
 ## Alternatives considered
 
-- **Move `root_path` into a rag-owned table.** Keeps the old table, but splits one project's data
+- Move `root_path` into a rag-owned table. Keeps the old table, but splits one project's data
   over two modules and needs a data migration for a column that already exists.
-- **Let the projects router call rag.** Creates a projects ↔ rag cycle.
-- **Have every caller pass the folder to rag.** Each caller would repeat the lookup and could pass
+- Let the projects router call rag. Creates a projects ↔ rag cycle.
+- Have every caller pass the folder to rag. Each caller would repeat the lookup and could pass
   an unvalidated path.
 
 ## Consequences

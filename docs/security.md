@@ -1,7 +1,7 @@
 # Security
 
 A basic threat model for v0.1: one user, running locally, using their own API keys.
-`vision.md`'s rule applies everywhere: **never let an LLM freely execute commands on the host.**
+`vision.md`'s rule applies everywhere: never let an LLM freely execute commands on the host.
 
 ## What we protect
 
@@ -19,37 +19,109 @@ A basic threat model for v0.1: one user, running locally, using their own API ke
 ## Risks
 
 ### 1. API key storage
-| | |
-| --- | --- |
-| Risk | Keys leak from the database, API responses, logs or git. |
-| MVP | Encrypt keys with Fernet using `MASTER_ENCRYPTION_KEY` from `backend/.env`, which is git-ignored. Without that key, a database dump is useless. The API never returns a key, only the last 4 characters. Keys are decrypted only inside the `llm` module, just before a call. `.env` is never committed. |
-| Wrong or changed master key | A missing or malformed `MASTER_ENCRYPTION_KEY` stops the app at startup. A valid key that differs from the one the provider keys were saved with is reported, not hidden: calls fail with `credential_unreadable` (restore the previous master key, or enter the key again), `/health` says `keys: unreadable` and the UI shows a banner, the credentials list marks each unreadable key, and startup logs a count. Nothing is printed except a count and provider names in the UI; saved keys are never changed or deleted automatically, and a key entered again is saved as a new row through the normal path. |
-| Later | OS keychain (Windows Credential Manager) instead of a key in `.env`. Key rotation. Per-project key scopes and spend limits. |
+
+Risk: keys leak from the database, API responses, logs or git.
+
+MVP:
+
+- Keys are encrypted with Fernet using `MASTER_ENCRYPTION_KEY` from `backend/.env`, which is
+  git-ignored. Without that key, a database dump is useless.
+- The API never returns a key, only the last 4 characters.
+- Keys are decrypted only inside the `llm` module, just before a call. `.env` is never committed.
+
+Wrong or changed master key:
+
+- A missing or malformed `MASTER_ENCRYPTION_KEY` stops the app at startup.
+- A valid key that differs from the one the provider keys were saved with is reported, not
+  hidden. Calls fail with `credential_unreadable` (restore the previous master key, or enter the
+  key again). `/health` says `keys: unreadable` and the UI shows a banner. The credentials list
+  marks each unreadable key, and startup logs a count.
+- Nothing is printed except a count, and provider names in the UI. Saved keys are never changed
+  or deleted automatically; a key entered again is saved as a new row through the normal path.
+
+Later: OS keychain (Windows Credential Manager) instead of a key in `.env`. Key rotation.
+Per-project key scopes and spend limits.
 
 ### 2. Prompt injection
-| | |
-| --- | --- |
-| Risk | Text in a file or message tells the model to ignore its instructions, leak data or take an action. |
-| MVP | Agents and chat have **no tools** in v0.1. The worst result is bad text, never an action. Anything that changes state (memory items, stage approval) needs a human click. The system prompt says that retrieved content is data, not instructions. |
-| Agents (`feat/workflow-and-agents`) | The gap finder, Planner and Reviewer get memory, the requirement, a draft plan and optional code inside tags (`<project>`, `<stage>`, `<project_memory>`, `<requirement>`, `<plan>`, `<retrieved_context>`), with those tags and chat-template markers defanged by `app/core/prompt_data.py`. Their prompts say that data is never an instruction. Their output is parsed as JSON and validated with Pydantic: unknown fields are dropped, ids are checked against the project (unknown ones removed, with a warning), plans are checked for size, valid dependencies and cycles. The result is a draft: it changes no memory, stage or status. Only `POST /agent-runs/{id}/approve` saves items, through the same checks as manual input, as tasks `todo` and decisions `proposed`. Stage changes have no model involvement at all. Nothing in model output is ever executed or followed. Logs hold ids, counts, tokens and timings only. Runs are refused above `AGENT_RUN_COST_LIMIT_USD` without `force`, and on a model with no price at all unless `AGENT_ALLOW_UNPRICED_MODELS=true` (fail closed). |
-| Chat prompts | Every prompt builder uses one helper (`app/core/prompt_data.py`, `defang`) on everything it did not write itself, and puts it inside a tag: pinned memory (`<pinned_items>`), the rolling summary (`<conversation_summary>`), retrieved code (`<source>` in `<retrieved_context>`, paths and symbols as escaped attributes), and the project name and description. The rolling-summary prompt defangs the messages it summarizes and the previous summary (`<new_messages>`, `<previous_summary>`), so a pasted `</new_messages>` or a chat-template marker can't steer the summary every later prompt reuses. Tests feed closing tags, "ignore previous instructions", fake system turns and image links with data in the URL, and check that a hostile chat reply or gap finder answer changes no memory item and no workflow state. |
-| Rendering in the browser | Model output, memory and agent drafts are untrusted. Chat replies go through `Markdown.tsx`: raw HTML is dropped; images are never loaded (the alt text and the address are shown as text, because fetching one could send data to its server); a link becomes clickable only for an absolute `http`, `https` or `mailto` address, opens in a new tab with `rel="noopener noreferrer"` and shows its real target; anything else (`javascript:`, `data:`, `file:`, relative and fragment links) is plain text. Everything else (memory, gap finder, Planner and Reviewer text) is plain React text. Lint refuses `dangerouslySetInnerHTML`. The built app (`npm run build`, `npm run preview`) carries a Content-Security-Policy meta tag: `default-src 'self'`, no remote images (`img-src 'self' data:`), scripts only from the app, no frames or plugins, requests only to the app and the API origin. **Limit:** `npm run dev` has no CSP, because Vite's hot reload needs inline scripts; a meta tag can't set `frame-ancestors`, so other sites could still frame the built page (a server header would be needed). |
-| Later | Tool-call authorization per tool, an allow-list of tools per agent, and checks on tool arguments before anything runs. |
+
+Risk: text in a file or message tells the model to ignore its instructions, leak data or take an
+action.
+
+MVP: agents and chat have no tools in v0.1. The worst result is bad text, never an action.
+Anything that changes state (memory items, stage approval) needs a human click. The system prompt
+says that retrieved content is data, not instructions.
+
+Agents (`feat/workflow-and-agents`):
+
+- The gap finder, Planner and Reviewer get memory, the requirement, a draft plan and optional
+  code inside tags (`<project>`, `<stage>`, `<project_memory>`, `<requirement>`, `<plan>`,
+  `<retrieved_context>`). Those tags and chat-template markers are defanged by
+  `app/core/prompt_data.py`. Their prompts say that data is never an instruction.
+- Their output is parsed as JSON and validated with Pydantic. Unknown fields are dropped; ids are
+  checked against the project (unknown ones removed, with a warning); plans are checked for size,
+  valid dependencies and cycles.
+- The result is a draft: it changes no memory, stage or status. Only
+  `POST /agent-runs/{id}/approve` saves items, through the same checks as manual input, as tasks
+  `todo` and decisions `proposed`. Stage changes have no model involvement at all. Nothing in
+  model output is ever executed or followed.
+- Logs hold ids, counts, tokens and timings only.
+- Runs are refused above `AGENT_RUN_COST_LIMIT_USD` without `force`, and on a model with no price
+  at all unless `AGENT_ALLOW_UNPRICED_MODELS=true` (fail closed).
+
+Chat prompts:
+
+- Every prompt builder uses one helper (`app/core/prompt_data.py`, `defang`) on everything it did
+  not write itself, and puts it inside a tag: pinned memory (`<pinned_items>`), the rolling
+  summary (`<conversation_summary>`), retrieved code (`<source>` in `<retrieved_context>`, paths
+  and symbols as escaped attributes), and the project name and description.
+- The rolling-summary prompt defangs the messages it summarizes and the previous summary
+  (`<new_messages>`, `<previous_summary>`). A pasted `</new_messages>` or a chat-template marker
+  can't steer the summary that every later prompt reuses.
+- Tests feed closing tags, "ignore previous instructions", fake system turns and image links with
+  data in the URL. They check that a hostile chat reply or gap finder answer changes no memory
+  item and no workflow state.
+
+Rendering in the browser. Model output, memory and agent drafts are untrusted.
+
+- Chat replies go through `Markdown.tsx`. Raw HTML is dropped. Images are never loaded: the alt
+  text and the address are shown as text, because fetching one could send data to its server.
+- A link becomes clickable only for an absolute `http`, `https` or `mailto` address. It opens in
+  a new tab with `rel="noopener noreferrer"` and shows its real target. Anything else
+  (`javascript:`, `data:`, `file:`, relative and fragment links) is plain text.
+- Everything else (memory, gap finder, Planner and Reviewer text) is plain React text. Lint
+  refuses `dangerouslySetInnerHTML`.
+- The built app (`npm run build`, `npm run preview`) carries a Content-Security-Policy meta tag:
+  `default-src 'self'`, no remote images (`img-src 'self' data:`), scripts only from the app, no
+  frames or plugins, requests only to the app and the API origin.
+- Limit: `npm run dev` has no CSP, because Vite's hot reload needs inline scripts. A meta tag
+  can't set `frame-ancestors`, so other sites could still frame the built page (a server header
+  would be needed).
+
+Later: tool-call authorization per tool, an allow-list of tools per agent, and checks on tool
+arguments before anything runs.
 
 ### 3. Untrusted retrieved content
-| | |
-| --- | --- |
-| Risk | Indexed files contain injection text, or secrets that get sent to a third-party LLM provider. |
-| MVP | Every retrieved block goes in `<source path=... lines=...>` inside `<retrieved_context>`, with its citation. Text in the code that looks like our tags (`</source>`, `</retrieved_context>`, `</retrieved>`, ...) or a chat-template boundary (`<\|...\|>`, `[INST]`, `<<SYS>>`) is defanged (`<` becomes `&lt;`), and the system prompt says sources are data. Secrets are kept out as below. `message_start` lists exactly which sources were sent with each answer, and `message_contexts` stores their ids and line ranges. |
-| Later | A `.mantleignore` file, a better secret scanner, and an option to block sending code to selected providers. |
+
+Risk: indexed files contain injection text, or secrets that get sent to a third-party LLM
+provider.
+
+MVP: every retrieved block goes in `<source path=... lines=...>` inside `<retrieved_context>`,
+with its citation. Text in the code that looks like our tags (`</source>`, `</retrieved_context>`,
+`</retrieved>`, ...) or a chat-template boundary (`<\|...\|>`, `[INST]`, `<<SYS>>`) is defanged
+(`<` becomes `&lt;`), and the system prompt says sources are data. Secrets are kept out as below.
+`message_start` lists exactly which sources were sent with each answer, and `message_contexts`
+stores their ids and line ranges.
+
+Later: a `.mantleignore` file, a better secret scanner, and an option to block sending code to
+selected providers.
 
 #### What indexing skips, and why
 
-Indexed text goes to a **third-party embedding provider** (Google by default), and every chat
-message in an indexed project goes there as the search query. **Free tiers may use what they
-receive for training.** The README says so where indexing is explained. So the rules are strict,
-and a file that only looks risky is skipped whole: one file missing from the index is cheap, a
-leaked key is not.
+Indexed text goes to a third-party embedding provider (Google by default), and every chat message
+in an indexed project goes there as the search query. Free tiers may use what they receive for
+training. The README says so where indexing is explained. So the rules are strict, and a file
+that only looks risky is skipped whole: one file missing from the index is cheap, a leaked key is
+not.
 
 | Skipped | Why |
 | --- | --- |
@@ -60,83 +132,186 @@ leaked key is not.
 | Lock files, minified files, source maps, images, archives, PDFs, fonts, media, compiled files, databases; any file with a null byte, a UTF-16/32 BOM or invalid UTF-8; lines over 10,000 characters | Binary or generated; nothing useful to embed |
 | Files over `INDEX_MAX_FILE_BYTES` (1 MB), past `INDEX_MAX_FILES`, or with more than `INDEX_MAX_CHUNKS_PER_FILE` segments; files that change while read | Cost and correctness limits |
 
-**Not skipped on purpose (false-positive trade-offs).** Placeholders (`your-key-here`,
-`<...>`, `${VAR}`, `{{ var }}`, `changeme`, `example`, `xxxx`), references (`os.environ[...]`,
+Not skipped on purpose (false-positive trade-offs): placeholders (`your-key-here`, `<...>`,
+`${VAR}`, `{{ var }}`, `changeme`, `example`, `xxxx`), references (`os.environ[...]`,
 `process.env.X`, `settings.x`), empty values, type annotations, JSON schemas, numbers, hex
-digests, UUIDs, base64 images and lock-file hashes. A bare `key` name (React and dictionary
-keys) and a lowercase identifier value don't count. A local connection string whose password
-equals its user name (`postgres:postgres@localhost`) is a dev default and doesn't count. The
-other way round, test files with fake keys and a docker-compose file with a real dev password
-are skipped: on Mantle's own repository that is 13 test files and `docker-compose.yml` of 320.
+digests, UUIDs, base64 images and lock-file hashes. A bare `key` name (React and dictionary keys)
+and a lowercase identifier value don't count. A local connection string whose password equals
+its user name (`postgres:postgres@localhost`) is a dev default and doesn't count. The other way
+round, test files with fake keys and a docker-compose file with a real dev password are skipped:
+on Mantle's own repository that is 13 test files and `docker-compose.yml` of 320.
 
-**What pattern matching can't catch.** A secret under a neutral name (`db_conn = "hunter2"`,
-`CONFIG = {"pw": ...}` with an unknown key), a password split across lines or built at runtime,
-a bare value in a code file (`PASSWORD = hunter2` in a shell script is caught only if the file
-type counts as config), a secret shorter than the minimum length (6 for passwords, 8 for
-tokens), unknown token formats, secrets in file types that are read but not listed as config
-(for example a `.go` constant with a neutral name). Keep secrets out of the repository, use
-`.gitignore` or `INDEX_SENSITIVE_PATTERNS` for anything else private, and treat this scanner as
-a safety net.
+What pattern matching can't catch:
 
-**Rule changes reach old data.** Each document records the rules version it was checked with
-(`documents.scan_version`, `secret_scan.RULES_VERSION`). After a rules change, the next index
-run reads every indexed file again (no embedding call unless the text changed); a file that now
+- A secret under a neutral name (`db_conn = "hunter2"`, `CONFIG = {"pw": ...}` with an unknown
+  key).
+- A password split across lines or built at runtime.
+- A bare value in a code file (`PASSWORD = hunter2` in a shell script is caught only if the file
+  type counts as config).
+- A secret shorter than the minimum length (6 for passwords, 8 for tokens).
+- Unknown token formats.
+- Secrets in file types that are read but not listed as config (for example a `.go` constant
+  with a neutral name).
+
+Keep secrets out of the repository, use `.gitignore` or `INDEX_SENSITIVE_PATTERNS` for anything
+else private, and treat this scanner as a safety net.
+
+Rule changes reach old data. Each document records the rules version it was checked with
+(`documents.scan_version`, `secret_scan.RULES_VERSION`). After a rules change, the next index run
+reads every indexed file again (no embedding call unless the text changed). A file that now
 counts as a secret, or whose name is now sensitive, loses its stored segments and embeddings.
 Text that already went to the embedding provider, or into earlier chat replies and summaries,
 can't be recalled: rotate any key that was indexed.
 
-**The project profile** (`rag/profile.py`) is built from the same files an index run kept, so
-`.gitignore` matches, sensitive names (`.env`, keys), links and folders over the limits are
-never part of it. It reads only `pyproject.toml`, `requirements*.txt`, `package.json` and
-`Makefile`, at most three folders deep and not under test, fixture, example or docs folders,
-through the indexing reader: a manifest that looks like it holds a secret is skipped whole, and
-a command that looks like a secret is left out. It may contain: language counts, dependency
-names (no versions), framework names, script and make commands (200 characters at most), file
-and folder paths. It never contains file contents, values from `.env` files, versions, or
-anything a model wrote. In a prompt it is a `<project_profile>` block whose values are defanged
-and put on one line each; the system prompt (`system_v3`) says it is data. The UI shows it as
-plain text, with no links or HTML. Logs carry the run id, counts and timings only; a build error
-is logged by type and never fails the index run.
+The project profile (`rag/profile.py`) is built from the same files an index run kept, so
+`.gitignore` matches, sensitive names (`.env`, keys), links and folders over the limits are never
+part of it.
+
+- It reads only `pyproject.toml`, `requirements*.txt`, `package.json` and `Makefile`, at most
+  three folders deep and not under test, fixture, example or docs folders, through the indexing
+  reader. A manifest that looks like it holds a secret is skipped whole, and a command that looks
+  like a secret is left out.
+- It may contain: language counts, dependency names (no versions), framework names, script and
+  make commands (200 characters at most), file and folder paths. It never contains file
+  contents, values from `.env` files, versions, or anything a model wrote.
+- In a prompt it is a `<project_profile>` block whose values are defanged and put on one line
+  each; the system prompt (`system_v3`) says it is data. The UI shows it as plain text, with no
+  links or HTML.
+- Logs carry the run id, counts and timings only. A build error is logged by type and never fails
+  the index run.
 
 Logs from indexing and retrieval hold paths, counts, error codes and timings only, never file
 contents or query text. An unexpected error is logged by its type name, because an exception
 message could quote content.
 
 ### 4. File access
-| | |
-| --- | --- |
-| Risk | Indexing reads files outside the project, or a path trick (`..`, symlinks) reaches system files. |
-| MVP | Only `rag` reads files, and **only reads**. Mantle never writes to the project folder in v0.1. The root must be an absolute, readable folder; it is stored as its real path. After links and `..` are resolved (`app/modules/rag/source.py`), and ignoring case on Windows, these are refused with 422 `invalid_source_path` and `details.reason`: `filesystem_root` (any drive root, a UNC share root, `/`); `home` (the home folder or a folder above it); `system_folder` (right under a drive root on Windows: `Windows`, `Program Files`, `Program Files (x86)`, `ProgramData`; right under `/` elsewhere: `etc`, `usr`, `var`, `bin`, `sbin`, `lib`, `lib64`, `boot`, `dev`, `proc`, `sys`, `root`, `private`, `System`, `Library`); `sensitive_folder` (a folder anywhere in the path named `.ssh`, `.aws`, `.gnupg`, `.azure`, `.kube`, `.docker`, `.config`, `.mozilla`, `.password-store`, `keyrings`, `Keychains`, `1Password`, `Bitwarden`, `KeePass`, `KeePassXC`, `LastPass` or `Dashlane`; `AppData` or `Library` right inside the home folder, which hold browser profiles; or a root that directly holds `.ssh`, `.aws`, `.gnupg`, `.azure`, `.kube`, `.password-store` or `AppData`). The check runs when the path is saved and again at every estimate and index start, so a folder saved earlier, or a link changed since, is refused too. Limit: another user's `AppData` (`C:\Users\other\AppData`) is not named; Windows permissions normally keep it unreadable. Symlinks and junctions inside the root are never followed. There are size limits (1 MB per file) and binary files are skipped. Walk limits: folders deeper than `INDEX_MAX_DEPTH` (40, at most 200) are not entered (`too_deep` in the skip report, no row per file); a walk stops after `INDEX_MAX_ENTRIES` (100,000) files and folders, and the run fails with `too_many_entries` and the count, changing no documents. Logs carry counts and codes only, never paths. **Done** in `fix/indexing-and-local-safety` (audit A-010, A-021). |
-| Later | Per-project file permissions, and write access only through approved, sandboxed tools. |
+
+Risk: indexing reads files outside the project, or a path trick (`..`, symlinks) reaches system
+files.
+
+MVP: only `rag` reads files, and only reads. Mantle never writes to the project folder in v0.1.
+The root must be an absolute, readable folder; it is stored as its real path. After links and
+`..` are resolved (`app/modules/rag/source.py`), and ignoring case on Windows, these are refused
+with 422 `invalid_source_path` and `details.reason`:
+
+- `filesystem_root`: any drive root, a UNC share root, `/`.
+- `home`: the home folder or a folder above it.
+- `system_folder`: right under a drive root on Windows: `Windows`, `Program Files`,
+  `Program Files (x86)`, `ProgramData`. Right under `/` elsewhere: `etc`, `usr`, `var`, `bin`,
+  `sbin`, `lib`, `lib64`, `boot`, `dev`, `proc`, `sys`, `root`, `private`, `System`, `Library`.
+- `sensitive_folder`: a folder anywhere in the path named `.ssh`, `.aws`, `.gnupg`, `.azure`,
+  `.kube`, `.docker`, `.config`, `.mozilla`, `.password-store`, `keyrings`, `Keychains`,
+  `1Password`, `Bitwarden`, `KeePass`, `KeePassXC`, `LastPass` or `Dashlane`; `AppData` or
+  `Library` right inside the home folder, which hold browser profiles; or a root that directly
+  holds `.ssh`, `.aws`, `.gnupg`, `.azure`, `.kube`, `.password-store` or `AppData`.
+
+The check runs when the path is saved and again at every estimate and index start, so a folder
+saved earlier, or a link changed since, is refused too. Limit: another user's `AppData`
+(`C:\Users\other\AppData`) is not named; Windows permissions normally keep it unreadable.
+
+Inside the root:
+
+- Symlinks and junctions are never followed.
+- There are size limits (1 MB per file) and binary files are skipped.
+- Folders deeper than `INDEX_MAX_DEPTH` (40, at most 200) are not entered (`too_deep` in the skip
+  report, no row per file).
+- A walk stops after `INDEX_MAX_ENTRIES` (100,000) files and folders, and the run fails with
+  `too_many_entries` and the count, changing no documents.
+- Logs carry counts and codes only, never paths.
+
+Done in `fix/indexing-and-local-safety` (audit A-010, A-021).
+
+Later: per-project file permissions, and write access only through approved, sandboxed tools.
 
 ### 5. Code execution
-| | |
-| --- | --- |
-| Risk | An LLM runs a destructive or data-stealing command on the host. |
-| MVP | **No code execution at all.** No module can run shell commands, and there is no execution endpoint. |
-| Later | `feat/sandboxed-tool-execution`: run inside a Docker container with no network by default, the project mounted read-only plus a scratch folder, CPU, memory and time limits, a command allow-list, human approval for every command, and every run recorded in AuditEvent. |
+
+Risk: an LLM runs a destructive or data-stealing command on the host.
+
+MVP: no code execution at all. No module can run shell commands, and there is no execution
+endpoint.
+
+Later: `feat/sandboxed-tool-execution`: run inside a Docker container with no network by default,
+the project mounted read-only plus a scratch folder, CPU, memory and time limits, a command
+allow-list, human approval for every command, and every run recorded in AuditEvent.
 
 ### 6. Logs
-| | |
-| --- | --- |
-| Risk | Keys, prompts, message text, memory or code end up in log files or tracebacks. |
-| MVP | **Logged:** event names, ids, counts, token numbers, latency, status, stable error codes and exception type names; the route of an unhandled error; per model call one line `llm call model=... purpose=... trigger=... status=... error=... input_tokens=... output_tokens=... latency_ms=...`. **Never logged:** prompts, replies, message text, memory text, file contents or file paths from an index, keys, ciphertext, the master key, the database password, `Authorization` headers, provider error text and exception messages (they can quote any of these). At the source: error paths log `type(exc).__name__` only; provider errors are logged as type, HTTP status and the sanitized `usage_records.error_detail` fields; request validation errors drop the input; the SQL engine runs with `hide_parameters=True`; settings print no secret (`repr=False`); an unknown error is answered as `internal_error` and logged by type. **Second line:** a filter on the root and uvicorn handlers masks key shapes, Fernet tokens, `Authorization`/`api_key`/`password`/`MASTER_ENCRYPTION_KEY` assignments and SQL `[parameters: ...]`, in messages and in formatted tracebacks. **Limit:** PostgreSQL's own error text can quote a bad value, which is why exception messages are never logged. Stored error fields (`messages.error_code`, `usage_records.error_code` and `error_detail`, run `error` and `error_message`) hold codes and our own sentences, never exception text. Sentinel tests force each failure path and check that a marker in a message, memory item, file path, file content or key appears in no log line and no stored error. LiteLLM's verbose and debug logging stays off. `.env` and every `.env.*` except `.env.example` are git-ignored, and so are `*.dump` backups. |
-| Later | Structured (JSON) logs with request ids, a user setting for optional local prompt logging, and log retention limits. |
+
+Risk: keys, prompts, message text, memory or code end up in log files or tracebacks.
+
+MVP:
+
+- Logged: event names, ids, counts, token numbers, latency, status, stable error codes and
+  exception type names; the route of an unhandled error; per model call one line
+  `llm call model=... purpose=... trigger=... status=... error=... input_tokens=... output_tokens=... latency_ms=...`.
+- Never logged: prompts, replies, message text, memory text, file contents or file paths from an
+  index, keys, ciphertext, the master key, the database password, `Authorization` headers,
+  provider error text and exception messages (they can quote any of these).
+- At the source: error paths log `type(exc).__name__` only. Provider errors are logged as type,
+  HTTP status and the sanitized `usage_records.error_detail` fields. Request validation errors
+  drop the input. The SQL engine runs with `hide_parameters=True`. Settings print no secret
+  (`repr=False`). An unknown error is answered as `internal_error` and logged by type.
+- Second line: a filter on the root and uvicorn handlers masks key shapes, Fernet tokens,
+  `Authorization`/`api_key`/`password`/`MASTER_ENCRYPTION_KEY` assignments and SQL
+  `[parameters: ...]`, in messages and in formatted tracebacks.
+- Limit: PostgreSQL's own error text can quote a bad value, which is why exception messages are
+  never logged.
+- Stored error fields (`messages.error_code`, `usage_records.error_code` and `error_detail`, run
+  `error` and `error_message`) hold codes and our own sentences, never exception text.
+- Sentinel tests force each failure path and check that a marker in a message, memory item, file
+  path, file content or key appears in no log line and no stored error.
+- LiteLLM's verbose and debug logging stays off.
+- `.env` and every `.env.*` except `.env.example` are git-ignored, and so are `*.dump` backups.
+
+Later: structured (JSON) logs with request ids, a user setting for optional local prompt logging,
+and log retention limits.
 
 ### 7. The local API is reachable by websites and the network
-| | |
-| --- | --- |
-| Risk | There's no login in v0.1. Any web page in the browser could call `http://127.0.0.1:8000`, and other devices on the Wi-Fi could reach the API or the database. |
-| MVP | uvicorn binds to `127.0.0.1` only. CORS allows only the frontend's dev origins (`CORS_ALLOWED_ORIGINS`, no wildcard, no credentials). A Host-header check (`ALLOWED_HOSTS`: localhost and 127.0.0.1 on any port) answers anything else with 400 `invalid_host`, which blocks DNS rebinding. **Done** in `feat/frontend-workspace`. A request whose client address is not loopback (127.0.0.0/8, `::1`, IPv4-mapped loopback) gets 403 `remote_client_refused`, so starting uvicorn with `--host 0.0.0.0` doesn't open the API to the network (a LAN client can send `Host: localhost` itself). `ALLOW_REMOTE_CLIENTS=true` turns this off; startup logs a warning when it is on, and an info line otherwise. **Done** in `fix/indexing-and-local-safety` (audit A-018). Write requests must be JSON (which forces a CORS preflight). No GET request changes state. **Done (decision D6):** `docker-compose.yml` publishes the database on `127.0.0.1:5433` only (`fix/bind-database-to-localhost`). |
-| Later | `feat/authentication`: real login and sessions, before Mantle is ever run on a server. Because every user-data table already has `user_id` and every query filters by it, auth only has to replace the "current user" dependency. |
+
+Risk: there's no login in v0.1. Any web page in the browser could call `http://127.0.0.1:8000`,
+and other devices on the Wi-Fi could reach the API or the database.
+
+MVP:
+
+- uvicorn binds to `127.0.0.1` only. CORS allows only the frontend's dev origins
+  (`CORS_ALLOWED_ORIGINS`, no wildcard, no credentials). A Host-header check (`ALLOWED_HOSTS`:
+  localhost and 127.0.0.1 on any port) answers anything else with 400 `invalid_host`, which
+  blocks DNS rebinding. Done in `feat/frontend-workspace`.
+- A request whose client address is not loopback (127.0.0.0/8, `::1`, IPv4-mapped loopback) gets
+  403 `remote_client_refused`, so starting uvicorn with `--host 0.0.0.0` doesn't open the API to
+  the network (a LAN client can send `Host: localhost` itself). `ALLOW_REMOTE_CLIENTS=true` turns
+  this off; startup logs a warning when it is on, and an info line otherwise. Done in
+  `fix/indexing-and-local-safety` (audit A-018).
+- Write requests must be JSON (which forces a CORS preflight). No GET request changes state.
+- Decision D6: `docker-compose.yml` publishes the database on `127.0.0.1:5433` only. Done in
+  `fix/bind-database-to-localhost`.
+
+Later: `feat/authentication`: real login and sessions, before Mantle is ever run on a server.
+Because every user-data table already has `user_id` and every query filters by it, auth only has
+to replace the "current user" dependency.
 
 ### 8. Unrequested LLM calls (cost and data)
-| | |
-| --- | --- |
-| Risk | Mantle quietly calls a paid model in the background. That spends the user's money and sends their content to a provider they didn't expect. |
-| Rule | **Any LLM call the user did not directly ask for must be logged, visible, and possible to turn off.** |
-| MVP | Every LLM call writes a UsageRecord with a `trigger` (`user` or `background`). The usage view shows each background purpose as its own line. The only background call in v0.1 is the rolling conversation summary, and it can be turned off (`background_summary_enabled`); when it's off, the summary is built at switch time, which the user asked for. The concepts list uses rules only, with no LLM. Indexing embeddings start from the user's index request; the query embedding of a chat message starts from the message. Both are logged with purpose `embedding`, and the query embedding can be turned off per conversation (`code_context_enabled`). Indexing has a cost guard: an estimate runs first and indexing above `INDEX_COST_LIMIT_USD` needs `force` (an app setting in v0.1; it moves to user settings when auth arrives). |
-| Later | Spending caps for background calls, and a per-project switch. |
+
+Risk: Mantle quietly calls a paid model in the background. That spends the user's money and sends
+their content to a provider they didn't expect.
+
+Rule: any LLM call the user did not directly ask for must be logged, visible, and possible to
+turn off.
+
+MVP:
+
+- Every LLM call writes a UsageRecord with a `trigger` (`user` or `background`). The usage view
+  shows each background purpose as its own line.
+- The only background call in v0.1 is the rolling conversation summary, and it can be turned off
+  (`background_summary_enabled`). When it's off, the summary is built at switch time, which the
+  user asked for.
+- The concepts list uses rules only, with no LLM.
+- Indexing embeddings start from the user's index request; the query embedding of a chat message
+  starts from the message. Both are logged with purpose `embedding`, and the query embedding can
+  be turned off per conversation (`code_context_enabled`).
+- Indexing has a cost guard: an estimate runs first, and indexing above `INDEX_COST_LIMIT_USD`
+  needs `force` (an app setting in v0.1; it moves to user settings when auth arrives).
+
+Later: spending caps for background calls, and a per-project switch.
 
 ## Checklist for every PR
 
@@ -144,4 +319,5 @@ message could quote content.
 - No new way for an LLM output to trigger an action without human approval.
 - No new file access outside `rag`, and no writes.
 - Every new query on user data filters by `user_id`.
-- No new LLM call the user didn't directly ask for, unless it's logged, visible and can be turned off.
+- No new LLM call the user didn't directly ask for, unless it's logged, visible and can be turned
+  off.

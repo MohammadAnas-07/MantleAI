@@ -1,9 +1,11 @@
 # API outline
 
-REST + JSON, under `/api/v1`, except `/health`. Every operation has a tag and an `operationId` equal to the route function's name (for example `list_projects`), so generated clients get stable names; `backend/scripts/export_openapi.py` writes the schema without a server. Streaming uses server-sent events (SSE). There is
-no auth in v0.1: every request runs as the default local user, and every query filters by that
-user's `user_id` (see `docs/security.md`). Every write request must send
-`Content-Type: application/json`.
+REST + JSON, under `/api/v1`, except `/health`. Streaming uses server-sent events (SSE). Every
+operation has a tag and an `operationId` equal to the route function's name (for example
+`list_projects`), so generated clients get stable names; `backend/scripts/export_openapi.py`
+writes the schema without a server. There is no auth in v0.1: every request runs as the default
+local user, and every query filters by that user's `user_id` (see `docs/security.md`). Every
+write request must send `Content-Type: application/json`.
 
 Browsers may call the API only from `CORS_ALLOWED_ORIGINS` (the Vite dev server), and only with
 a Host header in `ALLOWED_HOSTS` (localhost or 127.0.0.1); any other host gets 400
@@ -19,7 +21,7 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 | --- | --- | --- |
 | GET | `/health` | API status, database `up`/`down`, and `keys`: `none`, `ok`, `unreadable` (the current `MASTER_ENCRYPTION_KEY` can't decrypt the newest saved key of some provider) or `unknown` (database down). A status word only, never a key or ciphertext; answers within about 2 s and never fails |
 | GET | `/api/v1/me` | The current user (in v0.1, always the default local user) |
-| GET | `/api/v1/audit-events` | List recent audit events (filter by type). **Not built yet**: events are written (a key added or deleted) but there is no route to read them |
+| GET | `/api/v1/audit-events` | List recent audit events (filter by type). Not built yet: events are written (a key added or deleted) but there is no route to read them |
 
 ## LLM gateway (`llm`)
 
@@ -73,16 +75,17 @@ Edits are last-write-wins.
 | POST | `/api/v1/memory/{item_id}/dependencies` | The task depends on `{depends_on_id}` (same project, no cycles: 409 `dependency_cycle`). Adding an existing link changes nothing |
 | DELETE | `/api/v1/memory/{item_id}/dependencies/{depends_on_id}` | Remove a dependency |
 | GET | `/api/v1/projects/{id}/memory/pinned?model_id=` | What would be pinned for that model now: the exact text, its tokens, the share limit, and the ids left out with the reason (`kind_cap` or `budget`). No LLM call |
-| POST | `/api/v1/memory/{item_id}/approve` | Approve a `proposed` item. **Not built yet** (Phase 4) |
-| POST | `/api/v1/memory/{item_id}/reject` | Reject a `proposed` item. **Not built yet** (Phase 4) |
+| POST | `/api/v1/memory/{item_id}/approve` | Approve a `proposed` item. Not built yet (Phase 4) |
+| POST | `/api/v1/memory/{item_id}/reject` | Reject a `proposed` item. Not built yet (Phase 4) |
 | DELETE | `/api/v1/memory/{item_id}` | Delete an item; its dependency links go too, and a decision it superseded becomes `accepted` again |
 
 ## Conversations and model switching (`conversations`)
 
 Built in `feat/model-switching`. The conversation in Mantle's database is the source of truth;
 messages are stored provider-neutral with a `sequence` number. Mantle never switches models by
-itself: `context_too_long` (413), `rate_limited` and `quota_exhausted` errors carry `details.suggested_models`
-(enabled chat models the user has a key for: bigger context window, or another provider).
+itself: `context_too_long` (413), `rate_limited` and `quota_exhausted` errors carry
+`details.suggested_models` (enabled chat models the user has a key for: bigger context window, or
+another provider).
 A second reply or a switch while a reply is streaming gets 409 `generation_in_progress`.
 
 | Method | Path | Purpose |
@@ -94,8 +97,8 @@ A second reply or a switch while a reply is streaming gets 409 `generation_in_pr
 | DELETE | `/api/v1/conversations/{id}` | Delete |
 | GET | `/api/v1/conversations/{id}/messages` | List messages by `sequence` (paged with `after_sequence`, `limit`) |
 | POST | `/api/v1/conversations/{id}/messages` | Send `{content}`. The response is an SSE stream: `message_start` (with `sources`: the retrieved code blocks, path, lines, scores, no text), zero or more `warning` (`{code, message, details}`: `retrieval_failed` when the query embedding failed, `needs_reindex`; the reply still comes), `delta` (text), then `message_end` (with usage) or `error` (with `suggested_models` for rate limits and context limits). In an indexed project the message is first embedded as a search query (purpose `embedding`, trigger `user`) unless the conversation turned code context off. The reply is saved when the stream ends; if the client disconnects, the upstream call is cancelled and the partial text is saved with status `cancelled`. Purpose `chat`, trigger `user`. The first message sets the title (first 60 characters; no LLM call) |
-| POST | `/api/v1/messages/{id}/cancel` | Stop a reply that is still streaming. **Not built yet**; closing the stream cancels the reply |
-| GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply. **Not built yet**; the code used is already stored as `message_contexts` rows (chunk ids and line ranges) and sent in `message_start` |
+| POST | `/api/v1/messages/{id}/cancel` | Stop a reply that is still streaming. Not built yet; closing the stream cancels the reply |
+| GET | `/api/v1/messages/{id}/context` | Sources and memory items used for this reply. Not built yet; the code used is already stored as `message_contexts` rows (chunk ids and line ranges) and sent in `message_start` |
 | GET | `/api/v1/conversations/{id}/summary` | The current rolling summary, the message `sequence` range it covers, whether a job is running, and the last job error |
 | GET | `/api/v1/conversations/{id}/handoff-preview?model_id=` | Exactly what would be sent to that model: each section (system, pinned items, project profile, summary, recent messages, retrieved context) with its content and tokens, the budget (context window - reserved output - safety margin), the total, what is dropped, `pinned` (its tokens, limit, and the item ids left out with the reason), `retrieved` (its tokens, its limit of 30% of the budget, the blocks `used` and `dropped` with path, lines, score and reason `share` or `context_budget`; the code is the one sent with the newest reply, read back from its message contexts), `has_key`, and `will_build_summary` with its input tokens. No LLM call (not even a query embedding); never contains keys |
 | POST | `/api/v1/conversations/{id}/switch-model` | Switch `{model_id, reason}`. Checks the model exists and the user has a key for its provider. Never calls the old model. If background summaries are off, the NEW model writes the summary now (purpose `switch_summary`, trigger `user`). Creates a ContextHandoff whose `note` (built without an LLM, never sent to a model) lists messages carried verbatim, the summary range and size, pinned items and what was dropped. Returns `{conversation, handoff, preview}` |
@@ -121,7 +124,7 @@ or running run per project (409 `index_in_progress`); a server restart marks a l
 | POST | `/api/v1/index-runs/{run_id}/cancel` | Body `{}`. A queued run is cancelled at once; a running one stops before its next batch (finished batches stay). A running run whose row hasn't changed for `INDEX_RUN_STALE_SECONDS` (1800) has lost its job and is cancelled at once; if the job was alive after all, its end keeps the cancel |
 | GET | `/api/v1/projects/{id}/documents` | Files of the index by path: `status` (`pending`, `indexed`, `skipped`), `skip_reason`, language, size, lines, `parse_fallback`. Filter `status`; `limit`, `offset`; `counts` per status. Folders and `.gitignore` matches are only counted in the run's skip report |
 | DELETE | `/api/v1/projects/{id}/index` | Remove all file rows and chunks of the project (runs stay as history). 409 while a run is active |
-| POST | `/api/v1/projects/{id}/search` | **Dev only** (404 unless `APP_ENV=development`). `{query, top_k?, mode?: hybrid \| vector \| text, path_prefix?, language?}`. Embeds the query and returns merged results with path, lines, language, symbol, `vector_rank`, `text_rank`, fused `score` and text, plus `needs_reindex`. 422 `invalid_query` when the query is empty or over `RETRIEVAL_QUERY_MAX_CHARS`, or `top_k` is over `RETRIEVAL_MAX_TOP_K`; 409 `not_indexed`; no match is an empty list |
+| POST | `/api/v1/projects/{id}/search` | Dev only (404 unless `APP_ENV=development`). `{query, top_k?, mode?: hybrid \| vector \| text, path_prefix?, language?}`. Embeds the query and returns merged results with path, lines, language, symbol, `vector_rank`, `text_rank`, fused `score` and text, plus `needs_reindex`. 422 `invalid_query` when the query is empty or over `RETRIEVAL_QUERY_MAX_CHARS`, or `top_k` is over `RETRIEVAL_MAX_TOP_K`; 409 `not_indexed`; no match is an empty list |
 | GET | `/api/v1/projects/{id}/profile` | The project profile, built from the files without an LLM at the end of the last successful index run; never rebuilt here. `built` (false before the first run, with empty lists), `built_at`, `index_run_id`, `out_of_date` and `out_of_date_reasons` (`source_changed`: the folder changed since; `index_changed`: a later run ended without rebuilding it), `languages` (`name`, `files`, `share` 0 to 1), `frameworks`, `commands` (`name`, `command`, `source`, `kind`), `markers`, `manifests`, `dependencies` (`name`, `ecosystem`, `dev`, `source`), `entry_points`, `layout`. Every item names its source file. All text comes from the repository: show it as plain text. 404 for another user's project |
 
 ## Workflow and agents (`workflow`)
@@ -133,7 +136,8 @@ change stores it with a `created` event. Every transition is saved as an append-
 uses a version check; approve and skip also take the `stage_id` the user means. Of two requests
 at the same moment one wins, the other gets 409 `workflow_changed`. `stage_id` stays optional
 for scripts and `/docs`; the UI always sends it, because without it a request that arrives just
-after another approval approves the next stage. Reasons are trimmed, required and at most `WORKFLOW_REASON_MAX_LENGTH` (500).
+after another approval approves the next stage. Reasons are trimmed, required and at most
+`WORKFLOW_REASON_MAX_LENGTH` (500).
 If the stored stage no longer exists in the YAML, every call except reset answers 409
 `unknown_stage` with `details.reset_path`.
 
@@ -160,16 +164,15 @@ Agent and gap finder starts check, before any model call: the project (404), the
 key (422 `model_unavailable`, `no_credential`), the prompt size (413 `context_too_long` with
 `details.suggested_models`), one queued or running run per project (409
 `agent_run_in_progress`) and the estimate against `AGENT_RUN_COST_LIMIT_USD` (0.50; 409
-`cost_limit_exceeded` with `details.estimate`, unless `force=true`). A model with no price in the catalog
-has no estimate, so it is refused with 422 `model_not_priced` (even with `force`) unless
-`AGENT_ALLOW_UNPRICED_MODELS=true`. Run statuses: `queued`,
-`running`, `waiting_for_approval`, `approved`, `rejected`, `completed` (review and gap finder),
-`failed`, `cancelled`. At startup, queued and running runs become `failed` with `error` =
-`interrupted`.
+`cost_limit_exceeded` with `details.estimate`, unless `force=true`). A model with no price in the
+catalog has no estimate, so it is refused with 422 `model_not_priced` (even with `force`) unless
+`AGENT_ALLOW_UNPRICED_MODELS=true`. Run statuses: `queued`, `running`, `waiting_for_approval`,
+`approved`, `rejected`, `completed` (review and gap finder), `failed`, `cancelled`. At startup,
+queued and running runs become `failed` with `error` = `interrupted`.
 
 ## Teaching (`teaching`)
 
-**Not built yet** (Phase 4, `feat/teaching-layer`). The tables exist; none of these routes does.
+Not built yet (Phase 4, `feat/teaching-layer`). The tables exist; none of these routes does.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -178,10 +181,10 @@ has no estimate, so it is refused with 422 `model_not_priced` (even with `force`
 | GET | `/api/v1/teaching-notes/{id}` | Get one note |
 | DELETE | `/api/v1/teaching-notes/{id}` | Delete a note |
 | GET | `/api/v1/projects/{id}/concepts` | The passive "concepts for this project" list |
-| POST | `/api/v1/projects/{id}/concepts/refresh` | Rebuild the list with the rule-based selector. **No LLM call.** It also runs after an index run and after a stage is approved |
+| POST | `/api/v1/projects/{id}/concepts/refresh` | Rebuild the list with the rule-based selector. No LLM call. It also runs after an index run and after a stage is approved |
 | POST | `/api/v1/concepts/{id}/dismiss` | Hide a concept from the list |
 
-## Execution (`execution`), Later, not built in v0.1
+## Execution (`execution`): later, not built in v0.1
 
 | Method | Path | Purpose |
 | --- | --- | --- |

@@ -16,7 +16,7 @@ machine over our own tables), skip LangGraph, and decide this at the start of
 
 ## Decision (2026-11-19)
 
-**No LangGraph in v0.1.** The flow is short and fixed: Planner, then Reviewer, then a pause for
+No LangGraph in v0.1. The flow is short and fixed: Planner, then Reviewer, then a pause for
 the user's approval. There is no revision loop: the Planner does not revise its plan after the
 review; the user decides.
 
@@ -28,7 +28,7 @@ review; the user decides.
   error) is saved in PostgreSQL (`agent_runs`, `agent_run_steps`). The run commits after each
   step, so polling shows progress and a restart loses at most the step in flight; startup marks
   queued and running runs failed ("interrupted").
-- Steps call **our** LLM gateway. Agents have no tools. Their output is a validated draft; only
+- Steps call our LLM gateway. Agents have no tools. Their output is a validated draft; only
   the user's approval writes project memory.
 - `langgraph` is not a dependency, so `langchain-core` isn't installed either.
 
@@ -40,20 +40,20 @@ hold the state between the run and the human decision.
 Add LangGraph (still only inside `modules/workflow`, still never `langchain*`) when one of these
 arrives and the plain loop starts to get messy:
 
-- **Loops:** an agent that revises its own output after review, or retries with a critic, more
+- Loops: an agent that revises its own output after review, or retries with a critic, more
   than once.
-- **Parallel agents:** several agents working on one stage at the same time and merging results.
-- **Long-running, branching flows:** flows that pause for people in more than one place, branch
+- Parallel agents: several agents working on one stage at the same time and merging results.
+- Long-running, branching flows: flows that pause for people in more than one place, branch
   on results, or must resume mid-step after a restart.
 
 ## Alternatives considered
 
-- **LangGraph now:** pays off with more agents, branches and retries. For two fixed steps it adds a
+- LangGraph now: pays off with more agents, branches and retries. For two fixed steps it adds a
   dependency (and `langchain-core`), a checkpointer or a second source of truth, and more to learn
   for no gain.
-- **LangChain agents:** this would put LangChain at the centre of the app, which goes against the
+- LangChain agents: this would put LangChain at the centre of the app, which goes against the
   vision and our rule.
-- **Other agent frameworks (CrewAI, AutoGen):** more autonomous by design, which is the opposite of
+- Other agent frameworks (CrewAI, AutoGen): more autonomous by design, which is the opposite of
   "human control over autonomous agents."
 
 ## Consequences

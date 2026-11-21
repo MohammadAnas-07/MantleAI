@@ -1,20 +1,20 @@
 # MVP scope (v0.1)
 
-v0.1 is a local tool for **one developer on their own machine**, using **their own API keys**.
+v0.1 is a local tool for one developer on their own machine, using their own API keys.
 
 ## In v0.1
 
 | Feature | What exactly |
 | --- | --- |
 | Single local user | No login. One default local user, and all data carries its `user_id`. The API binds to 127.0.0.1 only. |
-| Bring your own API keys | OpenAI, Anthropic, Google and Voyage keys, stored encrypted in PostgreSQL. A "test key" button. **Indexing needs an embeddings-capable key** for the embedding model's provider (the default is Google's `gemini-embedding-001`; OpenAI and Voyage work too). |
+| Bring your own API keys | OpenAI, Anthropic, Google and Voyage keys, stored encrypted in PostgreSQL. A "test key" button. Indexing needs an embeddings-capable key for the embedding model's provider (the default is Google's `gemini-embedding-001`; OpenAI and Voyage work too). |
 | Projects and conversations in PostgreSQL | A project has many conversations, and a conversation has many messages. |
 | Chat with streaming | Server-sent events, a cancel button, and errors shown clearly. |
 | Model switching with context handoff | A rolling summary is built in the background by the utility model (default: the active model). Every one of these calls is logged and shown in the usage view, and background summaries can be turned off; then the summary is built at switch time. A switch carries the summary plus the recent messages that fit, after a preview, and never calls the old model. Every message is tagged with its model. |
 | Project memory | Requirements, decisions and tasks (CRUD), fed into every prompt as pinned items. Built right after model switching (`feat/project-memory`). Items proposed by AI need approval, added with the workflow (`feat/workflow-and-agents`). |
 | Project indexing with retrieval | Index a local folder, embed with the chosen embedding model (default `gemini/gemini-embedding-001`) into pgvector, find code with hybrid search (vector + full text), cite top-k sources as `path:lines`. Only changed files are re-indexed. Changing the embedding model means re-indexing. |
 | Workflow stages with human approval | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. Each one is approved (or approved anyway, with a reason), skipped, or reopened later by the user. A Planner draft is approved, in whole or in part, or rejected with a reason. |
-| Two agents | **Planner** (drafts) and **Reviewer** (critiques). No tools, text output only. |
+| Two agents | Planner (drafts) and Reviewer (critiques). No tools, text output only. |
 | Teaching notes | "What, why, how" notes, created only when the user asks, using project context (this is the only teaching LLM call). Plus a passive "concepts for this project" list, built by YAML rules and the project profile with no LLM call. No pop-ups or interruptions. |
 | Visible background calls | Any LLM call the user did not directly ask for is logged, shown as its own line in the usage view, and can be turned off. In v0.1 the only one is the rolling summary. |
 | Simple React UI | Projects, chat with a model picker, memory, workflow, teaching notes, settings. The first version (`feat/frontend-workspace`) has projects, chat, memory, index, context and settings; the workflow and teaching screens come later, after their backend in Phase 4. |

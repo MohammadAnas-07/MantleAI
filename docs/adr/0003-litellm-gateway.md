@@ -10,7 +10,7 @@ embeddings and token counting. `vision.md` recommends LiteLLM.
 
 ## Decision
 
-Use the **LiteLLM Python SDK** (not the LiteLLM proxy server), imported **only** inside
+Use the LiteLLM Python SDK (not the LiteLLM proxy server), imported only inside
 `modules/llm`. That module is our gateway. It exposes Mantle's own functions (`stream_chat`,
 `complete`, `embed`, `count_tokens`) and Mantle's own error types (`RateLimited`,
 `ContextTooLong`, `AuthFailed`, `ProviderUnavailable`). It decrypts keys just before each call and
@@ -18,7 +18,7 @@ writes a UsageRecord for every call. Tests use a fake provider or LiteLLM's `moc
 
 Embeddings also go through this gateway. The default is a small OpenAI or Voyage embedding model,
 so the user needs an embeddings-capable key. There's no local embedding model in v0.1. A
-**utility model** setting (default: the conversation's active model) handles background work
+utility model setting (default: the conversation's active model) handles background work
 such as rolling conversation summaries.
 
 Because the gateway is the only path to a provider, it enforces the rule "any LLM call the user
@@ -28,11 +28,11 @@ if its switch in UserModelSettings is off.
 
 ## Alternatives considered
 
-- **Each provider's own SDK:** full control, but we'd have to write and maintain every adapter
+- Each provider's own SDK: full control, but we'd have to write and maintain every adapter
   ourselves, including their different streaming and error formats.
-- **The LiteLLM proxy server:** another process to run and secure, which isn't needed for one
+- The LiteLLM proxy server: another process to run and secure, which isn't needed for one
   local user.
-- **LangChain chat models:** this would make LangChain part of the core, which is against our
+- LangChain chat models: this would make LangChain part of the core, which is against our
   rules (ADR 0004).
 
 ## Consequences

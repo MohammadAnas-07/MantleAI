@@ -15,19 +15,19 @@ Version 0.13.0 ships the grammars inside its wheel (about 17 MB, `abi3`, works o
 
 - Pin `tree-sitter-language-pack>=0.13,<1` together with `tree-sitter>=0.25,<0.26` (and
   `pathspec>=1.1,<2` for `.gitignore` rules).
-- **Do not upgrade the language pack to 1.x** unless it can be configured to use only grammars
+- Do not upgrade the language pack to 1.x unless it can be configured to use only grammars
   installed with the package, with no download, and a test proves indexing works offline.
 - When a grammar can't be loaded, or a file has syntax errors, the chunker falls back to line
   windows and records `parse_fallback`, so indexing never fails because of a grammar.
 
 ## Alternatives considered
 
-- **The single-language packages** (`tree-sitter-python`, `tree-sitter-typescript`,
+- The single-language packages (`tree-sitter-python`, `tree-sitter-typescript`,
   `tree-sitter-javascript`): bundled and small, but three more dependencies to keep in step, and
   Markdown would need a fourth.
-- **Language pack 1.x with a prefetch step at install time:** still a network download outside
+- Language pack 1.x with a prefetch step at install time: still a network download outside
   pip and the lock file.
-- **No tree-sitter, line windows only:** simpler, but segments cut through functions and lose the
+- No tree-sitter, line windows only: simpler, but segments cut through functions and lose the
   symbol name that search uses.
 
 ## Consequences

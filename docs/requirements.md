@@ -1,6 +1,6 @@
 # Requirements
 
-Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are in
+Each requirement is marked MVP (in v0.1) or Later. The scope rules are in
 `docs/mvp-scope.md`.
 
 ## Functional
@@ -18,7 +18,7 @@ Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are i
 | --- | --- | --- |
 | F-10 | Add, test and delete API keys for OpenAI, Anthropic, Google and Voyage. Keys are stored encrypted. | MVP |
 | F-11 | List the available models with their context window, and enable or disable them. | MVP |
-| F-16 | Choose a **utility model** for background work such as rolling summaries. The default is the conversation's active model. | MVP |
+| F-16 | Choose a utility model for background work such as rolling summaries. The default is the conversation's active model. | MVP |
 | F-18 | Any LLM call the user did not directly ask for is logged (UsageRecord with `trigger = background`), shown as its own line in the usage view, and can be turned off in settings. | MVP |
 | F-17 | Choose an embedding model. The default is Google's `gemini-embedding-001`; OpenAI and Voyage models work too. This needs an embeddings-capable key. | MVP |
 | F-12 | Record token usage and estimated cost for every LLM call. | MVP |
@@ -62,9 +62,9 @@ Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are i
 ### Teaching
 | ID | Requirement | Scope |
 | --- | --- | --- |
-| F-50 | Generate a teaching note (what it is, why it matters here, how to do it) for a concept, a message or a stage, **only when the user asks**. | MVP |
+| F-50 | Generate a teaching note (what it is, why it matters here, how to do it) for a concept, a message or a stage, only when the user asks. | MVP |
 | F-51 | Notes use the project's context, not generic text. | MVP |
-| F-52 | A passive "concepts for this project" list in the teaching panel, built by rules only (YAML "relevant when" rules matched against the project profile), with **no LLM call**. It never interrupts the user (no pop-ups, nothing added to chat). | MVP |
+| F-52 | A passive "concepts for this project" list in the teaching panel, built by rules only (YAML "relevant when" rules matched against the project profile), with no LLM call. It never interrupts the user (no pop-ups, nothing added to chat). | MVP |
 | F-53 | Build a project profile (languages, dependencies, markers such as Dockerfile or migrations) at the end of each index run, without an LLM. | MVP |
 
 ### Execution and integrations
