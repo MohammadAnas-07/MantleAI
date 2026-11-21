@@ -93,6 +93,66 @@ class DocumentPageOut(BaseModel):
     counts: dict[str, int]
 
 
+class LanguageShareOut(BaseModel):
+    name: str
+    files: int
+    share: float = Field(description="Share of the counted files, 0 to 1.")
+
+
+class SourcedNameOut(BaseModel):
+    name: str
+    source: str = Field(description="The file this fact was read from.")
+
+
+class DependencyOut(BaseModel):
+    name: str
+    ecosystem: str  # python | node
+    dev: bool
+    source: str
+
+
+class CommandOut(BaseModel):
+    name: str
+    command: str
+    source: str
+    kind: str  # script | make | inferred
+
+
+class ManifestOut(BaseModel):
+    kind: str  # pyproject | requirements | package_json | makefile | lock_file
+    source: str
+
+
+class EntryPointOut(BaseModel):
+    source: str
+    kind: str  # the file's language
+
+
+class LayoutOut(BaseModel):
+    path: str
+    files: int
+
+
+class ProjectProfileOut(BaseModel):
+    """Facts read from the project's files by the last successful index run, without a model.
+    All text comes from the repository: show it as plain text."""
+
+    project_id: uuid.UUID
+    built: bool
+    built_at: datetime | None
+    index_run_id: uuid.UUID | None
+    out_of_date: bool
+    out_of_date_reasons: list[str] = Field(description="source_changed | index_changed")
+    languages: list[LanguageShareOut]
+    frameworks: list[SourcedNameOut]
+    commands: list[CommandOut]
+    markers: list[SourcedNameOut]
+    manifests: list[ManifestOut]
+    dependencies: list[DependencyOut]
+    entry_points: list[EntryPointOut]
+    layout: list[LayoutOut]
+
+
 class SearchIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
