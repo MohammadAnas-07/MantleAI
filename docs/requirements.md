@@ -20,7 +20,7 @@ Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are i
 | F-11 | List the available models with their context window, and enable or disable them. | MVP |
 | F-16 | Choose a **utility model** for background work such as rolling summaries. The default is the conversation's active model. | MVP |
 | F-18 | Any LLM call the user did not directly ask for is logged (UsageRecord with `trigger = background`), shown as its own line in the usage view, and can be turned off in settings. | MVP |
-| F-17 | Choose an embedding model. The default is a small OpenAI or Voyage model. This needs an embeddings-capable key. | MVP |
+| F-17 | Choose an embedding model. The default is Google's `gemini-embedding-001`; OpenAI and Voyage models work too. This needs an embeddings-capable key. | MVP |
 | F-12 | Record token usage and estimated cost for every LLM call. | MVP |
 | F-13 | Map provider failures to clear error types (rate limit, context too long, auth, unavailable). | MVP |
 | F-14 | Local and open-source models (for example via Ollama). | Later |
@@ -47,7 +47,7 @@ Each requirement is marked **MVP** (in v0.1) or **Later**. The scope rules are i
 | F-33 | Never index secret files (`.env`, keys) or binaries. | MVP |
 | F-36 | Every chunk stores its embedding model name and dimension. Changing the embedding model means re-indexing the project. | MVP |
 | F-37 | A local embedding model (no API key needed). | Later |
-| F-34 | Reranker, hybrid keyword + vector search. | Later |
+| F-34 | Reranker. (Hybrid keyword + vector search is already built for F-32.) | Later |
 | F-35 | Index selected external documentation (URLs). | Later |
 
 ### Workflow and agents

@@ -96,7 +96,8 @@ I don't skip engineering steps.
 
 Acceptance criteria:
 - The Planner drafts a stage, and the Reviewer lists risks and missing steps.
-- A stage moves on only when I approve it; I can also request changes or skip it.
+- A stage moves on only when I approve it; I can also skip it, or reopen an earlier one. A
+  Planner draft is saved only when I approve it, and I can reject it with a reason.
 - Agents can't change anything by themselves; their output is text or proposed items.
 
 Needs: F-03, F-40, F-41, F-42, F-43.

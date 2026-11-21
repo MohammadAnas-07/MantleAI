@@ -43,3 +43,10 @@ if its switch in UserModelSettings is off.
 - LiteLLM is a large package that releases often, which also makes it a supply-chain target.
   Pin an exact version and review the changelog before upgrading.
 - Model data from LiteLLM (context windows, prices) may be out of date, so the user can override it.
+
+## Note (2026-11-21)
+
+The error types listed under Decision were the first four. The gateway now also raises
+`QuotaExhausted` (a used-up quota, never retried; rule 51), and, before any call, `NoCredential`,
+`CredentialUnreadable` (the master key can't decrypt the saved key) and `ModelUnavailable`. The
+full list is in `backend/app/modules/llm/errors.py`. The decision itself is unchanged.

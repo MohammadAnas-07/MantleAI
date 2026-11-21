@@ -18,7 +18,7 @@ Errors look the same everywhere: `{"error": {"code": "rate_limited", "message": 
 | --- | --- | --- |
 | GET | `/health` | API status, database `up`/`down`, and `keys`: `none`, `ok`, `unreadable` (the current `MASTER_ENCRYPTION_KEY` can't decrypt the newest saved key of some provider) or `unknown` (database down). A status word only, never a key or ciphertext; answers within about 2 s and never fails |
 | GET | `/api/v1/me` | The current user (in v0.1, always the default local user) |
-| GET | `/api/v1/audit-events` | List recent audit events (filter by type) |
+| GET | `/api/v1/audit-events` | List recent audit events (filter by type). **Not built yet**: events are written (a key added or deleted) but there is no route to read them |
 
 ## LLM gateway (`llm`)
 
@@ -167,6 +167,8 @@ has no estimate, so it is refused with 422 `model_not_priced` (even with `force`
 `interrupted`.
 
 ## Teaching (`teaching`)
+
+**Not built yet** (Phase 4, `feat/teaching-layer`). The tables exist; none of these routes does.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
