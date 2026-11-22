@@ -97,10 +97,11 @@ of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash
 - No real-use evaluation of v0.1 yet: the 2-week trial in [docs/prd.md](docs/prd.md) hasn't
   started. The larger retrieval evaluation (25 questions on a real repository) stopped at the
   Gemini daily limit and has no result.
-- Gemini 3.8 Flash times out at 120 seconds (`LLM_TIMEOUT_SECONDS`) in both chat and agent runs on
-  this setup, so a lite model (Gemini 3.5 Flash Lite) is used. On it the Planner and Reviewer
-  returned valid output, but that is one sample: agent output quality is not proven. Chat and
-  switching have been run for real only on Gemini models.
+- An agent run on Gemini 3.8 Flash timed out at 120 seconds (`LLM_TIMEOUT_SECONDS`) on this setup;
+  a chat timeout is not confirmed. A lite model (Gemini 3.5 Flash Lite) is used. On it the
+  Planner and Reviewer returned valid output, but that is one sample: agent output quality is not
+  proven. Chat and switching have been run for real only on Gemini models.
+- The conversation list of a project stops at 500 rows, with no total and no message.
 - Some lists stop at a fixed size with no message that more exist: a conversation shows its first
   500 messages, the activity log its newest 200 calls, and the agent run and gap finder lists
   their newest 50 runs. The app reads at most 100 memory items per kind; the memory panel says
