@@ -123,7 +123,7 @@ See `docs/idea.md` → Main risks. Product-specific additions:
 
 - Success metric: accepted, with the 5-question check (at least 4 of 5 correct).
 - Time: 3 evenings per week. Dates are in `docs/phases.md`.
-- License: MIT (no LICENSE file until the repo is public).
+- License: MIT (`LICENSE` file added 2026-11-22; the repo is not public yet).
 - Project memory: moved to Phase 2 (`feat/project-memory`), right after model switching.
 
 ## Open questions
