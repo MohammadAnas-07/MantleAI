@@ -10,11 +10,9 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-21).** `chore/cleanup-and-docs-decisions` (not pushed), task 9 items 3-7
-only: the sensitive patterns comment in `core/config.py` names `rag/secret_scan.py`; rule 61
-says both `.env.example` files are tracked; CLAUDE.md's stack line says LangGraph is not used in
-v0.1 (ADR 0004); CLAUDE.md line 69, rule 8 and architecture D7 now match ADR 0004 (adding
-LangGraph later needs a new ADR that supersedes it).
+**Status (2026-11-22).** `docs/final-status` (not pushed): last docs pass for v0.1 (memory,
+mvp scope, data model, README limits match the merged code). Everything before it is merged,
+including `chore/cleanup-and-docs-decisions` and the docs rewrite (README, `setup.md`).
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -22,16 +20,19 @@ LangGraph later needs a new ADR that supersedes it).
   `ProjectProfileRepository.get_for_project`, now used); A-020 bundle and list limits (task 8).
 - Deferred: A-012 separate app role, `scripts/backup.ps1`.
 
-**Summary.** Mantle has projects, keys, streaming chat, model switching, project memory, cited
-retrieval, the profile facts and the workflow page. Not built: teaching notes, profile summary,
-`GET /messages/{id}/context`, `GET /audit-events`. Not run on a real model: a Planner run.
-Branches: 2 local (`main`, `chore/cleanup-and-docs-decisions`), 31 remote.
+**Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
+retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
+built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
+`GET /messages/{id}/context`; no CI. Branches: 2 local (`main`, `docs/final-status`), 37 remote.
+`scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
+(quality not proven). `gemini-3.8-flash` timed out at 120 s in chat and agent runs on this key.
 
-Tests: 883 backend and 127 frontend pass; profile races 5/5. pytest needs `TEST_DATABASE_URL`.
-Migration head `0011` (`alembic upgrade head`). To work: `docker compose up -d`; `backend`:
-`.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`; `frontend`: `npm run dev`.
-Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or Voyage key.
-First demo target: 2026-12-17. Last updated 2026-11-21 (task 9 docs decisions).
+Tests 2026-11-22 (database down): backend 518 passed, 365 `db` tests skipped (883 collected);
+frontend 127 passed. Last run with the database: 883 passed, profile races 5/5 (2026-11-21).
+pytest needs `TEST_DATABASE_URL`. Migration head `0011` (`alembic upgrade head`). To work:
+`docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`;
+`frontend`: `npm run dev`. Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or
+Voyage key. First demo target: 2026-12-17. Last updated 2026-11-22 (final docs status pass).
 
 ## Done
 
@@ -46,13 +47,12 @@ First demo target: 2026-12-17. Last updated 2026-11-21 (task 9 docs decisions).
 
 ## In progress
 
-- `chore/cleanup-and-docs-decisions`: three one-line edits; A-015 and A-016 still to do.
 - Click eval (25 questions): run 1 stopped at 926/1,429 segments (Gemini daily limit); resume.
 
 ## Next
 
-The developer decides. Candidates: a real plan run with Gemini, then the Phase 4 demo; the
-click eval and the Phase 3 demo; `GET /messages/{id}/context` and the Phase 2 demo;
+The developer decides. Candidates: more real plan runs on a lite Gemini model, then the Phase 4
+demo; the click eval and the Phase 3 demo; `GET /messages/{id}/context` and the Phase 2 demo;
 `feat/profile-summary` or `feat/teaching-layer`. Not built: message cancel, typed `dict`
 responses, `POST /memory/{id}/approve|reject`.
 
@@ -77,10 +77,6 @@ responses, `POST /memory/{id}/approve|reject`.
 | 2026-11-18 | `tree-sitter-language-pack` pinned `>=0.13,<1`: **do not upgrade to 1.x**, it downloads grammars at runtime | Offline tests, no runtime native downloads | 0007 |
 | 2026-11-18 | Hybrid search (vector + `simple` full text, RRF k=60) instead of plain vector top-k; no reranker | User's choice; identifiers need exact matches | `architecture.md` J3 |
 | 2026-11-18 | A file that looks like it holds a secret is skipped whole (not just the segment); `id_*` skipped literally (rule 48) | Code goes to a third party | `security.md` |
-| 2026-11-18 | Skipped files are `documents` rows (status `skipped` + reason); ignored folders/gitignore only counted in the run's `skip_report` | Useful list without thousands of rows | `data-model.md` |
-| 2026-11-18 | Segment vectors are reused by sha256(path + symbol + text) and model; a file's hash is set only when all its segments are stored | Cheap edits; resume after a failure | `data-model.md` |
-| 2026-11-18 | `INDEX_COST_LIMIT_USD` (1.00) is an app setting; it moves to user settings with auth | One user in v0.1 | `security.md` |
-| 2026-11-18 | Handoff preview reuses the code of the newest reply (message contexts), so it makes no embedding call | Preview stays free | `api-outline.md` |
 | 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4); app design "grunge-lite" | User's choice | `design-app.md` |
 | 2026-11-18 | TypeScript 5.9 (toolchain support); API types generated from OpenAPI and committed, `gen:api:check` guards them, operationId = route function name | Builds without a backend | `api-outline.md` |
 | 2026-11-19 | Used-up quota = per-day quota id or requested wait > 10 min; anything else stays `rate_limited`; `error_detail` keeps only sanitized structured fields | No guessing; provider text can echo prompts | rule 51 |
@@ -96,8 +92,8 @@ responses, `POST /memory/{id}/approve|reject`.
   `WinError 1225`): `docker compose ps`, `docker compose up -d`. A Fernet key is 44 chars, ends `=`.
 - **PowerShell commands don't work in Git Bash** (`source .venv/Scripts/activate`); the suite takes 2 min.
 - **`requirements.lock` was made on Windows with Python 3.14**; regenerate with `python -m pip freeze --exclude-editable > requirements.lock`.
-- **No LICENSE yet. `gh` isn't installed**: the developer opens and merges PRs. CRLF warnings
-  are harmless; the first commit is named "chunk 0" (pre-rule).
+- **No LICENSE yet.** `gh` 2.105.0 is installed and logged in (`gh auth status`), but the
+  developer opens and merges PRs. CRLF warnings are harmless; the first commit is named "chunk 0" (pre-rule).
 - **Changing `EMBEDDING_DIMENSIONS` needs a new migration** and a re-index; a test catches a
   mismatch. Voyage (1024 dims) stays disabled at 1536. `pgvector` returns numpy arrays.
 - **Repositories don't check a parent row's user** (fix before auth); `litellm` imports lazily (~11 s).
@@ -134,8 +130,8 @@ responses, `POST /memory/{id}/approve|reject`.
 - Windows 11, PowerShell 5.1 (Git Bash also available). Python 3.14; venv `backend\.venv`. Code must work on 3.12+.
 - Docker container `mantleai-db-1`, image `pgvector/pgvector:pg16` (pgvector 0.8.7), volume `pgdata`.
 - `DATABASE_URL=...5433/mantle` (dev only); tests use `TEST_DATABASE_URL=...5433/mantle_test`.
-- API: `uvicorn app.main:app --reload` from `backend` → `http://127.0.0.1:8000` (`/health`, `/docs`).
-- Frontend: Node 24.18 / npm 11.16; `npm run dev` from `frontend` → `http://127.0.0.1:5173`.
+- API: `uvicorn app.main:app --reload` (`backend`) → `http://127.0.0.1:8000`; Node 24.18 / npm 11.16,
+  `npm run dev` (`frontend`) → `http://127.0.0.1:5173`.
 - GitHub remote: `origin` → `MohammadAnas-07/MantleAI`, default branch `main`.
 
 ## Archive
@@ -147,3 +143,7 @@ responses, `POST /memory/{id}/approve|reject`.
   `context_handoffs.note`, partial reply `cancelled`; summaries off -> the NEW model summarises);
   supersede can't loop; duplicate links ignored; success metric >= 4 of 5 after a switch; MIT
   later, 6 phases, 3 evenings per week.
+- Indexing (2026-11-18; `data-model.md`, `security.md`, `api-outline.md`): skipped files are
+  `documents` rows (ignored folders only in `skip_report`); vectors reused by sha256(path + symbol
+  + text) and model, a file's hash set once all its segments are stored; `INDEX_COST_LIMIT_USD`
+  (1.00) is an app setting until auth; the handoff preview reuses the newest reply's code.

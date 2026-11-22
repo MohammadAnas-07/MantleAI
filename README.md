@@ -93,17 +93,24 @@ of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash
 
 ## Limits and known issues
 
+- No CI: there is no `.github` workflow, so tests and linters run only by hand.
 - No real-use evaluation of v0.1 yet: the 2-week trial in [docs/prd.md](docs/prd.md) hasn't
   started. The larger retrieval evaluation (25 questions on a real repository) stopped at the
   Gemini daily limit and has no result.
-- A Planner and Reviewer run times out on Gemini 3.8 Flash; on Gemini 3.5 Flash Lite it runs.
-  Chat and switching have been run for real only on Gemini models.
-- The app reads at most 100 memory items per kind, so a reference to a later item shows its id
-  instead of its title, and the built app is one 600 kB script (audit A-020; the
-  `fix/list-limits-and-bundle` work is not done).
+- Gemini 3.8 Flash times out at 120 seconds (`LLM_TIMEOUT_SECONDS`) in both chat and agent runs on
+  this setup, so a lite model (Gemini 3.5 Flash Lite) is used. On it the Planner and Reviewer
+  returned valid output, but that is one sample: agent output quality is not proven. Chat and
+  switching have been run for real only on Gemini models.
+- Some lists stop at a fixed size with no message that more exist: a conversation shows its first
+  500 messages, the activity log its newest 200 calls, and the agent run and gap finder lists
+  their newest 50 runs. The app reads at most 100 memory items per kind; the memory panel says
+  "Showing X of Y", but a reference to a later item shows its id instead of its title. The built
+  app is one 600 kB script (audit A-020; the `fix/list-limits-and-bundle` work is not done).
 - Index and agent runs live in the server process; a restart (also `--reload`) stops them.
 - No login, and repositories don't yet check that a parent row belongs to the user (to fix
   before auth). Don't run Mantle anywhere but your own machine.
+- The teaching layer (teaching notes and the concepts list) and the model-written profile summary
+  are not built.
 - One Docker volume holds all data, with no automatic backup
   ([backup and restore](docs/setup.md#backup-and-restore)). No LICENSE file yet; MIT is planned.
 

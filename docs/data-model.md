@@ -1,7 +1,8 @@
 # Data model
 
 Everything lives in one PostgreSQL database. Each table is owned by exactly one module (see
-`docs/architecture.md`). There is no SQL here; the tables are created in `feat/database-models`.
+`docs/architecture.md`). There is no SQL here; the tables are created by the Alembic migrations
+in `backend/alembic/versions` (`0001` to `0011`, head `0011`).
 
 Conventions:
 
@@ -23,10 +24,10 @@ Conventions:
 | Rule | Where | Why |
 | --- | --- | --- |
 | CASCADE | every `user_id` → users | Deleting a user deletes all their data. |
-| CASCADE | `project_id` on memory items, conversations, index runs, documents, chunks, project profile, workflow runs, teaching notes, concept suggestions | A project owns these rows. |
-| CASCADE | conversation → messages, summaries, handoffs; message → message contexts and the summaries/handoffs that point at it; document → chunks; workflow run → stage states → agent runs | Child rows mean nothing without their parent. |
+| CASCADE | `project_id` on memory items, memory dependencies, conversations, index runs, documents, chunks, project profile, project workflows, workflow events, agent runs, teaching notes, concept suggestions | A project owns these rows. |
+| CASCADE | conversation → messages, summaries, handoffs; message → message contexts and the summaries that point at it (`up_to_message_id`); document → chunks; memory item → its dependency links; project workflow → workflow events; agent run → agent run steps | Child rows mean nothing without their parent. |
 | SET NULL | `usage_records.project_id`, `conversation_id`, `message_id`, `agent_run_id` | Cost history must survive deletes. |
-| SET NULL | optional links: `projects.default_model_id`, `memory_items.source_message_id` / `source_agent_run_id`, `teaching_notes.source_message_id`, `concept_suggestions.teaching_note_id`, `context_handoffs.conversation_summary_id`, `user_model_settings.*_model_id` | The row stays useful without the link. |
+| SET NULL | optional links: `projects.default_model_id`, `memory_items.source_message_id` / `source_agent_run_id` / `superseded_by_id`, `teaching_notes.source_message_id`, `concept_suggestions.teaching_note_id`, `context_handoffs.conversation_summary_id` / `first_raw_message_id`, `user_model_settings.*_model_id` | The row stays useful without the link. |
 | NO ACTION | every required `→ ModelConfig`, `documents.last_index_run_id`, `project_profiles.index_run_id` | A model in use can't be deleted (disable it with `enabled`). Index runs are deleted only with their project. |
 
 SET NULL foreign keys are `DEFERRABLE INITIALLY DEFERRED`. One project delete cascades through
@@ -75,7 +76,7 @@ Statuses and priorities are per kind, checked in `app/modules/projects/memory_se
 Edits are last-write-wins (no version check).
 - `user_id` → User, `project_id` → Project
 - `kind`: `requirement` | `decision` | `task`
-- `title` (one line, at most `MEMORY_TITLE_MAX_LENGTH` = 200), `body` (at most
+- `title` (one line, at most `MEMORY_TITLE_MAX_LENGTH` = 200; the column is `VARCHAR(300)`), `body` (at most
   `MEMORY_TEXT_MAX_LENGTH` = 5000; for a decision: what was decided). Text is trimmed; any Unicode
   is fine; control characters and null bytes are rejected.
 - `status`, per kind:
@@ -196,8 +197,8 @@ ModelConfig: shared catalog, not user data (no `user_id`).
 UserModelSettings: one row per user.
 - `user_id` → User (unique)
 - `utility_model_id` → ModelConfig (nullable: null means "use the conversation's active model")
-- `embedding_model_id` → ModelConfig (nullable until the user picks one; the intended default is a
-  small OpenAI or Voyage model)
+- `embedding_model_id` → ModelConfig (nullable: null means `DEFAULT_EMBEDDING_MODEL`,
+  `gemini/gemini-embedding-001`)
 - `background_summary_enabled` (bool, default true): when false, no rolling-summary calls run in
   the background, and the summary is built at switch time instead (D10)
 
@@ -228,7 +229,8 @@ IndexRun: one indexing job (migration `0005`).
 - `files_seen`, `files_indexed`, `files_skipped`, `files_unchanged`, `chunks_created`, `tokens`
   (estimated, about 4 characters each), `cost_estimate_usd`
 - `error` (nullable): an error code such as `rate_limited`, `auth_failed`, `source_missing`,
-  `interrupted`, `internal_error`, `daily_quota_exhausted` (the provider's quota is used up; not
+  `interrupted`, `internal_error`, `too_many_entries` (the folder walk passed
+  `INDEX_MAX_ENTRIES`), `daily_quota_exhausted` (the provider's quota is used up; not
   retried, run it again after the reset to resume) or `rate_limit_wait_exceeded` (retries of one
   batch would wait longer than `EMBED_RETRY_MAX_TOTAL_WAIT_SECONDS`)
 - `started_at`, `finished_at`, `cancel_requested_at`
@@ -244,8 +246,8 @@ Document: one file of the project.
 - `skip_reason` (nullable): `sensitive_name`, `possible secret`, `too_large`, `too_many_files`,
   `too_many_segments`, `lock_file`, `minified`, `binary`, `unsupported_type`,
   `unsupported_encoding`, `empty`, `long_lines`, `unreadable`, `changed_while_reading`. Ignored
-  folders, `.gitignore` matches and symlinks have no row; they are only counted in the run's
-  `skip_report`.
+  folders, `.gitignore` matches, symlinks and folders below `INDEX_MAX_DEPTH` (`too_deep`) have no
+  row; they are only counted in the run's `skip_report`.
 - `content_hash` (sha256 of the LF-normalized text; null until every segment of that content is
   stored), `size_bytes`, `mtime_ns`, `line_count`, `language`
 - `parse_fallback` (nullable): `syntax_error` or `no_grammar` when code was split by lines
@@ -275,7 +277,7 @@ built without an LLM at the end of each successful index run, from the files tha
 One row per project, replaced on every build with an upsert (two builds at once leave one row).
 A failed or cancelled run leaves it as it was. Every list item has a `source`: the file it was
 read from. Lists are capped and sorted, so the same folder gives the same facts.
-- `user_id` → User, `project_id` → Project (unique)
+- `user_id` → User, `project_id` → Project (unique, `uq_project_profiles_project_id`)
 - `languages` (JSON, for example `{"python": 42, "typescript": 10}`: indexed files per language)
 - `dependencies` (JSON list of `{name, ecosystem: python|node, dev, source}`, at most 200; names
   from `pyproject.toml` (project, optional and dependency groups, Poetry), `requirements*.txt`
@@ -347,7 +349,8 @@ finder run.
   partial unique index `uq_agent_runs_project_id_active`
 - `stage_id` (the stage when it started), `prompt_version` (for example
   `planner_v1,reviewer_v1`)
-- `input` (JSON: `requirement_id` or `requirement_text`, `use_code_context`, `force`),
+- `input` (JSON: `requirement_id` or `requirement_text`, `use_code_context`, `force`; a gap
+  finder run stores only `force`),
   `estimate` (JSON: steps, tokens, cost, limit)
 - `result` (JSON: the validated `plan` and `review`, or the gap report; drafts, not memory),
   `warnings` (JSON list: dropped references, trimmed memory, code context problems)
@@ -368,6 +371,9 @@ UsageRecord with `purpose = agent_run`, `trigger = user` and `agent_run_id`.
 
 ## teaching module
 
+Not built yet. Both tables exist since migration `0001`, but no code reads or writes them, and
+the rules file below does not exist yet. This section is the design for `feat/teaching-layer`.
+
 TeachingNote: only created when the user asks.
 - `user_id` → User, `project_id` → Project
 - `concept` (for example "database indexing")
@@ -379,7 +385,7 @@ ConceptSuggestion: the passive "concepts for this project" list. It's built by t
 rule-based selector only, with no LLM call. An LLM is called only when the user asks for an
 explanation, which creates a TeachingNote.
 - `user_id` → User, `project_id` → Project
-- `rule_id`, `concept`
+- `rule_id`, `concept`; unique `(project_id, rule_id)`
 - `reason`: the rule's own "why" text, plus the facts that matched (for example "dependency: sqlalchemy")
 - `status`: `new` | `dismissed` | `noted`
 - `teaching_note_id` → TeachingNote (nullable: set once the user asks for a note)
@@ -425,7 +431,8 @@ User 1─* (every user-data table, via user_id)
                  ├─* TeachingNote
                  ├─* ConceptSuggestion
                  └─* ExecutionRun            (later)
-ModelConfig 1─* Message / ConversationSummary / UsageRecord / AgentRun / ContextHandoff
+ModelConfig 1─* Message / ConversationSummary / UsageRecord / AgentRun / AgentRunStep /
+                ContextHandoff / IndexRun / TeachingNote
 ```
 
 Deleting a project deletes all its rows (cascade). Credentials, settings and audit events belong
