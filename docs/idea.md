@@ -52,6 +52,7 @@ clean module boundaries keep hosting possible later; nothing is built for it now
 | Date | Decision |
 | --- | --- |
 | 2026-11-17 | License: MIT. No LICENSE file until the repository is public. |
+| 2026-11-22 | MIT LICENSE file added before the repository is public (replaces the line above). |
 | 2026-11-17 | Not a hosted service in v0.1; revisit after the first demo. |
 | 2026-11-17 | Project memory is built right after model switching (Phase 2), because it's the differentiator. |
 

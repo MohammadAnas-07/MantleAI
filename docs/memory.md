@@ -10,8 +10,8 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-22).** `chore/add-license`: MIT `LICENSE` file added (copyright 2026
-Mohammad Anas), README line updated. Everything before it is merged.
+**Status (2026-11-22).** `docs/license-notes`: `idea.md`, `prd.md` and `phases.md` now say the
+MIT `LICENSE` file exists (added in `chore/add-license`). Everything before it is merged.
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -22,7 +22,7 @@ Mohammad Anas), README line updated. Everything before it is merged.
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`; no CI. Branches: 2 local (`main`, `chore/add-license`), 39 remote.
+`GET /messages/{id}/context`; no CI. Branches: 2 local (`main`, `docs/license-notes`), 39 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 

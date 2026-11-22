@@ -179,7 +179,7 @@ Exit criteria:
 - [ ] Every execution is recorded in the audit log.
 - [ ] Login works, and no query returns another user's data.
 - [ ] CI runs lint and tests on every pull request.
-- [ ] The repo is public, with an MIT LICENSE file.
+- [ ] The repo is public, with an MIT LICENSE file (the LICENSE file was added 2026-11-22).
 - [ ] The landing page is live, with conflict C1 resolved.
 
 Postponed: hosted version (decide after the first demo), GitHub integration, a terminal
