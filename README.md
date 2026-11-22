@@ -113,7 +113,7 @@ of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash
 - The teaching layer (teaching notes and the concepts list) and the model-written profile summary
   are not built.
 - One Docker volume holds all data, with no automatic backup
-  ([backup and restore](docs/setup.md#backup-and-restore)). No LICENSE file yet; MIT is planned.
+  ([backup and restore](docs/setup.md#backup-and-restore)). MIT licensed ([LICENSE](LICENSE)).
 
 ## Tests and contributing
 
