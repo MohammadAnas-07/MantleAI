@@ -10,9 +10,8 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-22).** `docs/memory-catch-up` (not pushed): memory status after the merge of
-`docs/readme-corrections` (README limits: gemini-3.8-flash timeout, conversation list limit).
-Everything before it is merged.
+**Status (2026-11-22).** `chore/add-license`: MIT `LICENSE` file added (copyright 2026
+Mohammad Anas), README line updated. Everything before it is merged.
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -23,7 +22,7 @@ Everything before it is merged.
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`; no CI. Branches: 2 local (`main`, `docs/memory-catch-up`), 39 remote.
+`GET /messages/{id}/context`; no CI. Branches: 2 local (`main`, `chore/add-license`), 39 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 
@@ -92,7 +91,7 @@ responses, `POST /memory/{id}/approve|reject`.
   `WinError 1225`): `docker compose ps`, `docker compose up -d`. A Fernet key is 44 chars, ends `=`.
 - **PowerShell commands don't work in Git Bash** (`source .venv/Scripts/activate`); the suite takes 2 min.
 - **`requirements.lock` was made on Windows with Python 3.14**; regenerate with `python -m pip freeze --exclude-editable > requirements.lock`.
-- **No LICENSE yet.** `gh` 2.105.0 is installed and logged in (`gh auth status`), but the
+- **MIT LICENSE added 2026-11-22** (repo not public yet). `gh` 2.105.0 is installed and logged in (`gh auth status`), but the
   developer opens and merges PRs. CRLF warnings are harmless; the first commit is named "chunk 0" (pre-rule).
 - **Changing `EMBEDDING_DIMENSIONS` needs a new migration** and a re-index; a test catches a
   mismatch. Voyage (1024 dims) stays disabled at 1536. `pgvector` returns numpy arrays.
