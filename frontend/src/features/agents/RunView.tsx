@@ -81,10 +81,10 @@ export function RunView({
   const active = isRunActive(run);
 
   return (
-    <article aria-label="Agent run" className="space-y-3 rounded-lg border border-line p-3">
+    <article aria-label="Agent run" className="space-y-3 rounded-lg border border-line p-4">
       <RunHeader run={run} />
       <div aria-live="polite" className="space-y-2">
-        <p className="text-sm">
+        <p className="text-base">
           <span className="font-medium">Status: </span>
           <RunStatusBadge status={run.status} /> {active ? <span>{progressText(run)}</span> : null}
           {run.cancel_requested_at && active ? <Badge kind="warning">stopping</Badge> : null}
@@ -132,7 +132,7 @@ export function RunView({
         <Saved run={run} result={approved} projectId={projectId} memory={memory} />
       ) : null}
       {run.status === "rejected" ? (
-        <p className="text-sm break-words" dir="auto">
+        <p className="text-base break-words" dir="auto">
           <span className="font-medium">Rejected: </span>
           {run.decision_reason}
         </p>
@@ -154,8 +154,8 @@ function RunHeader({ run }: { run: AgentRun }) {
   const models = useModelInfo();
   const estimate = run.estimate as Partial<RunEstimate>;
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-      <h3 className="text-base">{RUN_TYPE_LABEL[run.run_type] ?? run.run_type}</h3>
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-base">
+      <h3 className="text-lg">{RUN_TYPE_LABEL[run.run_type] ?? run.run_type}</h3>
       <span>{models.name(run.model_id)}</span>
       <time dateTime={run.created_at} className="text-muted">
         {formatDateTime(run.created_at)}
@@ -182,7 +182,7 @@ function Saved({
   memory: MemoryIndex;
 }) {
   return (
-    <div className="space-y-1 text-sm">
+    <div className="space-y-1 text-base">
       <Banner kind="success">
         Saved {run.saved_item_ids.length} items to the project memory. Tasks are todo; decisions are
         proposed until you accept them.

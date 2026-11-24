@@ -110,7 +110,7 @@ export function ApprovalView({
   return (
     <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
       <section aria-labelledby="plan-title" className="space-y-3">
-        <h3 id="plan-title" className="text-base">
+        <h3 id="plan-title" className="text-lg">
           Planner draft
         </h3>
         <div role="group" aria-label="Selection" className="flex flex-wrap items-center gap-2">
@@ -130,7 +130,7 @@ export function ApprovalView({
           >
             Select none
           </Button>
-          <span className="text-sm" aria-live="polite">
+          <span className="text-base" aria-live="polite">
             {chosen} of {total} selected
           </span>
         </div>
@@ -166,7 +166,7 @@ export function ApprovalView({
           <legend className="text-base font-medium">
             Proposed decisions ({plan.decisions.length})
           </legend>
-          <p className="text-xs text-muted">
+          <p className="text-sm text-muted">
             Decisions are saved as proposed; you accept them later in memory.
           </p>
           <ul className="space-y-2">
@@ -213,7 +213,8 @@ export function ApprovalView({
             <Banner kind="danger">{errors.form}</Banner>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
+        {/* The decision stays in reach while scrolling a long plan. */}
+        <div className="sticky bottom-0 flex flex-wrap items-center gap-2 border-t border-line bg-paper py-3">
           <Button
             variant="primary"
             disabled={chosen === 0}
@@ -233,7 +234,9 @@ export function ApprovalView({
             Reject run…
           </Button>
           {chosen === 0 ? (
-            <span className="text-sm text-muted">Select at least one item, or reject the run.</span>
+            <span className="text-base text-muted">
+              Select at least one item, or reject the run.
+            </span>
           ) : null}
         </div>
       </section>
@@ -311,7 +314,7 @@ function PlanNotes({ plan }: { plan: Plan }) {
   return (
     <div className="grid gap-2 sm:grid-cols-3">
       {groups.map(([title, items]) => (
-        <section key={title} aria-label={title} className="text-sm">
+        <section key={title} aria-label={title} className="text-base">
           <h4 className="text-base font-medium">{title}</h4>
           {items.length === 0 ? <p className="text-muted">None.</p> : null}
           <ul className="list-disc pl-5">

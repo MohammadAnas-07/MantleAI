@@ -34,10 +34,10 @@ export function ReviewPanel({
           verdict: {approve ? "approve" : "changes requested"}
         </Badge>
       </div>
-      {review.findings.length === 0 ? <p className="text-sm text-muted">No findings.</p> : null}
+      {review.findings.length === 0 ? <p className="text-base text-muted">No findings.</p> : null}
       <ul aria-label="Reviewer findings" className="space-y-2">
         {review.findings.map((f, i) => (
-          <li key={i} className="space-y-0.5 rounded-lg border border-line p-2 text-sm">
+          <li key={i} className="space-y-0.5 rounded-lg border border-line p-2 text-base">
             <SeverityBadge severity={f.severity} />
             <p className="whitespace-pre-wrap break-words" dir="auto">
               {f.explanation}

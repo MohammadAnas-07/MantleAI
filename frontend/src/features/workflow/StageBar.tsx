@@ -44,7 +44,9 @@ export function StageBar({
                 <span>
                   {i + 1}. {stage.title}
                 </span>
-                <span className="text-sm font-normal text-muted">({s?.word ?? stage.status})</span>
+                <span className="text-base font-normal text-muted">
+                  ({s?.word ?? stage.status})
+                </span>
               </button>
             </li>
           );

@@ -67,7 +67,7 @@ export function References({
 }) {
   if (refs.length === 0) return null;
   return (
-    <p className="text-xs">
+    <p className="text-sm">
       <span className="font-medium">Refers to: </span>
       {refs.map((ref, i) => {
         const plan = /^(task|decision):(\d+)$/.exec(ref);
@@ -93,7 +93,7 @@ export function References({
 export function Warnings({ warnings }: { warnings: RunWarning[] }) {
   if (warnings.length === 0) return null;
   return (
-    <ul aria-label="Warnings" className="space-y-1 text-sm">
+    <ul aria-label="Warnings" className="space-y-1 text-base">
       {warnings.map((w, i) => (
         <li key={i} className="flex items-start gap-1">
           <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
@@ -161,7 +161,7 @@ export function SuggestedModels({
 }) {
   if (models.length === 0) return null;
   return (
-    <div className="space-y-1 text-sm">
+    <div className="space-y-1 text-base">
       <p>Models that may work:</p>
       <ul className="flex flex-wrap gap-1">
         {models.map((m) => (

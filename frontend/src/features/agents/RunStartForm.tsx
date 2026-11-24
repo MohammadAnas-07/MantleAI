@@ -108,11 +108,11 @@ export function RunStartForm({
   const suggestions = error instanceof ApiError ? suggestedModels(error.details) : [];
 
   return (
-    <form onSubmit={submit} noValidate className="space-y-3 rounded-lg border border-line p-3">
+    <form onSubmit={submit} noValidate className="space-y-3 rounded-lg border border-line p-4">
       <fieldset className="space-y-1">
         <legend className="text-base font-medium">Run type</legend>
         {(["plan", "review"] as const).map((t) => (
-          <label key={t} className="flex items-center gap-2 text-sm">
+          <label key={t} className="flex items-center gap-2 text-base">
             <input
               type="radio"
               name="run-type"
@@ -132,7 +132,7 @@ export function RunStartForm({
       {runType === "plan" ? (
         <fieldset className="space-y-2">
           <legend className="text-base font-medium">Requirement</legend>
-          <div className="flex flex-wrap gap-3 text-sm">
+          <div className="flex flex-wrap gap-3 text-base">
             {(["memory", "text"] as const).map((s) => (
               <label key={s} className="flex items-center gap-2">
                 <input
@@ -192,7 +192,7 @@ export function RunStartForm({
       />
 
       {formError ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-base text-danger">
           {formError}
         </p>
       ) : null}
@@ -214,7 +214,7 @@ export function RunStartForm({
               This is above your cost limit. Starting needs a second confirm.
             </Banner>
           ) : null}
-          <p className="text-xs text-muted">
+          <p className="text-sm text-muted">
             The run calls the model with your API key; your provider bills you. Nothing is saved to
             memory until you approve.
           </p>
