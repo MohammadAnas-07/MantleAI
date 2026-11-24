@@ -11,6 +11,7 @@ import { formatCost, formatTokens } from "../../lib/format";
 import type { RunEstimate, RunWarning, SuggestedModel } from "../../lib/api/types";
 import { MemoryLink } from "../memory/MemoryLink";
 import { warningText } from "./runText";
+import { KeyValueTable } from "../../components/ui/Table";
 
 export function ModelSelect({
   value,
@@ -114,21 +115,7 @@ export function EstimateTable({ estimate }: { estimate: RunEstimate }) {
     ["Cost (upper bound)", estimate.cost_usd === null ? "no price" : formatCost(estimate.cost_usd)],
     ["Your limit", formatCost(estimate.cost_limit_usd)],
   ];
-  return (
-    <table className="w-full text-left text-sm">
-      <caption className="sr-only">Cost estimate</caption>
-      <tbody>
-        {rows.map(([k, v]) => (
-          <tr key={k}>
-            <th scope="row" className="pr-2 font-medium">
-              {k}
-            </th>
-            <td>{v}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  return <KeyValueTable caption="Cost estimate" rows={rows} />;
 }
 
 /** The backend's 409 cost_limit_exceeded: show its numbers and ask before forcing. */

@@ -23,6 +23,7 @@ import { ReviewPanel } from "./ReviewPanel";
 import { RunStatusBadge } from "./RunBadges";
 import { failureText, RUN_TYPE_LABEL, suggestedModels } from "./runText";
 import { SuggestedModels, Warnings } from "./shared";
+import { Table } from "../../components/ui/Table";
 
 /** One plan or review run: polled while it runs, then its approval view or its outcome. */
 export function RunView({
@@ -201,16 +202,23 @@ function Saved({
 function StepTable({ run }: { run: AgentRun }) {
   if (run.steps.length === 0) return null;
   return (
-    <table className="w-full text-left text-sm">
-      <caption className="eyebrow text-left">Steps</caption>
+    <Table caption="Steps" showCaption>
       <thead>
-        <tr className="eyebrow">
+        <tr>
           <th scope="col">Agent</th>
           <th scope="col">Status</th>
-          <th scope="col">Attempts</th>
-          <th scope="col">Tokens in/out</th>
-          <th scope="col">Cost</th>
-          <th scope="col">Time</th>
+          <th scope="col" className="num">
+            Attempts
+          </th>
+          <th scope="col" className="num">
+            Tokens in/out
+          </th>
+          <th scope="col" className="num">
+            Cost
+          </th>
+          <th scope="col" className="num">
+            Time
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -221,15 +229,15 @@ function StepTable({ run }: { run: AgentRun }) {
               {s.status}
               {s.error ? ` (${s.error})` : ""}
             </td>
-            <td>{s.attempts}</td>
-            <td>
+            <td className="num">{s.attempts}</td>
+            <td className="num">
               {formatTokens(s.input_tokens)}/{formatTokens(s.output_tokens)}
             </td>
-            <td>{formatCost(s.cost_usd)}</td>
-            <td>{(s.latency_ms / 1000).toFixed(1)} s</td>
+            <td className="num">{formatCost(s.cost_usd)}</td>
+            <td className="num">{(s.latency_ms / 1000).toFixed(1)} s</td>
           </tr>
         ))}
       </tbody>
-    </table>
+    </Table>
   );
 }

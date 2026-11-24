@@ -4,6 +4,7 @@ import { useModelInfo } from "../../hooks/useModelInfo";
 import { errorMessage } from "../../lib/api/errors";
 import { formatCost, formatTokens, purposeLabel, sumCosts } from "../../lib/format";
 import type { UsageLine } from "../../lib/api/types";
+import { Table } from "../../components/ui/Table";
 
 interface Row {
   key: string;
@@ -81,14 +82,19 @@ export function UsageSection() {
 
 function UsageTable({ title, rows }: { title: string; rows: Row[] }) {
   return (
-    <table className="w-full text-left text-sm">
-      <caption className="eyebrow text-left">{title}</caption>
+    <Table caption={title} showCaption>
       <thead>
-        <tr className="eyebrow">
+        <tr>
           <th scope="col">Name</th>
-          <th scope="col">Calls</th>
-          <th scope="col">Tokens</th>
-          <th scope="col">Cost</th>
+          <th scope="col" className="num">
+            Calls
+          </th>
+          <th scope="col" className="num">
+            Tokens
+          </th>
+          <th scope="col" className="num">
+            Cost
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -104,12 +110,12 @@ function UsageTable({ title, rows }: { title: string; rows: Row[] }) {
             <td>
               {r.label} {r.background ? <Badge kind="info">background</Badge> : null}
             </td>
-            <td>{r.calls}</td>
-            <td>{formatTokens(r.tokens)}</td>
-            <td>{formatCost(r.cost)}</td>
+            <td className="num">{r.calls}</td>
+            <td className="num">{formatTokens(r.tokens)}</td>
+            <td className="num">{formatCost(r.cost)}</td>
           </tr>
         ))}
       </tbody>
-    </table>
+    </Table>
   );
 }

@@ -11,6 +11,7 @@ import { ApiError, errorMessage } from "../../lib/api/errors";
 import { formatCost, formatDateTime, formatTokens } from "../../lib/format";
 import type { IndexEstimate, IndexRun } from "../../lib/api/types";
 import { FileList } from "./FileList";
+import { KeyValueTable } from "../../components/ui/Table";
 
 const REASON_TEXT: Record<string, string> = {
   embedding_model_changed: "the embedding model changed",
@@ -216,21 +217,7 @@ function EstimateTable({ estimate }: { estimate: IndexEstimate }) {
     ["Cost", formatCost(estimate.cost_usd)],
     ["Provider", `${estimate.provider} (${estimate.model})`],
   ];
-  return (
-    <table className="w-full text-left">
-      <caption className="sr-only">Index estimate</caption>
-      <tbody>
-        {rows.map(([k, v]) => (
-          <tr key={k}>
-            <th scope="row" className="pr-2 font-medium">
-              {k}
-            </th>
-            <td>{v}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  return <KeyValueTable caption="Index estimate" rows={rows} />;
 }
 
 // Failure reasons that need more than their code to be understood.

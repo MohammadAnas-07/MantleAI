@@ -6,6 +6,7 @@ import { useModelInfo } from "../../hooks/useModelInfo";
 import { errorMessage } from "../../lib/api/errors";
 import { formatTokens, lineRange } from "../../lib/format";
 import type { SourceReport } from "../../lib/api/types";
+import { Table } from "../../components/ui/Table";
 
 const SECTION_NAMES: Record<string, string> = {
   system: "System prompt",
@@ -56,13 +57,16 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
             (window {formatTokens(p.context_window)}, {formatTokens(p.reserved_output_tokens)} kept
             for the reply, {formatTokens(p.safety_margin_tokens)} margin)
           </p>
-          <table className="w-full text-left">
-            <caption className="sr-only">Sections</caption>
+          <Table caption="Sections">
             <thead>
-              <tr className="eyebrow">
+              <tr>
                 <th scope="col">Section</th>
-                <th scope="col">Tokens</th>
-                <th scope="col">Items</th>
+                <th scope="col" className="num">
+                  Tokens
+                </th>
+                <th scope="col" className="num">
+                  Items
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -71,12 +75,14 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
                   <td>
                     {SECTION_NAMES[s.name] ?? s.name} {s.included ? null : <Badge>not sent</Badge>}
                   </td>
-                  <td>{formatTokens(s.tokens)}</td>
-                  <td>{s.items_total ? `${s.items_included}/${s.items_total}` : ""}</td>
+                  <td className="num">{formatTokens(s.tokens)}</td>
+                  <td className="num">
+                    {s.items_total ? `${s.items_included}/${s.items_total}` : ""}
+                  </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </Table>
 
           <section aria-label="Project code" className="space-y-1">
             <h3 className="text-sm">
