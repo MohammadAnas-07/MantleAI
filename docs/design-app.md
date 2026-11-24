@@ -131,7 +131,8 @@ Rules:
 
 ## Typography
 
-- Page titles (`h1`): serif 400, 28px, tracking -0.28px, `font-serif text-title`. One per page.
+- Page titles (`h1`): serif 400, 28px, tracking -0.28px, `font-serif text-title`, through
+  `PageHeader`. One per page. A conversation uses 20px serif, so the messages keep the height.
 - Section headings (`h2`): sans 500, 16px. Sub-headings (`h3`, `h4`): sans 500, 14px.
 - Dialog titles: sans 500, 20px.
 - UI text: sans 400, 14px/20px. Meta and help: 13px, `muted`.
@@ -241,6 +242,10 @@ restyle them.
   approval (warning, "needs your approval"), succeeded and approved (success), failed (danger),
   cancelled and rejected (neutral).
 
+### Page header and sections
+- `PageHeader`: the serif title, an optional muted line under it, actions on the right, and a
+  hairline below. `Section`: a sans `h2` (16px 500) with optional actions.
+
 ### Table
 - `Table` component: full width, 13px, a sunken head row with eyebrow labels, hairline row
   rules, 8px cell padding. Numbers right-aligned with `tabular-nums`. Wide tables scroll
@@ -290,7 +295,7 @@ restyle them.
   `muted`. A dropped source adds a warning badge with the reason.
 
 ### Progress and cost estimate
-- An estimate is a two-column `Table` (row heads on the left). The upper cost bound is named as
+- An estimate is a `KeyValueTable`: labels as row headers on the left, values right-aligned. The upper cost bound is named as
   such. Starting a paid run always needs the estimate first and then a confirm.
 - A running index or agent run sits in a card with a spinner, the status as a word and
   `aria-live="polite"`. Done, failed and cancelled replace the spinner with an icon and a word.
@@ -312,11 +317,13 @@ restyle them.
 - Don't add a colour, a weight, a radius or a shadow that is not in this file.
 - Don't use dashed borders, textures, rotated text or decorative labels.
 - Don't hard-code colours or font sizes in components.
-- Don't load fonts, images or scripts from another origin (the CSP blocks them anyway).
+- Don't load fonts, images or scripts from another origin. The CSP allows images only from
+  `'self'` (no `data:`), so a decoration can't sneak in as an inline image either.
 
 ## Responsive behaviour
 
 - 1024px and up: the full three-column shell.
-- 768 to 1023px: the same shell; side panels are narrower and can be collapsed.
+- 768 to 1023px: the same shell; the explorer starts at 200px and the AI panel starts
+  collapsed, so the main column keeps room.
 - Under 768px: one column, side panels start collapsed, 44px touch targets, tables scroll
   sideways. It works at 360px but is not tuned for phones.

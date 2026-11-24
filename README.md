@@ -53,7 +53,8 @@ uvicorn app.main:app --reload              # http://127.0.0.1:8000, docs at /doc
 Without the master key the API won't start; if you lose it, saved provider keys can't be read.
 In a second terminal, run `cd frontend`, `npm install` and `npm run dev`, then open
 <http://127.0.0.1:5173> and add a provider key in the settings. A free Google AI Studio key is
-enough for chat and for indexing.
+enough for chat and for indexing. The web app follows [docs/design-app.md](docs/design-app.md)
+(light theme by default, dark theme in the top bar).
 
 ## Indexing a project
 
