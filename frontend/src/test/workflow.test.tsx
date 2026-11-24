@@ -25,7 +25,13 @@ function onPost(action: string, answer: () => Response) {
 describe("workflow stages", () => {
   it("highlights the current stage and lists exactly what the gate is missing", async () => {
     renderApp(PAGE);
-    const bar = await screen.findByRole("navigation", { name: "Workflow stages" });
+    // The first render of this file loads the whole workflow page and takes about 1.2 s on its
+    // own, past the 1 s default; under a full parallel run it timed out.
+    const bar = await screen.findByRole(
+      "navigation",
+      { name: "Workflow stages" },
+      { timeout: 5_000 },
+    );
     const current = within(bar).getByRole("button", { current: "step" });
     expect(current).toHaveTextContent("1. Requirements");
     expect(current).toHaveTextContent("(current)");
