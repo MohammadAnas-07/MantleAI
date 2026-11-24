@@ -36,7 +36,7 @@ profile races 5/5 (2026-11-21). pytest needs `TEST_DATABASE_URL`. Migration head
 (`alembic upgrade head`). To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev`. Keys: free Gemini works; OpenAI
 valid but no credit; no Anthropic or Voyage key. First demo target: 2026-12-17.
-Last updated 2026-11-24 (app redesign).
+Last updated 2026-11-24 (app redesign; flaky workflow test fixed).
 
 ## Done
 
@@ -125,7 +125,7 @@ responses, `POST /memory/{id}/approve|reject`.
 - **PostgreSQL error text can quote the bad value** even with `hide_parameters`: log types only.
 - **Tailwind text scale is overridden**: `text-sm` 13px, `text-base` 14px. Tests: no Windows paths by hand; don't split matched sentences into spans.
 - **Testing Library role queries are slow on a long plan**: wait for a text first, then
-  `getByRole`. Hidden "sr-only" prefixes lose their space in jsdom names: use `aria-label`.
+  `getByRole`. A file's first full-page render can pass 1 s: give its `findBy*` `{ timeout: 5_000 }`. Hidden "sr-only" prefixes lose their space in jsdom names: use `aria-label`.
 - **What FakeProvider tests can't prove:** real summary, plan and review quality, real token
   counts and streaming, retrieval quality (fake embeddings are bag-of-words). Only the scripts
   (`switch_demo.py`, `eval_retrieval.py`, `agent_demo.py`) with real keys do.
