@@ -59,7 +59,7 @@ export function MemoryForm({
   };
 
   return (
-    <form onSubmit={submit} noValidate className="space-y-2 rounded-lg border border-line p-2">
+    <form onSubmit={submit} noValidate className="space-y-3 rounded-lg border border-line p-3">
       <TextInput
         label="Title"
         value={title}
@@ -90,7 +90,7 @@ export function MemoryForm({
           error={errors.why}
         />
       ) : null}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <SelectInput
           label="Status"
           value={status}

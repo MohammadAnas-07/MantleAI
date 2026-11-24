@@ -1,10 +1,10 @@
-import { NotebookPen } from "lucide-react";
+import { NotebookPen, Plus } from "lucide-react";
 import { useState } from "react";
 
+import { QueryError } from "../../components/QueryError";
 import { Button } from "../../components/ui/Button";
-import { Banner, EmptyState, Skeleton } from "../../components/ui/Feedback";
+import { EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { useMemory } from "../../hooks/queries";
-import { errorMessage } from "../../lib/api/errors";
 import type { MemoryKind } from "../../lib/api/types";
 import { MemoryForm } from "./MemoryForm";
 import { MemoryItemCard } from "./MemoryItemCard";
@@ -24,20 +24,24 @@ export function MemoryPanel({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-3">
-      <div role="group" aria-label="Memory kind" className="flex flex-wrap gap-1">
+      <div
+        role="group"
+        aria-label="Memory kind"
+        className="inline-flex flex-wrap gap-0.5 rounded-sm border border-field p-0.5"
+      >
         {KINDS.map((k) => (
-          <Button
+          <button
             key={k.id}
-            size="sm"
-            variant={k.id === kind ? "primary" : "secondary"}
+            type="button"
             aria-pressed={k.id === kind}
             onClick={() => {
               setKind(k.id);
               setAdding(false);
             }}
+            className={`h-7 rounded-sm px-2.5 text-base transition-colors duration-150 ease-out ${k.id === kind ? "bg-hover text-text" : "font-normal text-muted hover:text-text"}`}
           >
             {k.label}
-          </Button>
+          </button>
         ))}
       </div>
 
@@ -52,8 +56,8 @@ export function MemoryPanel({ projectId }: { projectId: string }) {
         />
       ) : (
         <Button
-          variant="primary"
           size="sm"
+          icon={<Plus aria-hidden className="size-4" />}
           onClick={() => {
             setAdding(true);
           }}
@@ -63,9 +67,17 @@ export function MemoryPanel({ projectId }: { projectId: string }) {
       )}
 
       {memory.isLoading ? <Skeleton label="Loading memory" /> : null}
-      {memory.isError ? <Banner kind="danger">{errorMessage(memory.error)}</Banner> : null}
+      {memory.isError ? (
+        <QueryError
+          error={memory.error}
+          onRetry={() => void memory.refetch()}
+          retrying={memory.isFetching}
+        />
+      ) : null}
       {memory.data && items.length === 0 ? (
-        <EmptyState icon={NotebookPen}>No {kind}s yet. They are sent to every model.</EmptyState>
+        <EmptyState icon={NotebookPen}>
+          No {kind}s yet. Every model you chat with sees the project&apos;s {kind}s.
+        </EmptyState>
       ) : null}
       <ul className="space-y-2">
         {items.map((item) => (
@@ -76,7 +88,7 @@ export function MemoryPanel({ projectId }: { projectId: string }) {
       </ul>
       {memory.data && memory.data.total > items.length ? (
         <p className="text-sm text-muted">
-          Showing {items.length} of {memory.data.total}.
+          Showing {items.length} of {memory.data.total}. Older items are not listed here.
         </p>
       ) : null}
     </div>

@@ -1,8 +1,9 @@
 import { useId, useState } from "react";
 
+import { QueryError } from "../../components/QueryError";
+import { CONTROL } from "../../components/ui/Field";
 import { Badge, Skeleton } from "../../components/ui/Feedback";
 import { useDocuments } from "../../hooks/queries";
-import { errorMessage } from "../../lib/api/errors";
 
 const FILTERS = [
   { value: "", label: "All" },
@@ -23,9 +24,9 @@ export function FileList({ projectId }: { projectId: string }) {
   }
 
   return (
-    <section aria-label="Files" className="space-y-2">
+    <section aria-label="Files" className="space-y-2 border-t border-line pt-4">
       <div className="flex items-center gap-2">
-        <h3 className="text-sm">Files</h3>
+        <h3 className="text-base">Files</h3>
         <label htmlFor={id} className="sr-only">
           Show
         </label>
@@ -35,7 +36,7 @@ export function FileList({ projectId }: { projectId: string }) {
           onChange={(e) => {
             setFilter(e.target.value);
           }}
-          className="ml-auto rounded-sm border border-field bg-paper px-1 text-sm"
+          className={`${CONTROL} ml-auto h-7 w-auto`}
         >
           {FILTERS.map((f) => (
             <option key={f.value} value={f.value}>
@@ -45,7 +46,7 @@ export function FileList({ projectId }: { projectId: string }) {
         </select>
       </div>
       {documents.data ? (
-        <p className="text-muted">
+        <p className="text-sm text-muted">
           {Object.entries(documents.data.counts)
             .map(([status, n]) => `${n} ${status}`)
             .join(", ") || "No files"}
@@ -63,10 +64,16 @@ export function FileList({ projectId }: { projectId: string }) {
         </ul>
       ) : null}
       {documents.isLoading ? <Skeleton label="Loading files" /> : null}
-      {documents.isError ? <p className="text-danger">{errorMessage(documents.error)}</p> : null}
-      <ul className="code max-h-64 space-y-0.5 overflow-auto">
+      {documents.isError ? (
+        <QueryError
+          error={documents.error}
+          onRetry={() => void documents.refetch()}
+          retrying={documents.isFetching}
+        />
+      ) : null}
+      <ul className="code max-h-64 divide-y divide-line overflow-auto">
         {documents.data?.items.map((d) => (
-          <li key={d.id} className="flex items-center gap-2">
+          <li key={d.id} className="flex items-center gap-2 py-1">
             <span className="truncate" title={d.path}>
               {d.path}
             </span>
@@ -79,7 +86,7 @@ export function FileList({ projectId }: { projectId: string }) {
         ))}
       </ul>
       {documents.data && documents.data.total > documents.data.items.length ? (
-        <p className="text-muted">
+        <p className="text-sm text-muted">
           Showing {documents.data.items.length} of {documents.data.total}.
         </p>
       ) : null}

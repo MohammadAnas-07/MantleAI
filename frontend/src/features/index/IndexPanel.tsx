@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, CircleX, Database, Loader2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { QueryError } from "../../components/QueryError";
 import { Button } from "../../components/ui/Button";
 import { ConfirmDialog } from "../../components/ui/Dialog";
 import { Badge, Banner, EmptyState, Skeleton } from "../../components/ui/Feedback";
@@ -79,12 +80,20 @@ export function IndexPanel({ projectId }: { projectId: string }) {
   }, [endKey, refreshAll]);
 
   if (status.isLoading) return <Skeleton label="Loading the index status" />;
-  if (status.isError) return <Banner kind="danger">{errorMessage(status.error)}</Banner>;
+  if (status.isError) {
+    return (
+      <QueryError
+        error={status.error}
+        onRetry={() => void status.refetch()}
+        retrying={status.isFetching}
+      />
+    );
+  }
   const s = status.data;
   if (!s) return null;
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-4 text-base">
       {s.needs_reindex ? (
         <Banner kind="warning">
           Re-index needed: {s.reindex_reasons.map((r) => REASON_TEXT[r] ?? r).join(", ")}. Chat
@@ -94,15 +103,15 @@ export function IndexPanel({ projectId }: { projectId: string }) {
 
       {!s.root_path ? (
         <EmptyState icon={Database}>
-          Set a source folder in the project settings to index it.
+          No source folder yet. Set one in the project settings, then index it here.
         </EmptyState>
       ) : (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          <dt className="font-medium">Folder</dt>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+          <dt className="text-muted">Folder</dt>
           <dd className="code truncate" title={s.root_path}>
             {s.root_path}
           </dd>
-          <dt className="font-medium">Indexed</dt>
+          <dt className="text-muted">Indexed</dt>
           <dd>
             {s.indexed ? `${s.files} files, ${formatDateTime(s.last_indexed_at)}` : "not yet"}
           </dd>
@@ -147,9 +156,10 @@ export function IndexPanel({ projectId }: { projectId: string }) {
       ) : null}
 
       {estimate && !active ? (
-        <div className="space-y-2 rounded-lg border border-line p-2">
+        <div className="space-y-3 rounded-lg border border-line p-3">
+          <h3 className="text-base">Estimate</h3>
           <EstimateTable estimate={estimate} />
-          <p className="text-muted">
+          <p className="text-sm text-muted">
             Indexing sends the code to {estimate.provider}. Free tiers may use it for training.
           </p>
           <Button
@@ -248,7 +258,7 @@ function RunCard({
     <CircleX aria-hidden className="size-4 text-danger" />
   );
   return (
-    <div className="space-y-1 rounded-lg border border-line p-2" aria-live="polite">
+    <div className="space-y-2 rounded-lg border border-line p-3" aria-live="polite">
       <div className="flex items-center gap-2">
         {icon}
         <span className="font-medium">Run {run.status}</span>
@@ -260,7 +270,7 @@ function RunCard({
           </Button>
         ) : null}
       </div>
-      <p className="text-muted">
+      <p className="text-sm text-muted tabular-nums">
         {run.files_indexed} indexed, {run.files_unchanged} unchanged, {run.files_skipped} skipped of{" "}
         {run.files_seen}; {run.chunks_created} segments, {formatTokens(run.tokens)} tokens,{" "}
         {formatCost(run.cost_estimate_usd)}

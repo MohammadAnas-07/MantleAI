@@ -3,7 +3,7 @@ import { Activity } from "lucide-react";
 import { Badge, EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { useUsageRecords } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
-import { errorMessage } from "../../lib/api/errors";
+import { QueryError } from "../../components/QueryError";
 import { formatCost, formatTime, formatTokens, purposeLabel, sumCosts } from "../../lib/format";
 import { Table } from "../../components/ui/Table";
 
@@ -17,13 +17,25 @@ export function ActivityPanel() {
   const rows = records.data ?? [];
 
   if (records.isLoading) return <Skeleton lines={2} label="Loading activity" />;
-  if (records.isError) return <p className="text-sm text-danger">{errorMessage(records.error)}</p>;
+  if (records.isError) {
+    return (
+      <QueryError
+        error={records.error}
+        onRetry={() => void records.refetch()}
+        retrying={records.isFetching}
+      />
+    );
+  }
   if (rows.length === 0)
-    return <EmptyState icon={Activity}>No model calls in this session yet.</EmptyState>;
+    return (
+      <EmptyState icon={Activity}>
+        No model calls since this tab opened. Chat, indexing and summaries show up here.
+      </EmptyState>
+    );
 
   return (
-    <div className="space-y-1 text-sm">
-      <p className="text-muted">
+    <div className="space-y-2 text-base">
+      <p className="text-sm text-muted">
         {rows.length} calls, {formatCost(sumCosts(rows.map((r) => r.cost_usd)))} this session
       </p>
       <Table caption="Model calls this session">

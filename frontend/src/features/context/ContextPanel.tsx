@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 
+import { CONTROL } from "../../components/ui/Field";
 import { Badge, Banner, Skeleton } from "../../components/ui/Feedback";
 import { useConversation, useHandoffPreview } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
@@ -28,16 +29,18 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
   const p = preview.data;
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-4 text-base">
       <div className="flex flex-col gap-1">
-        <label htmlFor={selectId}>Preview for</label>
+        <label htmlFor={selectId} className="text-sm">
+          Preview for
+        </label>
         <select
           id={selectId}
           value={modelId ?? ""}
           onChange={(e) => {
             setPicked(e.target.value);
           }}
-          className="rounded-sm border border-field bg-paper px-2 py-1"
+          className={`${CONTROL} h-8`}
         >
           {models.chatModels.map((m) => (
             <option key={m.id} value={m.id}>
@@ -85,17 +88,19 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
           </Table>
 
           <section aria-label="Project code" className="space-y-1">
-            <h3 className="text-sm">
+            <h3 className="text-base">
               Project code ({formatTokens(p.retrieved.tokens)} of{" "}
               {formatTokens(p.retrieved.max_tokens)})
             </h3>
             {p.retrieved.used.length === 0 && p.retrieved.dropped.length === 0 ? (
-              <p className="text-muted">No code yet: it is retrieved when you send a message.</p>
+              <p className="text-sm text-muted">
+                No code yet: it is retrieved when you send a message.
+              </p>
             ) : null}
             <SourceList sources={p.retrieved.used} />
             {p.retrieved.dropped.length > 0 ? (
               <>
-                <h4 className="text-xs">Left out</h4>
+                <h4 className="eyebrow pt-1">Left out</h4>
                 <SourceList
                   sources={p.retrieved.dropped}
                   reasons={p.retrieved.dropped.map((d) => d.reason)}
@@ -106,7 +111,7 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
 
           {p.dropped.length > 0 ? (
             <section aria-label="Dropped" className="space-y-1">
-              <h3 className="text-sm">Dropped to fit</h3>
+              <h3 className="text-base">Dropped to fit</h3>
               <ul className="code list-disc pl-5">
                 {p.dropped.map((d) => (
                   <li key={d}>{d}</li>
@@ -134,13 +139,13 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
 
 function SourceList({ sources, reasons }: { sources: SourceReport[]; reasons?: string[] }) {
   return (
-    <ul className="space-y-0.5">
+    <ul className="space-y-1">
       {sources.map((s, i) => (
         <li key={`${s.path}:${s.start_line}`} className="flex flex-wrap items-center gap-2">
-          <span className="code break-all">
+          <span className="code rounded-sm bg-sunken px-1.5 py-0.5 break-all">
             {s.path}:{lineRange(s.start_line, s.end_line)}
           </span>
-          <span className="text-xs text-muted">score {s.score.toFixed(4)}</span>
+          <span className="text-sm text-muted tabular-nums">score {s.score.toFixed(4)}</span>
           {reasons?.[i] ? <Badge kind="warning">{reasons[i]}</Badge> : null}
         </li>
       ))}
