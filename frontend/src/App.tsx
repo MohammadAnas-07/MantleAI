@@ -1,6 +1,8 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Link, Route, Routes } from "react-router";
+
+import { PageHeader } from "./components/ui/PageHeader";
 
 import { ConversationRoute } from "./features/conversations/ConversationView";
 import { MemoryItemRoute } from "./features/memory/MemoryItemPage";
@@ -21,9 +23,20 @@ export function AppRoutes() {
         <Route path="/projects/:projectId/c/:conversationId" element={<ConversationRoute />} />
         <Route path="/projects/:projectId/workflow" element={<WorkflowRoute />} />
         <Route path="/projects/:projectId/memory/:itemId" element={<MemoryItemRoute />} />
-        <Route path="*" element={<p>Page not found.</p>} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>
+  );
+}
+
+function NotFound() {
+  return (
+    <div className="max-w-2xl space-y-4">
+      <PageHeader title="Page not found" />
+      <p className="text-base">
+        This address doesn&apos;t match a page. <Link to="/">Go to the start page</Link>.
+      </p>
+    </div>
   );
 }
 

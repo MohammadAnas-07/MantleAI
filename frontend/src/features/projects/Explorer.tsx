@@ -1,16 +1,28 @@
 import { FolderPlus, MessageSquarePlus, MessagesSquare, Folder, Workflow } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { NavLink } from "react-router";
 
+import { QueryError } from "../../components/QueryError";
 import { Button } from "../../components/ui/Button";
 import { EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { useConversations, useProjects } from "../../hooks/queries";
-import { errorMessage } from "../../lib/api/errors";
 import { NewConversationDialog } from "../conversations/NewConversationDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 
+// The current page is a hover-grey row with an accent bar, never a solid fill (design-app.md).
+const ROW =
+  "flex h-8 items-center gap-2 truncate rounded-sm px-2 text-base no-underline transition-colors duration-150 ease-out";
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `block truncate rounded-sm px-2 py-1 text-sm ${isActive ? "bg-primary text-on-primary" : "text-text hover:bg-hover"}`;
+  `${ROW} ${isActive ? "bg-hover font-medium text-text shadow-[inset_2px_0_0_var(--accent)]" : "text-text-2 hover:bg-hover hover:text-text"}`;
+
+function GroupHeader({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mb-1 flex h-7 items-center justify-between pl-2">
+      <h3 className="eyebrow">{title}</h3>
+      {children}
+    </div>
+  );
+}
 
 export function Explorer({
   projectId,
@@ -23,10 +35,9 @@ export function Explorer({
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <div className="mb-1 flex items-center justify-between">
-          <h3 className="text-xs text-muted">Projects</h3>
+        <GroupHeader title="Projects">
           <Button
             size="sm"
             variant="ghost"
@@ -36,10 +47,14 @@ export function Explorer({
             }}
             icon={<FolderPlus aria-hidden className="size-4" />}
           />
-        </div>
+        </GroupHeader>
         {projects.isLoading ? <Skeleton label="Loading projects" /> : null}
         {projects.isError ? (
-          <p className="text-sm text-danger">{errorMessage(projects.error)}</p>
+          <QueryError
+            error={projects.error}
+            onRetry={() => void projects.refetch()}
+            retrying={projects.isFetching}
+          />
         ) : null}
         {projects.data?.length === 0 ? (
           <EmptyState
@@ -56,26 +71,30 @@ export function Explorer({
               </Button>
             }
           >
-            No projects yet.
+            No projects yet. A project points Mantle at one folder of code.
           </EmptyState>
         ) : null}
         <ul className="space-y-0.5">
           {projects.data?.map((p) => (
             <li key={p.id}>
-              <NavLink to={`/projects/${p.id}`} end className={linkClass}>
-                {p.name}
+              <NavLink to={`/projects/${p.id}`} end className={linkClass} dir="auto">
+                <Folder aria-hidden className="size-4 shrink-0 text-muted" />
+                <span className="truncate">{p.name}</span>
               </NavLink>
+              {p.id === projectId ? (
+                <ul className="mt-0.5 ml-4 space-y-0.5 border-l border-line pl-2">
+                  <li>
+                    <NavLink to={`/projects/${projectId}/workflow`} className={linkClass}>
+                      <Workflow aria-hidden className="size-4 shrink-0 text-muted" />
+                      <span className="truncate">Workflow and agents</span>
+                    </NavLink>
+                  </li>
+                </ul>
+              ) : null}
             </li>
           ))}
         </ul>
       </div>
-      {projectId ? (
-        <NavLink to={`/projects/${projectId}/workflow`} className={linkClass}>
-          <span className="inline-flex items-center gap-1.5">
-            <Workflow aria-hidden className="size-4" /> Workflow and agents
-          </span>
-        </NavLink>
-      ) : null}
       {projectId ? (
         <ConversationList key={projectId} projectId={projectId} conversationId={conversationId} />
       ) : null}
@@ -100,8 +119,7 @@ function ConversationList({
   const [creating, setCreating] = useState(false);
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-xs text-muted">Conversations</h3>
+      <GroupHeader title="Conversations">
         <Button
           size="sm"
           variant="ghost"
@@ -111,13 +129,31 @@ function ConversationList({
           }}
           icon={<MessageSquarePlus aria-hidden className="size-4" />}
         />
-      </div>
+      </GroupHeader>
       {conversations.isLoading ? <Skeleton lines={2} label="Loading conversations" /> : null}
       {conversations.isError ? (
-        <p className="text-sm text-danger">{errorMessage(conversations.error)}</p>
+        <QueryError
+          error={conversations.error}
+          onRetry={() => void conversations.refetch()}
+          retrying={conversations.isFetching}
+        />
       ) : null}
       {conversations.data?.length === 0 ? (
-        <EmptyState icon={MessagesSquare}>No conversations in this project.</EmptyState>
+        <EmptyState
+          icon={MessagesSquare}
+          action={
+            <Button
+              size="sm"
+              onClick={() => {
+                setCreating(true);
+              }}
+            >
+              New conversation
+            </Button>
+          }
+        >
+          No conversations in this project yet.
+        </EmptyState>
       ) : null}
       <ul className="space-y-0.5">
         {conversations.data?.map((c) => (
