@@ -1,4 +1,5 @@
 import { Nav } from "./components/Nav";
+import { Details } from "./sections/DetailsGroup";
 import { Hero, Problem } from "./sections/Hero";
 import { Features, HowItWorks } from "./sections/HowItWorks";
 
@@ -12,6 +13,7 @@ export function App() {
         <Problem />
         <HowItWorks />
         <Features />
+        <Details />
       </main>
     </>
   );
