@@ -12,8 +12,14 @@ import { NewProjectDialog } from "./NewProjectDialog";
 // The current page is a hover-grey row with an accent bar, never a solid fill (design-app.md).
 const ROW =
   "flex h-8 items-center gap-2 truncate rounded-sm px-2 text-base no-underline transition-colors duration-150 ease-out";
-const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `${ROW} ${isActive ? "bg-hover font-medium text-text shadow-[inset_2px_0_0_var(--accent)]" : "text-text-2 hover:bg-hover hover:text-text"}`;
+const linkClass = ({ isActive }: { isActive: boolean }, inside = false) =>
+  `${ROW} ${
+    isActive
+      ? "bg-hover font-medium text-text shadow-[inset_2px_0_0_var(--accent)]"
+      : inside
+        ? "font-medium text-text hover:bg-hover"
+        : "text-text-2 hover:bg-hover hover:text-text"
+  }`;
 
 function GroupHeader({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -77,7 +83,13 @@ export function Explorer({
         <ul className="space-y-0.5">
           {projects.data?.map((p) => (
             <li key={p.id}>
-              <NavLink to={`/projects/${p.id}`} end className={linkClass} dir="auto">
+              <NavLink
+                to={`/projects/${p.id}`}
+                end
+                dir="auto"
+                // Inside the project (a conversation, the workflow) its row stays marked.
+                className={(state) => linkClass(state, p.id === projectId)}
+              >
                 <Folder aria-hidden className="size-4 shrink-0 text-muted" />
                 <span className="truncate">{p.name}</span>
               </NavLink>

@@ -8,7 +8,7 @@ import { AiPanel } from "../features/ai/AiPanel";
 import { ModelSwitcher } from "../features/conversations/ModelSwitcher";
 import { Explorer } from "../features/projects/Explorer";
 import { useConversation, useProject } from "../hooks/queries";
-import { useIsNarrow } from "../hooks/useMediaQuery";
+import { useIsMedium, useIsNarrow } from "../hooks/useMediaQuery";
 import { useTheme } from "../hooks/useTheme";
 import { Panel, ResizeHandle } from "./Panel";
 
@@ -28,12 +28,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const project = useProject(projectId);
   const [theme, toggleTheme] = useTheme();
   const narrow = useIsNarrow();
+  const medium = useIsMedium();
 
   const [leftOpen, setLeftOpen] = useState(!narrow);
-  const [rightOpen, setRightOpen] = useState(!narrow);
+  const [rightOpen, setRightOpen] = useState(!medium);
   const [bottomOpen, setBottomOpen] = useState(false);
-  const [leftWidth, setLeftWidth] = useState(240);
-  const [rightWidth, setRightWidth] = useState(360);
+  const [leftWidth, setLeftWidth] = useState(medium ? 200 : 240);
+  const [rightWidth, setRightWidth] = useState(medium ? 300 : 360);
 
   const left = (
     <Panel
@@ -177,13 +178,13 @@ function Breadcrumb({
 }) {
   if (!projectId) {
     return (
-      <span className="text-base text-muted" aria-label="Current project">
+      <span className="min-w-0 flex-1 truncate text-base text-muted" aria-label="Current project">
         No project selected
       </span>
     );
   }
   return (
-    <div className="flex min-w-0 items-center gap-1 text-base">
+    <div className="flex min-w-0 flex-1 basis-40 items-center gap-1 text-base">
       <Link
         to={`/projects/${projectId}`}
         aria-label={`Current project: ${projectName ?? "loading"}`}
