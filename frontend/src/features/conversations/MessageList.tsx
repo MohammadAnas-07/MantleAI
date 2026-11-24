@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 
+import { Loader2 } from "lucide-react";
+
 import { Badge } from "../../components/ui/Feedback";
 import { Markdown } from "./Markdown";
 
@@ -38,22 +40,25 @@ export function MessageList({ messages }: { messages: ShownMessage[] }) {
         const el = e.currentTarget;
         atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
       }}
-      className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
+      className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1"
     >
       {messages.map((m) => (
         <article
           key={m.id}
           aria-label={m.role === "user" ? "You" : "Assistant"}
-          className={`message rounded-sm px-3 py-2 ${m.role === "user" ? "bg-sunken" : "border-t border-line"}`}
+          className={`message rounded-sm px-3 py-2.5 ${m.role === "user" ? "bg-sunken" : ""}`}
         >
-          <header className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span className="font-medium">
+          <header className="mb-1 flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-medium text-text">
               {m.role === "user" ? "You" : (m.model ?? "Assistant")}
             </span>
             {m.status === "cancelled" ? <Badge kind="warning">incomplete</Badge> : null}
             {m.status === "error" ? <Badge kind="danger">error</Badge> : null}
             {m.status === "streaming" ? (
-              <Badge kind="info">{m.text ? "writing…" : "waiting…"}</Badge>
+              <Badge kind="info">
+                <Loader2 aria-hidden className="size-3 animate-spin" />
+                {m.text ? "writing…" : "waiting…"}
+              </Badge>
             ) : null}
           </header>
           <div dir="auto" className="text-md">

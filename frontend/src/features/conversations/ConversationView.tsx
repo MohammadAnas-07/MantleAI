@@ -3,6 +3,7 @@ import { MessagesSquare, Send, Square } from "lucide-react";
 import { useState, type SubmitEvent, type KeyboardEvent } from "react";
 import { useParams } from "react-router";
 
+import { QueryError } from "../../components/QueryError";
 import { Button } from "../../components/ui/Button";
 import { Checkbox } from "../../components/ui/Field";
 import { Badge, Banner, EmptyState, Skeleton } from "../../components/ui/Feedback";
@@ -83,9 +84,9 @@ function ConversationView({ conversationId }: { conversationId: string }) {
     return <Banner kind="danger">{errorMessage(conversation.error)}</Banner>;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="truncate text-lg" dir="auto">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line pb-3">
+        <h1 className="min-w-0 flex-1 truncate font-serif text-xl font-normal" dir="auto">
           {conversation.data?.title || "Untitled conversation"}
         </h1>
         {conversation.data ? (
@@ -111,7 +112,7 @@ function ConversationView({ conversationId }: { conversationId: string }) {
         />
       ) : null}
       {state.stopped ? (
-        <p className="text-sm text-muted">
+        <p className="text-base text-muted">
           Stopped. The part that arrived is kept and marked incomplete.
         </p>
       ) : null}
@@ -121,19 +122,32 @@ function ConversationView({ conversationId }: { conversationId: string }) {
       </div>
 
       {messages.isLoading ? <Skeleton label="Loading messages" /> : null}
+      {messages.isError ? (
+        <QueryError
+          error={messages.error}
+          onRetry={() => void messages.refetch()}
+          retrying={messages.isFetching}
+        />
+      ) : null}
       {messages.data && shown.length === 0 ? (
-        <EmptyState icon={MessagesSquare}>Ask something about this project to start.</EmptyState>
+        <EmptyState icon={MessagesSquare}>
+          No messages yet. Ask something about this project to start. The model sees the project
+          memory, the profile and, if the project is indexed, the matching code.
+        </EmptyState>
       ) : null}
       <MessageList messages={shown} />
 
       {state.sources.length > 0 ? (
-        <details className="text-sm">
+        <details className="text-base">
           <summary className="cursor-pointer font-medium">
-            Code used ({state.sources.length})
+            Code used for this reply ({state.sources.length})
           </summary>
-          <ul className="code mt-1 space-y-0.5">
+          <ul aria-label="Code used" className="mt-2 flex flex-wrap gap-1.5">
             {state.sources.map((s) => (
-              <li key={`${s.path}:${s.start_line}`}>
+              <li
+                key={`${s.path}:${s.start_line}`}
+                className="code rounded-sm bg-sunken px-1.5 py-0.5 break-all"
+              >
                 {s.path}:{lineRange(s.start_line, s.end_line)}
               </li>
             ))}
@@ -141,7 +155,10 @@ function ConversationView({ conversationId }: { conversationId: string }) {
         </details>
       ) : null}
 
-      <form onSubmit={submit} className="flex items-end gap-2">
+      <form
+        onSubmit={submit}
+        className="rounded-lg border border-field bg-paper transition-colors duration-150 ease-out focus-within:border-text has-[textarea:focus-visible]:outline-2 has-[textarea:focus-visible]:outline-offset-2 has-[textarea:focus-visible]:outline-accent"
+      >
         <label htmlFor="composer" className="sr-only">
           Message
         </label>
@@ -151,31 +168,37 @@ function ConversationView({ conversationId }: { conversationId: string }) {
           maxLength={limits.message}
           dir="auto"
           rows={3}
-          placeholder={
-            streaming
-              ? "Wait for the reply, or stop it."
-              : "Message (Enter to send, Shift+Enter for a new line)"
-          }
+          placeholder={streaming ? "Wait for the reply, or stop it." : "Ask about this project"}
+          aria-describedby="composer-hint"
           onChange={(e) => {
             setDraft(e.target.value);
           }}
           onKeyDown={onKeyDown}
-          className="min-h-16 flex-1 resize-y rounded-sm border border-field bg-paper px-2 py-1.5 text-md"
+          className="block min-h-16 w-full resize-y rounded-lg bg-transparent px-3 pt-2.5 text-md focus-visible:outline-none"
         />
-        {streaming ? (
-          <Button variant="danger" onClick={stop} icon={<Square aria-hidden className="size-4" />}>
-            Stop
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={!draft.trim()}
-            icon={<Send aria-hidden className="size-4" />}
-          >
-            Send
-          </Button>
-        )}
+        <div className="flex items-center gap-2 px-2 pb-2">
+          <p id="composer-hint" className="min-w-0 flex-1 truncate pl-1 text-sm text-muted">
+            Enter to send, Shift+Enter for a new line
+          </p>
+          {streaming ? (
+            <Button
+              variant="danger"
+              onClick={stop}
+              icon={<Square aria-hidden className="size-4" />}
+            >
+              Stop
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={!draft.trim()}
+              icon={<Send aria-hidden className="size-4" />}
+            >
+              Send
+            </Button>
+          )}
+        </div>
       </form>
 
       <SwitchDialog
@@ -215,7 +238,7 @@ function ProblemNotice({
       {problem.suggested.length > 0 ? (
         <div className="mt-2">
           <p>You can switch to another model. Mantle won&apos;t switch by itself:</p>
-          <ul className="mt-1 flex flex-wrap gap-2">
+          <ul aria-label="Suggested models" className="mt-2 flex flex-wrap gap-2">
             {problem.suggested.map((m) => (
               <li key={m.model_id}>
                 <Button
@@ -251,7 +274,7 @@ function CodeContextSwitch({
     },
   });
   return (
-    <div className="ml-auto flex items-center gap-2">
+    <div className="flex items-center gap-2">
       <Checkbox
         label="Use project code"
         checked={enabled}
@@ -262,7 +285,9 @@ function CodeContextSwitch({
       />
       {!enabled ? <Badge>code off</Badge> : null}
       {toggle.isError ? (
-        <span className="text-sm text-danger">{errorMessage(toggle.error)}</span>
+        <span role="alert" className="text-sm text-danger">
+          {errorMessage(toggle.error)}
+        </span>
       ) : null}
     </div>
   );
