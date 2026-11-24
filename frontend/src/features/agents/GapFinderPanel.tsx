@@ -120,7 +120,7 @@ export function GapFinderPanel({
 
       {items.length > 1 ? (
         <div>
-          <h4 className="label text-sm">Past results</h4>
+          <h4 className="text-base font-medium">Past results</h4>
           <ul className="space-y-1 text-sm">
             {items.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-2">
@@ -176,10 +176,7 @@ function GapResult({
   const report = run.result as Partial<GapReport>;
   const total = GROUPS.reduce((n, g) => n + (report[g.key]?.length ?? 0), 0);
   return (
-    <article
-      aria-label="Gap finder result"
-      className="space-y-3 rounded-sm border-2 border-dashed border-line p-3"
-    >
+    <article aria-label="Gap finder result" className="space-y-3 rounded-lg border border-line p-3">
       <p className="text-sm text-muted">
         {formatDateTime(run.created_at)}, stage {run.stage_id ?? "?"}, {total} findings,{" "}
         {formatCost(run.cost_usd)}
@@ -211,7 +208,7 @@ function FindingGroup({
 }) {
   return (
     <section aria-label={title} className="space-y-1">
-      <h4 className="label text-sm">
+      <h4 className="text-base font-medium">
         {title} ({findings.length})
       </h4>
       {findings.length === 0 ? <p className="text-sm text-muted">None found.</p> : null}
@@ -219,7 +216,7 @@ function FindingGroup({
         {findings.map((f, i) => (
           <li key={i} className="space-y-0.5 text-sm">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold break-words" dir="auto">
+              <span className="font-medium break-words" dir="auto">
                 {f.title}
               </span>
               <SeverityBadge severity={f.severity} />

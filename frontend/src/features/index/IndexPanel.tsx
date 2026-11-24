@@ -97,11 +97,11 @@ export function IndexPanel({ projectId }: { projectId: string }) {
         </EmptyState>
       ) : (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-          <dt className="label">Folder</dt>
+          <dt className="font-medium">Folder</dt>
           <dd className="code truncate" title={s.root_path}>
             {s.root_path}
           </dd>
-          <dt className="label">Indexed</dt>
+          <dt className="font-medium">Indexed</dt>
           <dd>
             {s.indexed ? `${s.files} files, ${formatDateTime(s.last_indexed_at)}` : "not yet"}
           </dd>
@@ -146,7 +146,7 @@ export function IndexPanel({ projectId }: { projectId: string }) {
       ) : null}
 
       {estimate && !active ? (
-        <div className="space-y-2 rounded-sm border-2 border-dashed border-line p-2">
+        <div className="space-y-2 rounded-lg border border-line p-2">
           <EstimateTable estimate={estimate} />
           <p className="text-muted">
             Indexing sends the code to {estimate.provider}. Free tiers may use it for training.
@@ -222,7 +222,7 @@ function EstimateTable({ estimate }: { estimate: IndexEstimate }) {
       <tbody>
         {rows.map(([k, v]) => (
           <tr key={k}>
-            <th scope="row" className="label pr-2 font-bold">
+            <th scope="row" className="pr-2 font-medium">
               {k}
             </th>
             <td>{v}</td>
@@ -261,10 +261,10 @@ function RunCard({
     <CircleX aria-hidden className="size-4 text-danger" />
   );
   return (
-    <div className="space-y-1 rounded-sm border-2 border-dashed border-line p-2" aria-live="polite">
+    <div className="space-y-1 rounded-lg border border-line p-2" aria-live="polite">
       <div className="flex items-center gap-2">
         {icon}
-        <span className="label">Run {run.status}</span>
+        <span className="font-medium">Run {run.status}</span>
         {run.error ? <Badge kind="danger">{run.error}</Badge> : null}
         {run.cancel_requested_at && active ? <Badge kind="warning">stopping</Badge> : null}
         {active ? (

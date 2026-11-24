@@ -10,7 +10,7 @@ import { NewConversationDialog } from "../conversations/NewConversationDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `block truncate rounded-sm px-2 py-1 text-sm ${isActive ? "bg-primary text-on-primary" : "text-text hover:bg-line/20"}`;
+  `block truncate rounded-sm px-2 py-1 text-sm ${isActive ? "bg-primary text-on-primary" : "text-text hover:bg-hover"}`;
 
 export function Explorer({
   projectId,

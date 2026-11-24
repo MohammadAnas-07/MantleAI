@@ -86,9 +86,9 @@ export function KeysSection() {
         {credentials.data?.map((c) => (
           <li
             key={c.id}
-            className="flex flex-wrap items-center gap-2 rounded-sm border-2 border-dashed border-line p-2"
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-line p-2"
           >
-            <span className="label">{c.provider}</span>
+            <span className="font-medium">{c.provider}</span>
             {c.label ? <span>{c.label}</span> : null}
             <span className="code" aria-label={`Key ending in ${c.key_hint}`}>
               ••••{c.key_hint}

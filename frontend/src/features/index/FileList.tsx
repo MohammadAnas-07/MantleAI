@@ -35,7 +35,7 @@ export function FileList({ projectId }: { projectId: string }) {
           onChange={(e) => {
             setFilter(e.target.value);
           }}
-          className="ml-auto rounded-sm border-2 border-line bg-surface px-1 text-sm"
+          className="ml-auto rounded-sm border border-field bg-paper px-1 text-sm"
         >
           {FILTERS.map((f) => (
             <option key={f.value} value={f.value}>

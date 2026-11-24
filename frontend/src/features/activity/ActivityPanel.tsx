@@ -28,7 +28,7 @@ export function ActivityPanel() {
       <table className="w-full text-left">
         <caption className="sr-only">Model calls this session</caption>
         <thead>
-          <tr className="label text-xs">
+          <tr className="eyebrow">
             <th scope="col">Time</th>
             <th scope="col">Model</th>
             <th scope="col">Purpose</th>

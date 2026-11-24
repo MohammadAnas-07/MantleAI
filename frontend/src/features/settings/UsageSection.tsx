@@ -82,9 +82,9 @@ export function UsageSection() {
 function UsageTable({ title, rows }: { title: string; rows: Row[] }) {
   return (
     <table className="w-full text-left text-sm">
-      <caption className="label text-left">{title}</caption>
+      <caption className="eyebrow text-left">{title}</caption>
       <thead>
-        <tr className="label text-xs">
+        <tr className="eyebrow">
           <th scope="col">Name</th>
           <th scope="col">Calls</th>
           <th scope="col">Tokens</th>

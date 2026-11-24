@@ -22,7 +22,7 @@ export function RunHistory({
       <table className="w-full text-left text-sm">
         <caption className="sr-only">Agent runs</caption>
         <thead>
-          <tr className="label text-xs">
+          <tr className="eyebrow">
             <th scope="col">Time</th>
             <th scope="col">Type</th>
             <th scope="col">Status</th>

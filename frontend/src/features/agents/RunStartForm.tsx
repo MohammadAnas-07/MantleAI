@@ -108,13 +108,9 @@ export function RunStartForm({
   const suggestions = error instanceof ApiError ? suggestedModels(error.details) : [];
 
   return (
-    <form
-      onSubmit={submit}
-      noValidate
-      className="space-y-3 rounded-sm border-2 border-dashed border-line p-3"
-    >
+    <form onSubmit={submit} noValidate className="space-y-3 rounded-lg border border-line p-3">
       <fieldset className="space-y-1">
-        <legend className="label text-sm">Run type</legend>
+        <legend className="text-base font-medium">Run type</legend>
         {(["plan", "review"] as const).map((t) => (
           <label key={t} className="flex items-center gap-2 text-sm">
             <input
@@ -135,7 +131,7 @@ export function RunStartForm({
 
       {runType === "plan" ? (
         <fieldset className="space-y-2">
-          <legend className="label text-sm">Requirement</legend>
+          <legend className="text-base font-medium">Requirement</legend>
           <div className="flex flex-wrap gap-3 text-sm">
             {(["memory", "text"] as const).map((s) => (
               <label key={s} className="flex items-center gap-2">
@@ -205,10 +201,7 @@ export function RunStartForm({
       </Button>
 
       {shownEstimate ? (
-        <div
-          aria-live="polite"
-          className="space-y-2 rounded-sm border-2 border-solid border-line p-2"
-        >
+        <div aria-live="polite" className="space-y-2 rounded-lg border border-line p-2">
           <EstimateTable estimate={shownEstimate} />
           {shownEstimate.cost_usd === null ? (
             <Banner kind="warning">

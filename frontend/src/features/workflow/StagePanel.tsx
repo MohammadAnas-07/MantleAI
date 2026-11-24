@@ -54,19 +54,19 @@ export function StagePanel({
         <Badge kind={isCurrent ? "warning" : "neutral"}>{stage.status}</Badge>
       </div>
       <p>
-        <span className="label">Goal: </span>
+        <span className="font-medium">Goal: </span>
         {stage.goal}
       </p>
 
       <fieldset className="space-y-1">
-        <legend className="label text-sm">Checklist</legend>
+        <legend className="text-base font-medium">Checklist</legend>
         <ul className="space-y-1">
           {stage.checklist.map((item) => (
             <li key={item.id} className="flex items-start gap-2 text-sm">
               <input
                 id={`check-${stage.id}-${item.id}`}
                 type="checkbox"
-                className="mt-1 size-4 accent-[var(--accent)]"
+                className="mt-1 size-4 accent-accent"
                 checked={item.done}
                 disabled={pendingItem === item.id}
                 onChange={(e) => {
@@ -93,7 +93,7 @@ export function StagePanel({
 
       {stage.artifacts.length > 0 ? (
         <div className="text-sm">
-          <h4 className="label text-sm">Project memory needed</h4>
+          <h4 className="text-base font-medium">Project memory needed</h4>
           <ul>
             {stage.artifacts.map((a) => (
               <li key={a.text} className="flex items-center gap-1">
@@ -209,7 +209,7 @@ function GateStatus({ stage }: { stage: Stage }) {
     return (
       <p className="flex items-center gap-1 text-sm">
         <CircleCheck aria-hidden className="size-4 text-success" />
-        <span className="label">Gate met:</span> every required item is done.
+        <span className="font-medium">Gate met:</span> every required item is done.
       </p>
     );
   }
@@ -217,7 +217,7 @@ function GateStatus({ stage }: { stage: Stage }) {
     <div className="space-y-1 text-sm">
       <p className="flex items-center gap-1">
         <CircleAlert aria-hidden className="size-4 text-danger" />
-        <span className="label">Gate not met:</span> {stage.unmet.length} missing
+        <span className="font-medium">Gate not met:</span> {stage.unmet.length} missing
       </p>
       <UnmetList unmet={stage.unmet} />
     </div>

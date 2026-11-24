@@ -80,14 +80,11 @@ export function RunView({
   const active = isRunActive(run);
 
   return (
-    <article
-      aria-label="Agent run"
-      className="space-y-3 rounded-sm border-2 border-dashed border-line p-3"
-    >
+    <article aria-label="Agent run" className="space-y-3 rounded-lg border border-line p-3">
       <RunHeader run={run} />
       <div aria-live="polite" className="space-y-2">
         <p className="text-sm">
-          <span className="label">Status: </span>
+          <span className="font-medium">Status: </span>
           <RunStatusBadge status={run.status} /> {active ? <span>{progressText(run)}</span> : null}
           {run.cancel_requested_at && active ? <Badge kind="warning">stopping</Badge> : null}
         </p>
@@ -135,7 +132,7 @@ export function RunView({
       ) : null}
       {run.status === "rejected" ? (
         <p className="text-sm break-words" dir="auto">
-          <span className="label">Rejected: </span>
+          <span className="font-medium">Rejected: </span>
           {run.decision_reason}
         </p>
       ) : null}
@@ -205,9 +202,9 @@ function StepTable({ run }: { run: AgentRun }) {
   if (run.steps.length === 0) return null;
   return (
     <table className="w-full text-left text-sm">
-      <caption className="label text-left text-sm">Steps</caption>
+      <caption className="eyebrow text-left">Steps</caption>
       <thead>
-        <tr className="label text-xs">
+        <tr className="eyebrow">
           <th scope="col">Agent</th>
           <th scope="col">Status</th>
           <th scope="col">Attempts</th>

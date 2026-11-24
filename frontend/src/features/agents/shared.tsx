@@ -67,7 +67,7 @@ export function References({
   if (refs.length === 0) return null;
   return (
     <p className="text-xs">
-      <span className="label">Refers to: </span>
+      <span className="font-medium">Refers to: </span>
       {refs.map((ref, i) => {
         const plan = /^(task|decision):(\d+)$/.exec(ref);
         return (
@@ -97,7 +97,7 @@ export function Warnings({ warnings }: { warnings: RunWarning[] }) {
         <li key={i} className="flex items-start gap-1">
           <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
           <span>
-            <span className="label">Warning: </span>
+            <span className="font-medium">Warning: </span>
             {warningText(w)}
           </span>
         </li>
@@ -120,7 +120,7 @@ export function EstimateTable({ estimate }: { estimate: RunEstimate }) {
       <tbody>
         {rows.map(([k, v]) => (
           <tr key={k}>
-            <th scope="row" className="label pr-2">
+            <th scope="row" className="pr-2 font-medium">
               {k}
             </th>
             <td>{v}</td>

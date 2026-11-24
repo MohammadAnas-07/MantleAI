@@ -25,7 +25,7 @@ export function ModelSwitcher({ conversationId }: { conversationId: string }) {
         onChange={(e) => {
           if (e.target.value !== current) setTarget(e.target.value);
         }}
-        className="max-w-64 rounded-sm border-2 border-line bg-surface px-2 py-1 text-sm text-text"
+        className="max-w-64 rounded-sm border border-field bg-paper px-2 py-1 text-sm text-text"
       >
         {models.chatModels.map((m) => (
           <option key={m.id} value={m.id}>

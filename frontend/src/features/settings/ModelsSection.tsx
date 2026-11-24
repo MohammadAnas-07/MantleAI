@@ -85,7 +85,7 @@ export function ModelsSection() {
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Model catalog</caption>
           <thead>
-            <tr className="label text-xs">
+            <tr className="eyebrow">
               <th scope="col">Model</th>
               <th scope="col">Kind</th>
               <th scope="col">Context</th>

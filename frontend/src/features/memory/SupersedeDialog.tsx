@@ -70,7 +70,7 @@ export function SupersedeDialog({
             onChange={(e) => {
               setById(e.target.value);
             }}
-            className="rounded-sm border-2 border-line bg-surface px-2 py-1.5"
+            className="rounded-sm border border-field bg-paper px-2 py-1.5"
           >
             <option value="">No: write a new decision below</option>
             {others.map((o) => (

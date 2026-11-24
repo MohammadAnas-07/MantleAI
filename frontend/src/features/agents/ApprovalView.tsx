@@ -136,7 +136,7 @@ export function ApprovalView({
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="label text-sm">Proposed tasks ({plan.tasks.length})</legend>
+          <legend className="text-base font-medium">Proposed tasks ({plan.tasks.length})</legend>
           <ul className="space-y-2">
             {plan.tasks.map((task, i) => (
               <TaskItem
@@ -163,7 +163,9 @@ export function ApprovalView({
           </ul>
         </fieldset>
         <fieldset className="space-y-2">
-          <legend className="label text-sm">Proposed decisions ({plan.decisions.length})</legend>
+          <legend className="text-base font-medium">
+            Proposed decisions ({plan.decisions.length})
+          </legend>
           <p className="text-xs text-muted">
             Decisions are saved as proposed; you accept them later in memory.
           </p>
@@ -310,7 +312,7 @@ function PlanNotes({ plan }: { plan: Plan }) {
     <div className="grid gap-2 sm:grid-cols-3">
       {groups.map(([title, items]) => (
         <section key={title} aria-label={title} className="text-sm">
-          <h4 className="label text-sm">{title}</h4>
+          <h4 className="text-base font-medium">{title}</h4>
           {items.length === 0 ? <p className="text-muted">None.</p> : null}
           <ul className="list-disc pl-5">
             {items.map((text, i) => (

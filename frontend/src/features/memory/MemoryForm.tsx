@@ -59,11 +59,7 @@ export function MemoryForm({
   };
 
   return (
-    <form
-      onSubmit={submit}
-      noValidate
-      className="space-y-2 rounded-sm border-2 border-dashed border-line p-2"
-    >
+    <form onSubmit={submit} noValidate className="space-y-2 rounded-lg border border-line p-2">
       <TextInput
         label="Title"
         value={title}

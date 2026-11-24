@@ -44,17 +44,19 @@ export function MessageList({ messages }: { messages: ShownMessage[] }) {
         <article
           key={m.id}
           aria-label={m.role === "user" ? "You" : "Assistant"}
-          className={`message rounded-sm border-2 p-3 ${m.role === "user" ? "border-solid border-line" : "border-dashed border-line"}`}
+          className={`message rounded-sm px-3 py-2 ${m.role === "user" ? "bg-sunken" : "border-t border-line"}`}
         >
           <header className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span className="label">{m.role === "user" ? "You" : (m.model ?? "Assistant")}</span>
+            <span className="font-medium">
+              {m.role === "user" ? "You" : (m.model ?? "Assistant")}
+            </span>
             {m.status === "cancelled" ? <Badge kind="warning">incomplete</Badge> : null}
             {m.status === "error" ? <Badge kind="danger">error</Badge> : null}
             {m.status === "streaming" ? (
               <Badge kind="info">{m.text ? "writing…" : "waiting…"}</Badge>
             ) : null}
           </header>
-          <div dir="auto" className="text-[15px] leading-relaxed">
+          <div dir="auto" className="text-md">
             {m.role === "user" ? (
               <p className="whitespace-pre-wrap break-words">{m.text}</p>
             ) : (

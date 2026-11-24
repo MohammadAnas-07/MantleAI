@@ -128,7 +128,9 @@ function ConversationView({ conversationId }: { conversationId: string }) {
 
       {state.sources.length > 0 ? (
         <details className="text-sm">
-          <summary className="label cursor-pointer">Code used ({state.sources.length})</summary>
+          <summary className="cursor-pointer font-medium">
+            Code used ({state.sources.length})
+          </summary>
           <ul className="code mt-1 space-y-0.5">
             {state.sources.map((s) => (
               <li key={`${s.path}:${s.start_line}`}>
@@ -158,7 +160,7 @@ function ConversationView({ conversationId }: { conversationId: string }) {
             setDraft(e.target.value);
           }}
           onKeyDown={onKeyDown}
-          className="min-h-16 flex-1 resize-y rounded-sm border-2 border-solid border-line bg-bg px-2 py-1.5 text-[15px]"
+          className="min-h-16 flex-1 resize-y rounded-sm border border-field bg-paper px-2 py-1.5 text-md"
         />
         {streaming ? (
           <Button variant="danger" onClick={stop} icon={<Square aria-hidden className="size-4" />}>

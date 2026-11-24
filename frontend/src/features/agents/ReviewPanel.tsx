@@ -37,17 +37,14 @@ export function ReviewPanel({
       {review.findings.length === 0 ? <p className="text-sm text-muted">No findings.</p> : null}
       <ul aria-label="Reviewer findings" className="space-y-2">
         {review.findings.map((f, i) => (
-          <li
-            key={i}
-            className="space-y-0.5 rounded-sm border-2 border-dashed border-line p-2 text-sm"
-          >
+          <li key={i} className="space-y-0.5 rounded-lg border border-line p-2 text-sm">
             <SeverityBadge severity={f.severity} />
             <p className="whitespace-pre-wrap break-words" dir="auto">
               {f.explanation}
             </p>
             {f.suggestion ? (
               <p className="whitespace-pre-wrap break-words" dir="auto">
-                <span className="label text-xs">Suggestion: </span>
+                <span className="eyebrow">Suggestion: </span>
                 {f.suggestion}
               </p>
             ) : null}

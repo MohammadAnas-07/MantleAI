@@ -7,8 +7,9 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 
-const CONTROL =
-  "w-full rounded-sm border-2 border-solid border-line bg-surface px-2 py-1.5 text-text placeholder:text-muted aria-[invalid=true]:border-danger";
+/** The look of every text input and select (docs/design-app.md, "Inputs"). */
+export const CONTROL =
+  "w-full rounded-sm border border-field bg-paper px-2 text-base text-text transition-colors duration-150 ease-out hover:border-text focus:border-text disabled:cursor-not-allowed disabled:opacity-50 aria-[invalid=true]:border-danger";
 
 interface FieldProps {
   label: string;
@@ -25,12 +26,12 @@ export function Field({ label, error, help, children }: FieldProps) {
   const describedBy = [help ? helpId : null, error ? errorId : null].filter(Boolean).join(" ");
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm">
+      <label htmlFor={id} className="text-sm text-text">
         {label}
       </label>
       {children({ id, describedBy: describedBy || undefined, invalid: Boolean(error) })}
       {help ? (
-        <p id={helpId} className="text-xs text-muted">
+        <p id={helpId} className="text-sm text-muted">
           {help}
         </p>
       ) : null}
@@ -59,7 +60,7 @@ export function TextInput({
           id={id}
           aria-describedby={describedBy}
           aria-invalid={invalid}
-          className={CONTROL}
+          className={`${CONTROL} h-8`}
           {...rest}
         />
       )}
@@ -80,7 +81,7 @@ export function TextArea({
           id={id}
           aria-describedby={describedBy}
           aria-invalid={invalid}
-          className={`${CONTROL} min-h-20`}
+          className={`${CONTROL} min-h-20 py-1.5`}
           dir="auto"
           {...rest}
         />
@@ -103,7 +104,7 @@ export function SelectInput({
           id={id}
           aria-describedby={describedBy}
           aria-invalid={invalid}
-          className={CONTROL}
+          className={`${CONTROL} h-8`}
           {...rest}
         >
           {children}
@@ -121,12 +122,12 @@ export function Checkbox({
   const id = useId();
   return (
     <div className="flex items-start gap-2">
-      <input id={id} type="checkbox" className="mt-1 size-4 accent-[var(--accent)]" {...rest} />
+      <input id={id} type="checkbox" className="mt-0.5 size-4 shrink-0 accent-accent" {...rest} />
       <div>
-        <label htmlFor={id} className="text-sm">
+        <label htmlFor={id} className="text-base font-normal">
           {label}
         </label>
-        {help ? <p className="text-xs text-muted">{help}</p> : null}
+        {help ? <p className="text-sm text-muted">{help}</p> : null}
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
           onChange={(e) => {
             setPicked(e.target.value);
           }}
-          className="rounded-sm border-2 border-line bg-surface px-2 py-1"
+          className="rounded-sm border border-field bg-paper px-2 py-1"
         >
           {models.chatModels.map((m) => (
             <option key={m.id} value={m.id}>
@@ -59,7 +59,7 @@ export function ContextPanel({ conversationId }: { conversationId: string }) {
           <table className="w-full text-left">
             <caption className="sr-only">Sections</caption>
             <thead>
-              <tr className="label text-xs">
+              <tr className="eyebrow">
                 <th scope="col">Section</th>
                 <th scope="col">Tokens</th>
                 <th scope="col">Items</th>

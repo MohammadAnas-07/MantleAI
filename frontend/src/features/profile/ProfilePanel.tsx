@@ -67,7 +67,7 @@ function Languages({ profile }: { profile: ProjectProfile }) {
   if (profile.languages.length === 0) return null;
   return (
     <section aria-label="Languages" className="space-y-1">
-      <h3 className="label text-xs">Languages</h3>
+      <h3 className="eyebrow">Languages</h3>
       <ul className="flex flex-wrap gap-2">
         {profile.languages.map((l) => (
           <li key={l.name}>
@@ -86,7 +86,7 @@ function Facts({ title, items }: { title: string; items: [string, string, boolea
   if (items.length === 0) return null;
   return (
     <section aria-label={title} className="space-y-1">
-      <h3 className="label text-xs">
+      <h3 className="eyebrow">
         {title} ({items.length})
       </h3>
       <ul className="space-y-0.5">

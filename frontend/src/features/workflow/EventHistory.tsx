@@ -47,16 +47,16 @@ export function EventHistory({
           const stage = e.stage_id ? (titles.get(e.stage_id) ?? e.stage_id) : null;
           const item = e.stage_id && e.item_id ? items.get(`${e.stage_id}:${e.item_id}`) : null;
           return (
-            <li key={e.id} className="border-b border-dashed border-line pb-1">
+            <li key={e.id} className="border-b border-line pb-1">
               <time dateTime={e.created_at} className="text-muted">
                 {formatDateTime(e.created_at)}
               </time>{" "}
-              <span className="label">{e.actor}</span> {ACTION[e.action] ?? e.action}
+              <span className="font-medium">{e.actor}</span> {ACTION[e.action] ?? e.action}
               {stage && !["created", "reset", "completed"].includes(e.action) ? ` "${stage}"` : ""}
               {item ? `: ${item}` : ""} {e.forced ? <Badge kind="warning">forced</Badge> : null}
               {e.reason ? (
                 <p className="break-words" dir="auto">
-                  <span className="label">Reason: </span>
+                  <span className="font-medium">Reason: </span>
                   {e.reason}
                 </p>
               ) : null}

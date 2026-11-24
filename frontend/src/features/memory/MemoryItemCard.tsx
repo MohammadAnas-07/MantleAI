@@ -50,7 +50,7 @@ export function MemoryItemCard({
   const byTitle = new Map(siblings.map((s) => [s.id, s.title]));
 
   return (
-    <article className="space-y-1 rounded-sm border-2 border-dashed border-line p-2 text-sm">
+    <article className="space-y-1 rounded-lg border border-line p-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="min-w-0 flex-1 break-words" dir="auto">
           {item.title}
@@ -74,7 +74,7 @@ export function MemoryItemCard({
       ) : null}
       {item.why ? (
         <p className="break-words" dir="auto">
-          <span className="label">Why: </span>
+          <span className="font-medium">Why: </span>
           {item.why}
         </p>
       ) : null}
@@ -135,7 +135,7 @@ export function MemoryItemCard({
             onChange={(e) => {
               setStatus.mutate(e.target.value);
             }}
-            className="rounded-sm border-2 border-line bg-surface px-1 text-sm"
+            className="rounded-sm border border-field bg-paper px-1 text-sm"
           >
             {memoryRules[kind].statuses.map((s) => (
               <option key={s} value={s}>

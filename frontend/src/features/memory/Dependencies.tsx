@@ -70,7 +70,7 @@ export function Dependencies({
           onChange={(e) => {
             setPick(e.target.value);
           }}
-          className="min-w-0 flex-1 rounded-sm border-2 border-line bg-surface px-1 text-sm"
+          className="min-w-0 flex-1 rounded-sm border border-field bg-paper px-1 text-sm"
         >
           <option value="">Choose a task</option>
           {candidates.map((c) => (
