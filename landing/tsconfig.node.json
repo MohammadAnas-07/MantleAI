@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["vite.config.ts", "screenshots-plugin.ts", "src/csp.ts"]
+  "include": ["vite.config.ts", "screenshots-plugin.ts", "screenshots-plugin.test.ts", "src/csp.ts"]
 }
