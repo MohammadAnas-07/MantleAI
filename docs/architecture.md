@@ -10,9 +10,9 @@ replaced on 2026-11-24 by an editorial design built on the app's tokens, which e
 
 | # | vision.md says | design-landing.md says | Status |
 | --- | --- | --- | --- |
-| C1 | Mantle should feel like "an experienced software engineering team": structured, reliable, closer to real engineering practice. | The old file asked for a raw, chaotic, anti-design style. | Resolved 2026-11-24: the landing page uses the calm, structured design in `design-landing.md`; the grunge style is dropped. |
+| C1 | Mantle should feel like "an experienced software engineering team": structured, reliable, closer to real engineering practice. | Editorial and quiet: ink on white, warm greys, hairlines, one blue accent, serif headlines, the same tokens as the app. | Resolved 2026-11-24: the tone matches; the earlier grunge brief was replaced. |
 | C2 | Core problem #1 is named "Seamless LLM Switching". | Do's and Don'ts ban "Seamless" as an AI copywriting cliché. | Resolved: landing copy uses plain wording such as "Switch models without losing your context". |
-| C3 | Mantle teaches ("Teach developers why"), so it has to explain clearly. | The old file asked for chaotic typography and Courier New for all text. | Resolved 2026-11-24: system fonts, AA contrast, no textures, no flicker and no rotated text. |
+| C3 | Mantle teaches ("Teach developers why"), so it has to explain clearly. | System font stacks, AA contrast on every pair, text blocks under 68 characters, almost no motion. | Resolved 2026-11-24: the page is built for reading. |
 
 The inconsistencies inside the old file (button colour, motion, missing radius tokens, a
 duplicate colour role, dark mode, the template name) went with it.
