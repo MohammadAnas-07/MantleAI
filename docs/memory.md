@@ -10,10 +10,10 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-24).** `chore/license-and-ci` (not pushed): `.github/workflows/ci.yml` runs
-ruff, pytest (Python 3.12, lock file, `pgvector/pgvector:pg16` service, `mantle_test`), the
-frontend checks (Node 22) and `gen:api:check` on PRs and pushes to `main`; no secrets. `license =
-"MIT"` in both manifests; LICENSE verified unchanged. GitHub run unverified until the push.
+**Status (2026-11-24).** `chore/license-and-ci`: `.github/workflows/ci.yml` runs ruff, pytest
+(Python 3.12, lock, `pgvector/pgvector:pg16`, `mantle_test`), the frontend checks (Node 22) and
+`gen:api:check` on PRs and pushes to `main`; no secrets. GitHub run green: 880 passed, 3 skipped
+(Windows-only, click-sample). Tests must not build Windows paths by hand. `license = "MIT"` set.
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
