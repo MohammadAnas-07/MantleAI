@@ -5,6 +5,7 @@ import { Link } from "react-router";
 
 import { Button } from "../../components/ui/Button";
 import { ConfirmDialog } from "../../components/ui/Dialog";
+import { CONTROL } from "../../components/ui/Field";
 import { Badge } from "../../components/ui/Feedback";
 import { keys } from "../../hooks/queries";
 import { api } from "../../lib/api/endpoints";
@@ -50,7 +51,7 @@ export function MemoryItemCard({
   const byTitle = new Map(siblings.map((s) => [s.id, s.title]));
 
   return (
-    <article className="space-y-1 rounded-sm border-2 border-dashed border-line p-2 text-sm">
+    <article className="space-y-2 rounded-lg border border-line bg-paper p-3 text-base">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="min-w-0 flex-1 break-words" dir="auto">
           {item.title}
@@ -68,18 +69,18 @@ export function MemoryItemCard({
         ) : null}
       </div>
       {item.body ? (
-        <p className="whitespace-pre-wrap break-words text-muted" dir="auto">
+        <p className="whitespace-pre-wrap break-words text-text-2" dir="auto">
           {item.body}
         </p>
       ) : null}
       {item.why ? (
-        <p className="break-words" dir="auto">
-          <span className="label">Why: </span>
+        <p className="break-words text-text-2" dir="auto">
+          <span className="font-medium text-text">Why: </span>
           {item.why}
         </p>
       ) : null}
       {item.source_agent_run_id ? (
-        <p className="text-xs">
+        <p className="text-sm">
           <Link to={`/projects/${projectId}/workflow?run=${item.source_agent_run_id}`}>
             Open the agent run
           </Link>
@@ -121,8 +122,8 @@ export function MemoryItemCard({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label htmlFor={statusId} className="text-xs">
+      <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2">
+        <label htmlFor={statusId} className="text-sm font-normal text-muted">
           Status
         </label>
         {superseded ? (
@@ -135,7 +136,7 @@ export function MemoryItemCard({
             onChange={(e) => {
               setStatus.mutate(e.target.value);
             }}
-            className="rounded-sm border-2 border-line bg-surface px-1 text-sm"
+            className={`${CONTROL} h-7 w-auto`}
           >
             {memoryRules[kind].statuses.map((s) => (
               <option key={s} value={s}>

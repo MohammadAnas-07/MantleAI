@@ -150,8 +150,9 @@ Built so far (`feat/frontend-workspace`, 2026-11-18): settings (keys, models, us
 projects, the index panel, memory, conversations with streaming, the context preview, model
 switching and the activity log. `feat/workflow-ui` (2026-11-20) adds the workflow page: stages
 with gates and reasons, the gap finder, Planner and Reviewer runs with an estimate, live
-status and the approval view, and agent badges in memory. The teaching screen comes with its
-backend (Phase 4).
+status and the approval view, and agent badges in memory. `feat/app-redesign` (2026-11-24)
+replaces the grunge-lite look with the calm system in `docs/design-app.md` (light default, no
+behaviour change). The teaching screen comes with its backend (Phase 4).
 
 Exit criteria:
 - [ ] Every "v0.1 is finished when" item in `docs/mvp-scope.md` is true. (Not yet: teaching

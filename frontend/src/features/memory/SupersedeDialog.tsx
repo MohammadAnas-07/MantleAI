@@ -3,7 +3,7 @@ import { useId, useState } from "react";
 
 import { Button } from "../../components/ui/Button";
 import { Dialog } from "../../components/ui/Dialog";
-import { FormError, TextArea, TextInput } from "../../components/ui/Field";
+import { CONTROL, FormError, TextArea, TextInput } from "../../components/ui/Field";
 import { api } from "../../lib/api/endpoints";
 import { errorMessage, fieldErrors } from "../../lib/api/errors";
 import type { MemoryItem } from "../../lib/api/types";
@@ -60,17 +60,19 @@ export function SupersedeDialog({
 
   return (
     <Dialog title="Supersede decision" open onClose={onClose}>
-      <div className="space-y-3 text-sm">
+      <div className="space-y-4 text-base">
         <p dir="auto">&ldquo;{item.title}&rdquo; will be marked superseded.</p>
         <div className="flex flex-col gap-1">
-          <label htmlFor={selectId}>Replace with an existing decision</label>
+          <label htmlFor={selectId} className="text-sm">
+            Replace with an existing decision
+          </label>
           <select
             id={selectId}
             value={byId}
             onChange={(e) => {
               setById(e.target.value);
             }}
-            className="rounded-sm border-2 border-line bg-surface px-2 py-1.5"
+            className={`${CONTROL} h-8`}
           >
             <option value="">No: write a new decision below</option>
             {others.map((o) => (
@@ -111,7 +113,7 @@ export function SupersedeDialog({
           </>
         ) : null}
         <FormError message={run.isError && !errors.title ? errorMessage(run.error) : null} />
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pt-2">
           <Button onClick={onClose}>Cancel</Button>
           <Button variant="primary" busy={run.isPending} onClick={submit}>
             Supersede

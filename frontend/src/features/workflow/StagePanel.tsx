@@ -46,27 +46,30 @@ export function StagePanel({
   const approveError = approve.isError && !isStaleError(approve.error) && dialog === null;
 
   return (
-    <section aria-labelledby={`stage-${stage.id}`} className="space-y-3">
+    <section
+      aria-labelledby={`stage-${stage.id}`}
+      className="space-y-4 rounded-lg border border-line p-4"
+    >
       <div className="flex flex-wrap items-center gap-2">
-        <h3 id={`stage-${stage.id}`} className="text-base">
+        <h3 id={`stage-${stage.id}`} className="text-lg">
           {stage.title}
         </h3>
-        <Badge kind={isCurrent ? "warning" : "neutral"}>{stage.status}</Badge>
+        <Badge kind={isCurrent ? "info" : "neutral"}>{stage.status}</Badge>
       </div>
-      <p>
-        <span className="label">Goal: </span>
+      <p className="text-text-2">
+        <span className="font-medium text-text">Goal: </span>
         {stage.goal}
       </p>
 
-      <fieldset className="space-y-1">
-        <legend className="label text-sm">Checklist</legend>
-        <ul className="space-y-1">
+      <fieldset className="space-y-2">
+        <legend className="eyebrow pb-1">Checklist</legend>
+        <ul className="divide-y divide-line">
           {stage.checklist.map((item) => (
-            <li key={item.id} className="flex items-start gap-2 text-sm">
+            <li key={item.id} className="flex items-start gap-2 py-1.5 text-base">
               <input
                 id={`check-${stage.id}-${item.id}`}
                 type="checkbox"
-                className="mt-1 size-4 accent-[var(--accent)]"
+                className="mt-0.5 size-4 shrink-0 accent-accent"
                 checked={item.done}
                 disabled={pendingItem === item.id}
                 onChange={(e) => {
@@ -77,9 +80,9 @@ export function StagePanel({
                   });
                 }}
               />
-              <label htmlFor={`check-${stage.id}-${item.id}`}>
+              <label htmlFor={`check-${stage.id}-${item.id}`} className="font-normal">
                 {item.text}{" "}
-                <span className="text-xs text-muted">
+                <span className="text-sm text-muted">
                   ({item.required ? "required" : "optional"})
                 </span>
               </label>
@@ -92,15 +95,15 @@ export function StagePanel({
       </fieldset>
 
       {stage.artifacts.length > 0 ? (
-        <div className="text-sm">
-          <h4 className="label text-sm">Project memory needed</h4>
-          <ul>
+        <div className="space-y-1 text-base">
+          <h4 className="eyebrow">Project memory needed</h4>
+          <ul className="space-y-1">
             {stage.artifacts.map((a) => (
-              <li key={a.text} className="flex items-center gap-1">
+              <li key={a.text} className="flex items-center gap-1.5">
                 {a.met ? (
                   <SquareCheck aria-hidden className="size-4 text-success" />
                 ) : (
-                  <Square aria-hidden className="size-4" />
+                  <Square aria-hidden className="size-4 text-muted" />
                 )}
                 {a.text} ({a.have} of {a.need}, {a.met ? "met" : "not met"})
               </li>
@@ -111,7 +114,7 @@ export function StagePanel({
 
       <GateStatus stage={stage} />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 border-t border-line pt-4">
         {isCurrent && stage.ready ? (
           <Button
             variant="primary"
@@ -207,17 +210,17 @@ export function StagePanel({
 function GateStatus({ stage }: { stage: Stage }) {
   if (stage.ready) {
     return (
-      <p className="flex items-center gap-1 text-sm">
+      <p className="flex items-center gap-1.5 rounded-lg bg-success-soft px-3 py-2 text-base">
         <CircleCheck aria-hidden className="size-4 text-success" />
-        <span className="label">Gate met:</span> every required item is done.
+        <span className="font-medium text-success">Gate met:</span> every required item is done.
       </p>
     );
   }
   return (
-    <div className="space-y-1 text-sm">
-      <p className="flex items-center gap-1">
-        <CircleAlert aria-hidden className="size-4 text-danger" />
-        <span className="label">Gate not met:</span> {stage.unmet.length} missing
+    <div className="space-y-1 rounded-lg bg-warning-soft px-3 py-2 text-base">
+      <p className="flex items-center gap-1.5">
+        <CircleAlert aria-hidden className="size-4 text-warning" />
+        <span className="font-medium text-warning">Gate not met:</span> {stage.unmet.length} missing
       </p>
       <UnmetList unmet={stage.unmet} />
     </div>
@@ -226,7 +229,7 @@ function GateStatus({ stage }: { stage: Stage }) {
 
 export function UnmetList({ unmet }: { unmet: Unmet[] }) {
   return (
-    <ul aria-label="Unmet" className="list-disc pl-5 text-sm">
+    <ul aria-label="Unmet" className="list-disc pl-5 text-base">
       {unmet.map((u) => (
         <li key={`${u.type}:${u.id}`}>
           {u.text}

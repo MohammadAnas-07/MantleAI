@@ -23,6 +23,7 @@ import { ReviewPanel } from "./ReviewPanel";
 import { RunStatusBadge } from "./RunBadges";
 import { failureText, RUN_TYPE_LABEL, suggestedModels } from "./runText";
 import { SuggestedModels, Warnings } from "./shared";
+import { Table } from "../../components/ui/Table";
 
 /** One plan or review run: polled while it runs, then its approval view or its outcome. */
 export function RunView({
@@ -80,14 +81,11 @@ export function RunView({
   const active = isRunActive(run);
 
   return (
-    <article
-      aria-label="Agent run"
-      className="space-y-3 rounded-sm border-2 border-dashed border-line p-3"
-    >
+    <article aria-label="Agent run" className="space-y-3 rounded-lg border border-line p-4">
       <RunHeader run={run} />
       <div aria-live="polite" className="space-y-2">
-        <p className="text-sm">
-          <span className="label">Status: </span>
+        <p className="text-base">
+          <span className="font-medium">Status: </span>
           <RunStatusBadge status={run.status} /> {active ? <span>{progressText(run)}</span> : null}
           {run.cancel_requested_at && active ? <Badge kind="warning">stopping</Badge> : null}
         </p>
@@ -134,8 +132,8 @@ export function RunView({
         <Saved run={run} result={approved} projectId={projectId} memory={memory} />
       ) : null}
       {run.status === "rejected" ? (
-        <p className="text-sm break-words" dir="auto">
-          <span className="label">Rejected: </span>
+        <p className="text-base break-words" dir="auto">
+          <span className="font-medium">Rejected: </span>
           {run.decision_reason}
         </p>
       ) : null}
@@ -156,8 +154,8 @@ function RunHeader({ run }: { run: AgentRun }) {
   const models = useModelInfo();
   const estimate = run.estimate as Partial<RunEstimate>;
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-      <h3 className="text-base">{RUN_TYPE_LABEL[run.run_type] ?? run.run_type}</h3>
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-base">
+      <h3 className="text-lg">{RUN_TYPE_LABEL[run.run_type] ?? run.run_type}</h3>
       <span>{models.name(run.model_id)}</span>
       <time dateTime={run.created_at} className="text-muted">
         {formatDateTime(run.created_at)}
@@ -184,7 +182,7 @@ function Saved({
   memory: MemoryIndex;
 }) {
   return (
-    <div className="space-y-1 text-sm">
+    <div className="space-y-1 text-base">
       <Banner kind="success">
         Saved {run.saved_item_ids.length} items to the project memory. Tasks are todo; decisions are
         proposed until you accept them.
@@ -204,16 +202,23 @@ function Saved({
 function StepTable({ run }: { run: AgentRun }) {
   if (run.steps.length === 0) return null;
   return (
-    <table className="w-full text-left text-sm">
-      <caption className="label text-left text-sm">Steps</caption>
+    <Table caption="Steps" showCaption>
       <thead>
-        <tr className="label text-xs">
+        <tr>
           <th scope="col">Agent</th>
           <th scope="col">Status</th>
-          <th scope="col">Attempts</th>
-          <th scope="col">Tokens in/out</th>
-          <th scope="col">Cost</th>
-          <th scope="col">Time</th>
+          <th scope="col" className="num">
+            Attempts
+          </th>
+          <th scope="col" className="num">
+            Tokens in/out
+          </th>
+          <th scope="col" className="num">
+            Cost
+          </th>
+          <th scope="col" className="num">
+            Time
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -224,15 +229,15 @@ function StepTable({ run }: { run: AgentRun }) {
               {s.status}
               {s.error ? ` (${s.error})` : ""}
             </td>
-            <td>{s.attempts}</td>
-            <td>
+            <td className="num">{s.attempts}</td>
+            <td className="num">
               {formatTokens(s.input_tokens)}/{formatTokens(s.output_tokens)}
             </td>
-            <td>{formatCost(s.cost_usd)}</td>
-            <td>{(s.latency_ms / 1000).toFixed(1)} s</td>
+            <td className="num">{formatCost(s.cost_usd)}</td>
+            <td className="num">{(s.latency_ms / 1000).toFixed(1)} s</td>
           </tr>
         ))}
       </tbody>
-    </table>
+    </Table>
   );
 }

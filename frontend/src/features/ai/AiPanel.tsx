@@ -28,7 +28,7 @@ export function AiPanel({
   if (!projectId) {
     return (
       <EmptyState icon={FolderSearch}>
-        Open a project to see its memory, index and context.
+        Open a project to see its memory, index, profile and context.
       </EmptyState>
     );
   }
@@ -42,9 +42,9 @@ export function AiPanel({
         conversationId ? (
           <ContextPanel key={conversationId} conversationId={conversationId} />
         ) : (
-          <p className="text-sm text-muted">
+          <EmptyState icon={FolderSearch}>
             Open a conversation to see what would be sent to a model.
-          </p>
+          </EmptyState>
         )
       ) : null}
     </Tabs>

@@ -22,7 +22,7 @@ export function StageBar({
 }) {
   return (
     <nav aria-label="Workflow stages">
-      <ol className="flex flex-wrap gap-1">
+      <ol className="flex flex-wrap gap-2">
         {stages.map((stage, i) => {
           const s = STATUS[stage.status] ?? STATUS.pending;
           const current = stage.status === "current";
@@ -36,15 +36,17 @@ export function StageBar({
                 }}
                 aria-current={current ? "step" : undefined}
                 aria-pressed={selected}
-                className={`flex items-center gap-1.5 rounded-sm border-2 px-2 py-1 text-sm ${
-                  current ? "bg-primary text-on-primary border-primary" : "border-line text-text"
-                } ${selected && !current ? "border-accent" : ""}`}
+                className={`flex h-8 items-center gap-1.5 rounded-sm border px-2.5 text-base transition-colors duration-150 ease-out ${
+                  current ? "border-text" : "border-field font-normal"
+                } ${selected ? "bg-hover" : "bg-paper hover:bg-hover"}`}
               >
-                {s ? <s.Icon aria-hidden className="size-4" /> : null}
+                {s ? <s.Icon aria-hidden className="size-4 text-muted" /> : null}
                 <span>
                   {i + 1}. {stage.title}
                 </span>
-                <span className="text-xs">({s?.word ?? stage.status})</span>
+                <span className="text-base font-normal text-muted">
+                  ({s?.word ?? stage.status})
+                </span>
               </button>
             </li>
           );

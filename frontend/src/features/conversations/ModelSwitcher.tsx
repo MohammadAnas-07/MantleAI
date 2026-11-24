@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 
 import { useConversation } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
+import { CONTROL } from "../../components/ui/Field";
 import { formatTokens } from "../../lib/format";
 import { SwitchDialog } from "./switching";
 
@@ -15,7 +16,7 @@ export function ModelSwitcher({ conversationId }: { conversationId: string }) {
 
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor={id} className="text-xs">
+      <label htmlFor={id} className="text-sm font-normal text-muted">
         Model
       </label>
       <select
@@ -25,7 +26,7 @@ export function ModelSwitcher({ conversationId }: { conversationId: string }) {
         onChange={(e) => {
           if (e.target.value !== current) setTarget(e.target.value);
         }}
-        className="max-w-64 rounded-sm border-2 border-line bg-surface px-2 py-1 text-sm text-text"
+        className={`${CONTROL} h-8 max-w-64`}
       >
         {models.chatModels.map((m) => (
           <option key={m.id} value={m.id}>

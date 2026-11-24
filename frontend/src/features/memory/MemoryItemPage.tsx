@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 
 import { QueryError } from "../../components/QueryError";
 import { Skeleton } from "../../components/ui/Feedback";
+import { PageHeader } from "../../components/ui/PageHeader";
 import { useMemory, useMemoryItem } from "../../hooks/queries";
 import type { MemoryItem, MemoryKind } from "../../lib/api/types";
 import { MemoryItemCard } from "./MemoryItemCard";
@@ -26,8 +27,11 @@ function MemoryItemPage({ projectId, itemId }: { projectId: string; itemId: stri
   }
   if (!item.data) return null;
   return (
-    <div className="max-w-2xl space-y-3">
-      <h1 className="text-xl">Memory {item.data.kind}</h1>
+    <div className="max-w-2xl space-y-6">
+      <PageHeader
+        title={`Memory ${item.data.kind}`}
+        description="One item of the project memory. Every model you chat with sees it."
+      />
       <WithSiblings item={item.data} projectId={projectId} />
     </div>
   );

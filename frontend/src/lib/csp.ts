@@ -13,8 +13,8 @@ export function contentSecurityPolicy(apiBaseUrl: string): string {
     ["script-src", "'self'"],
     // Tailwind ships a stylesheet, but React sets a few inline style attributes (widths).
     ["style-src", "'self' 'unsafe-inline'"],
-    // data: covers the inline SVG noise texture; nothing remote.
-    ["img-src", "'self' data:"],
+    // The app draws no images of its own (icons are inline SVG elements), so none from data:.
+    ["img-src", "'self'"],
     ["font-src", "'self'"],
     ["connect-src", `'self' ${api}`],
     ["frame-src", "'none'"],

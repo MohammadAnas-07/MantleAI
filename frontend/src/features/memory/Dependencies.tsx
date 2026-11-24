@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { useId, useState } from "react";
 
 import { Button } from "../../components/ui/Button";
+import { CONTROL } from "../../components/ui/Field";
 import { Badge } from "../../components/ui/Feedback";
 import { api } from "../../lib/api/endpoints";
 import { errorMessage } from "../../lib/api/errors";
@@ -37,7 +38,7 @@ export function Dependencies({
   const candidates = siblings.filter((s) => s.id !== item.id && !deps.includes(s.id));
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {deps.length > 0 ? (
         <ul className="flex flex-wrap gap-1">
           {deps.map((dep) => (
@@ -46,6 +47,7 @@ export function Dependencies({
                 needs: {titles.get(dep) ?? "another task"}
                 <button
                   type="button"
+                  className="inline-flex size-4 items-center justify-center rounded-sm hover:bg-hover"
                   aria-label={`Remove dependency on ${titles.get(dep) ?? "task"}`}
                   onClick={() => {
                     removeDep.mutate(dep);
@@ -59,7 +61,7 @@ export function Dependencies({
         </ul>
       ) : null}
       <div className="flex items-center gap-2">
-        <label htmlFor={selectId} className="text-xs">
+        <label htmlFor={selectId} className="text-sm font-normal text-muted">
           Depends on
         </label>
         <select
@@ -70,7 +72,7 @@ export function Dependencies({
           onChange={(e) => {
             setPick(e.target.value);
           }}
-          className="min-w-0 flex-1 rounded-sm border-2 border-line bg-surface px-1 text-sm"
+          className={`${CONTROL} h-7 min-w-0 flex-1`}
         >
           <option value="">Choose a task</option>
           {candidates.map((c) => (
@@ -96,7 +98,11 @@ export function Dependencies({
           {errorMessage(add.error)}
         </p>
       ) : null}
-      {removeDep.isError ? <p className="text-danger">{errorMessage(removeDep.error)}</p> : null}
+      {removeDep.isError ? (
+        <p role="alert" className="text-danger">
+          {errorMessage(removeDep.error)}
+        </p>
+      ) : null}
     </div>
   );
 }

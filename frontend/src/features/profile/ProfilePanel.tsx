@@ -1,8 +1,8 @@
 import { FileSearch } from "lucide-react";
 
+import { QueryError } from "../../components/QueryError";
 import { Badge, Banner, EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { useProfile } from "../../hooks/queries";
-import { errorMessage } from "../../lib/api/errors";
 import type { ProjectProfile } from "../../lib/api/types";
 import { formatDateTime } from "../../lib/format";
 
@@ -19,7 +19,15 @@ const OUT_OF_DATE: Record<string, string> = {
 export function ProfilePanel({ projectId }: { projectId: string }) {
   const profile = useProfile(projectId);
   if (profile.isLoading) return <Skeleton label="Loading the project profile" />;
-  if (profile.isError) return <Banner kind="danger">{errorMessage(profile.error)}</Banner>;
+  if (profile.isError) {
+    return (
+      <QueryError
+        error={profile.error}
+        onRetry={() => void profile.refetch()}
+        retrying={profile.isFetching}
+      />
+    );
+  }
   const p = profile.data;
   if (!p) return null;
   if (!p.built) {
@@ -31,9 +39,9 @@ export function ProfilePanel({ projectId }: { projectId: string }) {
     );
   }
   return (
-    <div className="space-y-3 text-sm">
+    <div className="space-y-4 text-base">
       <div role="status" aria-live="polite" className="space-y-2">
-        <p>
+        <p className="text-sm text-muted">
           Built {formatDateTime(p.built_at)} from the files, no model. Every model you chat with
           gets this profile.
         </p>
@@ -67,7 +75,7 @@ function Languages({ profile }: { profile: ProjectProfile }) {
   if (profile.languages.length === 0) return null;
   return (
     <section aria-label="Languages" className="space-y-1">
-      <h3 className="label text-xs">Languages</h3>
+      <h3 className="eyebrow">Languages</h3>
       <ul className="flex flex-wrap gap-2">
         {profile.languages.map((l) => (
           <li key={l.name}>
@@ -86,14 +94,14 @@ function Facts({ title, items }: { title: string; items: [string, string, boolea
   if (items.length === 0) return null;
   return (
     <section aria-label={title} className="space-y-1">
-      <h3 className="label text-xs">
+      <h3 className="eyebrow">
         {title} ({items.length})
       </h3>
-      <ul className="space-y-0.5">
+      <ul className="divide-y divide-line">
         {items.map(([value, source, inferred]) => (
-          <li key={`${value}|${source}`} className="flex flex-wrap items-baseline gap-x-2">
+          <li key={`${value}|${source}`} className="flex flex-wrap items-baseline gap-x-2 py-1">
             <span className="code break-all">{value}</span>
-            <span className="text-xs break-all text-muted">{source}</span>
+            <span className="text-sm break-all text-muted">{source}</span>
             {inferred ? <Badge>inferred</Badge> : null}
           </li>
         ))}

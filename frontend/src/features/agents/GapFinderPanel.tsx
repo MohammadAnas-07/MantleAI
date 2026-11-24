@@ -74,7 +74,7 @@ export function GapFinderPanel({
 
   return (
     <div className="space-y-3">
-      <p className="text-sm">
+      <p className="text-base">
         The gap finder reads the project memory and the current stage and lists missing steps,
         risks, technical debt and scalability concerns. It changes nothing.
       </p>
@@ -94,12 +94,12 @@ export function GapFinderPanel({
           Find gaps
         </Button>
       </div>
-      <p className="text-xs text-muted">
+      <p className="text-sm text-muted">
         One model call{model ? ` to ${model.display_name}` : ""} with your API key (one retry if the
         answer is invalid). Your provider bills you for it.
       </p>
       <div aria-live="polite">
-        {run.isPending ? <p className="text-sm">Finding gaps… this can take a minute.</p> : null}
+        {run.isPending ? <p className="text-base">Finding gaps… this can take a minute.</p> : null}
         {run.isError && !costGuard ? (
           <Banner kind="danger">{startErrorText(run.error)}</Banner>
         ) : null}
@@ -120,8 +120,8 @@ export function GapFinderPanel({
 
       {items.length > 1 ? (
         <div>
-          <h4 className="label text-sm">Past results</h4>
-          <ul className="space-y-1 text-sm">
+          <h4 className="text-base font-medium">Past results</h4>
+          <ul className="space-y-1 text-base">
             {items.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-2">
                 <Button
@@ -176,11 +176,8 @@ function GapResult({
   const report = run.result as Partial<GapReport>;
   const total = GROUPS.reduce((n, g) => n + (report[g.key]?.length ?? 0), 0);
   return (
-    <article
-      aria-label="Gap finder result"
-      className="space-y-3 rounded-sm border-2 border-dashed border-line p-3"
-    >
-      <p className="text-sm text-muted">
+    <article aria-label="Gap finder result" className="space-y-3 rounded-lg border border-line p-4">
+      <p className="text-base text-muted">
         {formatDateTime(run.created_at)}, stage {run.stage_id ?? "?"}, {total} findings,{" "}
         {formatCost(run.cost_usd)}
       </p>
@@ -211,15 +208,15 @@ function FindingGroup({
 }) {
   return (
     <section aria-label={title} className="space-y-1">
-      <h4 className="label text-sm">
+      <h4 className="text-base font-medium">
         {title} ({findings.length})
       </h4>
-      {findings.length === 0 ? <p className="text-sm text-muted">None found.</p> : null}
+      {findings.length === 0 ? <p className="text-base text-muted">None found.</p> : null}
       <ul className="space-y-2">
         {findings.map((f, i) => (
-          <li key={i} className="space-y-0.5 text-sm">
+          <li key={i} className="space-y-0.5 text-base">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold break-words" dir="auto">
+              <span className="font-medium break-words" dir="auto">
                 {f.title}
               </span>
               <SeverityBadge severity={f.severity} />

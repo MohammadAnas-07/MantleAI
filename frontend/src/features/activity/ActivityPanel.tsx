@@ -3,8 +3,9 @@ import { Activity } from "lucide-react";
 import { Badge, EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { useUsageRecords } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
-import { errorMessage } from "../../lib/api/errors";
+import { QueryError } from "../../components/QueryError";
 import { formatCost, formatTime, formatTokens, purposeLabel, sumCosts } from "../../lib/format";
+import { Table } from "../../components/ui/Table";
 
 // Calls since this tab opened: "this session".
 const SESSION_START = new Date().toISOString();
@@ -16,24 +17,39 @@ export function ActivityPanel() {
   const rows = records.data ?? [];
 
   if (records.isLoading) return <Skeleton lines={2} label="Loading activity" />;
-  if (records.isError) return <p className="text-sm text-danger">{errorMessage(records.error)}</p>;
+  if (records.isError) {
+    return (
+      <QueryError
+        error={records.error}
+        onRetry={() => void records.refetch()}
+        retrying={records.isFetching}
+      />
+    );
+  }
   if (rows.length === 0)
-    return <EmptyState icon={Activity}>No model calls in this session yet.</EmptyState>;
+    return (
+      <EmptyState icon={Activity}>
+        No model calls since this tab opened. Chat, indexing and summaries show up here.
+      </EmptyState>
+    );
 
   return (
-    <div className="space-y-1 text-sm">
-      <p className="text-muted">
+    <div className="space-y-2 text-base">
+      <p className="text-sm text-muted">
         {rows.length} calls, {formatCost(sumCosts(rows.map((r) => r.cost_usd)))} this session
       </p>
-      <table className="w-full text-left">
-        <caption className="sr-only">Model calls this session</caption>
+      <Table caption="Model calls this session">
         <thead>
-          <tr className="label text-xs">
+          <tr>
             <th scope="col">Time</th>
             <th scope="col">Model</th>
             <th scope="col">Purpose</th>
-            <th scope="col">Tokens in/out</th>
-            <th scope="col">Cost</th>
+            <th scope="col" className="num">
+              Tokens in/out
+            </th>
+            <th scope="col" className="num">
+              Cost
+            </th>
             <th scope="col">Status</th>
           </tr>
         </thead>
@@ -46,10 +62,10 @@ export function ActivityPanel() {
                 {purposeLabel(r.purpose)}{" "}
                 {r.trigger === "background" ? <Badge kind="info">background</Badge> : null}
               </td>
-              <td>
+              <td className="num">
                 {formatTokens(r.input_tokens)}/{formatTokens(r.output_tokens)}
               </td>
-              <td>{formatCost(r.cost_usd)}</td>
+              <td className="num">{formatCost(r.cost_usd)}</td>
               <td>
                 {r.status === "success" ? (
                   "ok"
@@ -60,7 +76,7 @@ export function ActivityPanel() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }

@@ -57,7 +57,7 @@ export function SwitchDialog({
       {preview.isLoading ? <Skeleton label="Loading the handoff preview" /> : null}
       {preview.isError ? <Banner kind="danger">{errorMessage(preview.error)}</Banner> : null}
       {data ? (
-        <div className="space-y-2 text-sm">
+        <div className="space-y-3 text-base">
           <p>
             {formatTokens(data.total_tokens)} of {formatTokens(data.budget)} tokens would be sent
             (context window {formatTokens(data.context_window)}).
@@ -85,11 +85,11 @@ export function SwitchDialog({
         </div>
       ) : null}
       {doSwitch.isError ? (
-        <p role="alert" className="mt-2 text-sm text-danger">
+        <p role="alert" className="mt-3 text-base text-danger">
           {errorMessage(doSwitch.error)}
         </p>
       ) : null}
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-6 flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
         <Button
           variant="primary"

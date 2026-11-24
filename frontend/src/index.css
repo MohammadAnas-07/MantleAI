@@ -1,75 +1,103 @@
 @import "tailwindcss";
 
-/* Theme tokens from docs/design-app.md. Components use the tokens, never the raw palette. */
+/*
+ * Theme tokens from docs/design-app.md. Components use the Tailwind names mapped in @theme
+ * below (bg-paper, text-muted, border-line, ...), never a hex value or a raw font size.
+ */
 :root {
-  --faded-black: #2e2e2e;
-  --dirty-yellow: #b5a642;
-  --muted-red: #8c2727;
-  --off-white: #e9e1d4;
-  --olive-drab: #6b8e23;
-  --denim-blue: #3b5998;
-  --concrete-grey: #7a7a7a;
-  --burnt-orange: #a84700;
-
-  /* Dark is the default theme. */
-  --bg: #232323;
-  --surface: var(--faded-black);
-  --text: var(--off-white);
-  --text-muted: #b3aa9c;
-  --border: var(--concrete-grey);
-  --accent: var(--dirty-yellow);
-  --primary-bg: var(--dirty-yellow);
-  --primary-fg: var(--faded-black);
-  --danger: #e58b7b;
-  --danger-bg: var(--muted-red);
-  --danger-fg: var(--off-white);
-  --warning-bg: var(--dirty-yellow);
-  --warning-fg: var(--faded-black);
-  --success: #9dbf5a;
-  --info-bg: var(--denim-blue);
-  --info-fg: var(--off-white);
-  --distress-opacity: 0.05;
-
-  --font-label: "Courier New", Courier, monospace;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-code: Consolas, Menlo, "DejaVu Sans Mono", monospace;
-  color-scheme: dark;
-}
-
-:root[data-theme="light"] {
-  --bg: var(--off-white);
-  --surface: #f4efe6;
-  --text: var(--faded-black);
-  --text-muted: #5c5650;
-  --accent: var(--denim-blue);
-  --primary-bg: var(--faded-black);
-  --primary-fg: var(--off-white);
-  --danger: var(--muted-red);
-  --success: var(--olive-drab);
-  --distress-opacity: 0.04;
+  /* Light is the default theme. */
+  --paper: #ffffff;
+  --sunken: #f7f6f4;
+  --hover: #efede9;
+  --hairline: #e4e1dc;
+  --field: #8a857d;
+  --ink: #1c1a17;
+  --ink-2: #3a3732;
+  --muted: #6b675f;
+  --accent: #1d5fb4;
+  --accent-soft: #eef3fa;
+  --success: #1f6b3a;
+  --success-soft: #edf5ef;
+  --warning: #8a5300;
+  --warning-soft: #fbf3e2;
+  --danger: #a8321f;
+  --danger-soft: #fbedea;
+  --on-ink: #ffffff;
+  --on-danger: #ffffff;
+  --scrim: rgb(28 26 23 / 0.4);
   color-scheme: light;
 }
 
+:root[data-theme="dark"] {
+  --paper: #1e1c1a;
+  --sunken: #161513;
+  --hover: #282624;
+  --hairline: #34312d;
+  --field: #77726b;
+  --ink: #ece9e4;
+  --ink-2: #d3cfc8;
+  --muted: #a6a199;
+  --accent: #7fb0ef;
+  --accent-soft: #1b2533;
+  --success: #7fc493;
+  --success-soft: #1f2b22;
+  --warning: #e3b25c;
+  --warning-soft: #2e2616;
+  --danger: #f0907e;
+  --danger-soft: #33201c;
+  --on-ink: #161513;
+  --on-danger: #161513;
+  --scrim: rgb(0 0 0 / 0.6);
+  color-scheme: dark;
+}
+
 @theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-text: var(--text);
-  --color-muted: var(--text-muted);
-  --color-line: var(--border);
+  --color-paper: var(--paper);
+  --color-sunken: var(--sunken);
+  --color-hover: var(--hover);
+  --color-line: var(--hairline);
+  --color-field: var(--field);
+  --color-text: var(--ink);
+  --color-text-2: var(--ink-2);
+  --color-muted: var(--muted);
   --color-accent: var(--accent);
-  --color-primary: var(--primary-bg);
-  --color-on-primary: var(--primary-fg);
-  --color-danger: var(--danger);
-  --color-danger-bg: var(--danger-bg);
-  --color-on-danger: var(--danger-fg);
-  --color-warning: var(--warning-bg);
-  --color-on-warning: var(--warning-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-primary: var(--ink);
+  --color-primary-hover: var(--ink-2);
+  --color-on-primary: var(--on-ink);
   --color-success: var(--success);
-  --color-info: var(--info-bg);
-  --color-on-info: var(--info-fg);
-  --font-label: var(--font-label);
-  --font-body: var(--font-body);
-  --font-code: var(--font-code);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
+  --color-scrim: var(--scrim);
+}
+
+/* Type, radius and shadow scales. They replace Tailwind's defaults, so text-sm is 13px here. */
+@theme {
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, "DejaVu Sans Mono", monospace;
+
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 13px;
+  --text-sm--line-height: 18px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-md: 15px;
+  --text-md--line-height: 24px;
+  --text-lg: 16px;
+  --text-lg--line-height: 22px;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
+  --text-title: 28px;
+  --text-title--line-height: 32px;
+  --text-title--letter-spacing: -0.28px;
+
+  --shadow-overlay: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
 /* Element defaults sit in the base layer so Tailwind utilities can override them. */
@@ -82,16 +110,18 @@
 
   body {
     margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-body);
-    font-size: 15px;
-    line-height: 1.6;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    -webkit-font-smoothing: antialiased;
   }
 
   a {
     color: var(--accent);
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   :focus-visible {
@@ -99,39 +129,48 @@
     outline-offset: 2px;
   }
 
+  /* Two weights only (docs/design-app.md); headings get their size where they are used. */
   h1,
   h2,
   h3,
   h4,
-  button,
+  th,
   label,
-  .label {
-    font-family: var(--font-label);
-    font-weight: 700;
+  legend,
+  button {
+    font-weight: 500;
+  }
+
+  strong,
+  b {
+    font-weight: 500;
   }
 
   code,
   pre,
   kbd,
-  .code {
-    font-family: var(--font-code);
-    font-size: 14px;
+  samp {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  ::placeholder {
+    color: var(--muted);
+    opacity: 1;
   }
 }
 
-/* The noise texture: page background and empty states only, never behind content. */
-.noise {
-  position: relative;
-  isolation: isolate;
+/* Small shared roles that many components need; each is a token, not a one-off style. */
+@utility eyebrow {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 500;
+  color: var(--muted);
 }
-.noise::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: var(--distress-opacity);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+
+@utility code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
 }
 
 /* Long chat histories: the browser skips layout for messages far off screen. */
@@ -153,9 +192,10 @@
 @media (max-width: 767px) {
   button,
   [role="tab"],
-  input,
+  input:not([type="checkbox"]):not([type="radio"]),
   select,
-  textarea {
+  textarea,
+  nav a {
     min-height: 44px;
   }
 }

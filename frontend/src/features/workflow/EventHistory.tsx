@@ -37,26 +37,28 @@ export function EventHistory({
 
   if (events.length === 0) {
     return (
-      <p className="text-sm text-muted">No changes yet. The first change starts the history.</p>
+      <p className="text-base text-muted">
+        No changes yet. Ticking an item or approving a stage starts the history.
+      </p>
     );
   }
   return (
     <div className="space-y-2">
-      <ol aria-label="Workflow history" className="space-y-1 text-sm">
+      <ol aria-label="Workflow history" className="divide-y divide-line text-base">
         {shown.map((e) => {
           const stage = e.stage_id ? (titles.get(e.stage_id) ?? e.stage_id) : null;
           const item = e.stage_id && e.item_id ? items.get(`${e.stage_id}:${e.item_id}`) : null;
           return (
-            <li key={e.id} className="border-b border-dashed border-line pb-1">
-              <time dateTime={e.created_at} className="text-muted">
+            <li key={e.id} className="py-1.5">
+              <time dateTime={e.created_at} className="text-sm text-muted tabular-nums">
                 {formatDateTime(e.created_at)}
               </time>{" "}
-              <span className="label">{e.actor}</span> {ACTION[e.action] ?? e.action}
+              <span className="font-medium">{e.actor}</span> {ACTION[e.action] ?? e.action}
               {stage && !["created", "reset", "completed"].includes(e.action) ? ` "${stage}"` : ""}
               {item ? `: ${item}` : ""} {e.forced ? <Badge kind="warning">forced</Badge> : null}
               {e.reason ? (
-                <p className="break-words" dir="auto">
-                  <span className="label">Reason: </span>
+                <p className="break-words text-text-2" dir="auto">
+                  <span className="font-medium text-text">Reason: </span>
                   {e.reason}
                 </p>
               ) : null}
@@ -75,7 +77,7 @@ export function EventHistory({
         </Button>
       ) : null}
       {all && total > newest.length ? (
-        <p className="text-xs text-muted">
+        <p className="text-sm text-muted">
           The {total - newest.length} oldest of {total} events are not shown.
         </p>
       ) : null}

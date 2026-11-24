@@ -67,7 +67,7 @@ export function ReasonDialog({
 
   return (
     <Dialog title={title} open={open} onClose={close}>
-      <form onSubmit={submit} noValidate className="space-y-3 text-sm">
+      <form onSubmit={submit} noValidate className="space-y-3 text-base">
         {children}
         <TextArea
           label={label}

@@ -1,9 +1,10 @@
-import { Badge, Banner, Skeleton } from "../../components/ui/Feedback";
+import { QueryError } from "../../components/QueryError";
+import { Badge, Skeleton } from "../../components/ui/Feedback";
 import { useUsage } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
-import { errorMessage } from "../../lib/api/errors";
 import { formatCost, formatTokens, purposeLabel, sumCosts } from "../../lib/format";
 import type { UsageLine } from "../../lib/api/types";
+import { Table } from "../../components/ui/Table";
 
 interface Row {
   key: string;
@@ -46,7 +47,15 @@ export function UsageSection() {
   const usage = useUsage();
   const models = useModelInfo();
   if (usage.isLoading) return <Skeleton label="Loading usage" />;
-  if (usage.isError) return <Banner kind="danger">{errorMessage(usage.error)}</Banner>;
+  if (usage.isError) {
+    return (
+      <QueryError
+        error={usage.error}
+        onRetry={() => void usage.refetch()}
+        retrying={usage.isFetching}
+      />
+    );
+  }
   const lines = usage.data?.lines ?? [];
   const byModel = group(
     lines,
@@ -60,18 +69,18 @@ export function UsageSection() {
   );
 
   return (
-    <section aria-labelledby="usage-title" className="space-y-3">
-      <h2 id="usage-title" className="text-base">
+    <section aria-labelledby="usage-title" className="space-y-4">
+      <h2 id="usage-title" className="text-lg">
         Usage
       </h2>
-      <p className="text-sm">
+      <p className="text-base tabular-nums">
         {usage.data?.total_calls ?? 0} calls,{" "}
         {formatTokens(
           (usage.data?.total_input_tokens ?? 0) + (usage.data?.total_output_tokens ?? 0),
         )}{" "}
         tokens, {formatCost(usage.data?.total_cost_usd)} in total
       </p>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         <UsageTable title="By model" rows={byModel} />
         <UsageTable title="By purpose" rows={byPurpose} />
       </div>
@@ -81,14 +90,19 @@ export function UsageSection() {
 
 function UsageTable({ title, rows }: { title: string; rows: Row[] }) {
   return (
-    <table className="w-full text-left text-sm">
-      <caption className="label text-left">{title}</caption>
+    <Table caption={title} showCaption>
       <thead>
-        <tr className="label text-xs">
+        <tr>
           <th scope="col">Name</th>
-          <th scope="col">Calls</th>
-          <th scope="col">Tokens</th>
-          <th scope="col">Cost</th>
+          <th scope="col" className="num">
+            Calls
+          </th>
+          <th scope="col" className="num">
+            Tokens
+          </th>
+          <th scope="col" className="num">
+            Cost
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -104,12 +118,12 @@ function UsageTable({ title, rows }: { title: string; rows: Row[] }) {
             <td>
               {r.label} {r.background ? <Badge kind="info">background</Badge> : null}
             </td>
-            <td>{r.calls}</td>
-            <td>{formatTokens(r.tokens)}</td>
-            <td>{formatCost(r.cost)}</td>
+            <td className="num">{r.calls}</td>
+            <td className="num">{formatTokens(r.tokens)}</td>
+            <td className="num">{formatCost(r.cost)}</td>
           </tr>
         ))}
       </tbody>
-    </table>
+    </Table>
   );
 }

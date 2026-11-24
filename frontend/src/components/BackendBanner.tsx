@@ -18,7 +18,7 @@ export function BackendBanner() {
       <Banner
         kind="warning"
         action={
-          <Link to="/settings" className="text-sm">
+          <Link to="/settings" className="text-base font-medium">
             Open settings
           </Link>
         }
@@ -47,7 +47,7 @@ export function BackendBanner() {
         }
       >
         Can&apos;t reach the Mantle API at <code>{apiBaseUrl()}</code>. Start it with{" "}
-        <code>uvicorn app.main:app --reload</code> in <code>backend</code>.
+        <code>uvicorn app.main:app --reload</code> in <code>backend</code>, then press Retry.
       </Banner>
     );
   }
@@ -60,7 +60,8 @@ export function BackendBanner() {
         </Button>
       }
     >
-      The API is running but its database is down. Run <code>docker compose up -d</code>.
+      The API is running but its database is down. Run <code>docker compose up -d</code> in the
+      project folder, then press Retry.
     </Banner>
   );
 }

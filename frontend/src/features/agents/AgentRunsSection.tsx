@@ -86,14 +86,14 @@ export function AgentRunsSection({
         />
       ) : null}
       {blocked ? (
-        <p className="text-sm text-muted">
+        <p className="text-base text-muted">
           A run is in progress. Only one runs at a time per project; the start form comes back when
           it ends.
         </p>
       ) : (
         <section aria-labelledby="start-run" className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 id="start-run" className="text-base">
+            <h3 id="start-run" className="text-lg">
               Start a run
             </h3>
             {shownId ? (
@@ -119,7 +119,7 @@ export function AgentRunsSection({
         </section>
       )}
       <section aria-labelledby="run-history" className="space-y-2">
-        <h3 id="run-history" className="text-base">
+        <h3 id="run-history" className="text-lg">
           Run history
         </h3>
         <RunHistory runs={items} shownId={shownId} onShow={show} />

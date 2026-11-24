@@ -5,7 +5,7 @@ export interface TabItem<T extends string> {
   label: string;
 }
 
-/** WAI-ARIA tabs: arrow keys move between tabs, the active tab is in the Tab order. */
+/** WAI-ARIA tabs: arrow keys, Home and End move between tabs; only the active tab is a tab stop. */
 export function Tabs<T extends string>({
   label,
   tabs,
@@ -23,10 +23,13 @@ export function Tabs<T extends string>({
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const onKeyDown = (event: KeyboardEvent, index: number) => {
-    const delta = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-    if (!delta) return;
+    let next: number;
+    if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
     event.preventDefault();
-    const next = (index + delta + tabs.length) % tabs.length;
     const tab = tabs[next];
     if (!tab) return;
     onChange(tab.id);
@@ -35,11 +38,7 @@ export function Tabs<T extends string>({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        role="tablist"
-        aria-label={label}
-        className="flex gap-1 border-b-2 border-dashed border-line"
-      >
+      <div role="tablist" aria-label={label} className="flex gap-4 border-b border-line">
         {tabs.map((tab, i) => {
           const selected = tab.id === active;
           return (
@@ -60,7 +59,7 @@ export function Tabs<T extends string>({
               onKeyDown={(e) => {
                 onKeyDown(e, i);
               }}
-              className={`-mb-0.5 px-3 py-1.5 text-sm ${selected ? "border-b-2 border-accent text-text" : "text-muted"}`}
+              className={`-mb-px h-9 border-b-2 text-base transition-colors duration-150 ease-out ${selected ? "border-accent text-text" : "border-transparent font-normal text-muted hover:text-text"}`}
             >
               {tab.label}
             </button>

@@ -6,7 +6,9 @@ import { Link, useNavigate, useParams } from "react-router";
 import { Button } from "../../components/ui/Button";
 import { ConfirmDialog } from "../../components/ui/Dialog";
 import { FormError, SelectInput, TextInput } from "../../components/ui/Field";
-import { Banner, Skeleton } from "../../components/ui/Feedback";
+import { QueryError } from "../../components/QueryError";
+import { Skeleton } from "../../components/ui/Feedback";
+import { PageHeader, Section } from "../../components/ui/PageHeader";
 import { keys, useProject } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
 import { api } from "../../lib/api/endpoints";
@@ -23,16 +25,28 @@ export function ProjectRoute() {
 function ProjectPage({ projectId }: { projectId: string }) {
   const project = useProject(projectId);
   if (project.isLoading) return <Skeleton label="Loading the project" />;
-  if (project.isError) return <Banner kind="danger">{errorMessage(project.error)}</Banner>;
+  if (project.isError) {
+    return (
+      <QueryError
+        error={project.error}
+        onRetry={() => void project.refetch()}
+        retrying={project.isFetching}
+      />
+    );
+  }
   if (!project.data) return null;
   return (
-    <div className="max-w-2xl space-y-6">
-      <h1 className="text-xl">{project.data.name}</h1>
-      <p className="text-sm text-muted">
-        Start or open a conversation in the explorer. Memory and the index are in the AI panel.
-        Stages, the gap finder and the Planner and Reviewer are on the{" "}
-        <Link to={`/projects/${projectId}/workflow`}>workflow page</Link>.
-      </p>
+    <div className="max-w-2xl space-y-8">
+      <PageHeader
+        title={project.data.name}
+        description={
+          <>
+            Open a conversation in the explorer. Memory, the index and the profile are in the AI
+            panel on the right. Stages, the gap finder and the Planner and Reviewer are on the{" "}
+            <Link to={`/projects/${projectId}/workflow`}>workflow page</Link>.
+          </>
+        }
+      />
       <ProjectSettings project={project.data} />
       <SourceFolder project={project.data} />
       <DeleteProject project={project.data} />
@@ -66,11 +80,8 @@ function ProjectSettings({ project }: { project: Project }) {
   };
 
   return (
-    <section aria-labelledby="project-settings" className="space-y-3">
-      <h2 id="project-settings" className="text-base">
-        Project settings
-      </h2>
-      <form onSubmit={submit} noValidate className="space-y-3">
+    <Section id="project-settings" title="Project settings">
+      <form onSubmit={submit} noValidate className="max-w-md space-y-4">
         <TextInput
           label="Name"
           value={name}
@@ -104,16 +115,18 @@ function ProjectSettings({ project }: { project: Project }) {
         <FormError
           message={save.isError && !modelError && !errors.name ? errorMessage(save.error) : null}
         />
-        {save.isSuccess ? (
-          <p role="status" className="text-sm">
-            Saved.
-          </p>
-        ) : null}
-        <Button type="submit" variant="primary" busy={save.isPending} disabled={!name.trim()}>
-          Save
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button type="submit" variant="primary" busy={save.isPending} disabled={!name.trim()}>
+            Save
+          </Button>
+          {save.isSuccess ? (
+            <p role="status" className="text-base text-success">
+              Saved.
+            </p>
+          ) : null}
+        </div>
       </form>
-    </section>
+    </Section>
   );
 }
 
@@ -128,13 +141,10 @@ function SourceFolder({ project }: { project: Project }) {
     },
   });
   return (
-    <section aria-labelledby="source-folder" className="space-y-3">
-      <h2 id="source-folder" className="text-base">
-        Source folder
-      </h2>
+    <Section id="source-folder" title="Source folder">
       <form
         noValidate
-        className="space-y-3"
+        className="max-w-md space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           if (path.trim()) save.mutate();
@@ -160,7 +170,7 @@ function SourceFolder({ project }: { project: Project }) {
           Set folder
         </Button>
       </form>
-    </section>
+    </Section>
   );
 }
 
@@ -178,10 +188,11 @@ function DeleteProject({ project }: { project: Project }) {
     },
   });
   return (
-    <section aria-labelledby="danger-zone" className="space-y-2">
-      <h2 id="danger-zone" className="text-base">
-        Delete project
-      </h2>
+    <Section id="danger-zone" title="Delete project">
+      <p className="max-w-prose text-base text-muted">
+        Deletes the project&apos;s conversations, memory and index from Mantle. Files in your folder
+        are not touched.
+      </p>
       <Button
         variant="danger"
         icon={<Trash2 aria-hidden className="size-4" />}
@@ -210,6 +221,6 @@ function DeleteProject({ project }: { project: Project }) {
           folder are not touched.
         </p>
       </ConfirmDialog>
-    </section>
+    </Section>
   );
 }

@@ -58,7 +58,7 @@ export function Dialog({ title, open, onClose, children }: DialogProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim p-4">
       <div
         ref={panel}
         role="dialog"
@@ -66,10 +66,10 @@ export function Dialog({ title, open, onClose, children }: DialogProps) {
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-sm border-2 border-dashed border-line bg-surface p-4 shadow-xl"
+        className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-lg bg-paper p-6 shadow-overlay"
       >
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 id={titleId} className="text-lg">
+        <div className="mb-4 flex items-start justify-between gap-2">
+          <h2 id={titleId} className="text-xl" dir="auto">
             {title}
           </h2>
           <Button
@@ -111,13 +111,13 @@ export function ConfirmDialog({
 }: ConfirmProps) {
   return (
     <Dialog title={title} open={open} onClose={onCancel}>
-      <div className="space-y-3 text-sm">{children}</div>
+      <div className="space-y-3 text-base">{children}</div>
       {error ? (
-        <p role="alert" className="mt-3 text-sm text-danger">
+        <p role="alert" className="mt-3 text-base text-danger">
           {error}
         </p>
       ) : null}
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-6 flex justify-end gap-2">
         <Button onClick={onCancel}>Cancel</Button>
         <Button variant={danger ? "danger" : "primary"} busy={busy} onClick={onConfirm}>
           {confirmLabel}

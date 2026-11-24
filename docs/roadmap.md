@@ -44,6 +44,7 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 | --- | --- | --- |
 | Done | `feat/frontend-workspace` | React + Vite + TS + Tailwind UI for everything above (design in `docs/design-app.md`). The teaching screen waits for its backend. |
 | Done | `feat/workflow-ui` | The workflow page: stages, the gap finder, and Planner and Reviewer runs with approval. |
+| Review | `feat/app-redesign` | One visual system for the whole app (`docs/design-app.md`): tokens, a shared UI kit, clearer shell and states. No new feature, no API change. |
 
 ## [Phase 6: Safe execution, accounts and open-source release](phases.md#phase-6-safe-execution-accounts-and-open-source-release)
 

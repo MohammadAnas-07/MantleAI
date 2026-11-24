@@ -2,14 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 
 export type Theme = "dark" | "light";
 
-// The theme is the only thing the app keeps in localStorage (docs/design-app.md).
+// The theme is the only thing the app keeps in localStorage (docs/design-app.md). Light is
+// the default; a saved "dark" choice is kept.
 const STORAGE_KEY = "mantle.theme";
 
 function stored(): Theme {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "light" ? "light" : "dark";
+    return localStorage.getItem(STORAGE_KEY) === "dark" ? "dark" : "light";
   } catch {
-    return "dark";
+    return "light";
   }
 }
 

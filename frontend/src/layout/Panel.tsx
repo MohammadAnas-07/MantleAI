@@ -1,8 +1,6 @@
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import { useId, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 
-import { Tape } from "../components/ui/Feedback";
-
 type Side = "left" | "right" | "bottom";
 
 interface PanelProps {
@@ -11,7 +9,8 @@ interface PanelProps {
   collapsed: boolean;
   onToggle: () => void;
   children: ReactNode;
-  tape?: boolean;
+  /** Classes for the panel's own surface (the sidebar is sunken, the rest paper). */
+  className?: string;
 }
 
 const ICONS = {
@@ -20,22 +19,18 @@ const ICONS = {
   bottom: [ChevronDown, ChevronUp],
 } as const;
 
-/** A collapsible panel with a dashed border. The toggle says its state with aria-expanded. */
-export function Panel({ title, side, collapsed, onToggle, children, tape = false }: PanelProps) {
+/** A collapsible column or bar. The toggle says its state with aria-expanded. */
+export function Panel({ title, side, collapsed, onToggle, children, className = "" }: PanelProps) {
   const bodyId = useId();
   const [OpenIcon, ClosedIcon] = ICONS[side];
   const Icon = collapsed ? ClosedIcon : OpenIcon;
   return (
-    <section
-      aria-label={title}
-      className="flex min-h-0 min-w-0 flex-col rounded-sm border-2 border-dashed border-line bg-surface"
-    >
-      <div className="flex items-center gap-2 border-b-2 border-dashed border-line px-2 py-1">
-        <h2 className="truncate text-sm">{title}</h2>
-        {tape ? <Tape /> : null}
+    <section aria-label={title} className={`flex min-h-0 min-w-0 flex-1 flex-col ${className}`}>
+      <div className="flex h-9 shrink-0 items-center gap-2 px-3">
+        <h2 className="truncate text-sm text-muted">{title}</h2>
         <button
           type="button"
-          className="ml-auto rounded-sm p-1 text-muted hover:text-text"
+          className="ml-auto inline-flex size-7 items-center justify-center rounded-sm text-muted transition-colors duration-150 ease-out hover:bg-hover hover:text-text"
           aria-expanded={!collapsed}
           aria-controls={bodyId}
           aria-label={collapsed ? `Show ${title}` : `Hide ${title}`}
@@ -44,7 +39,7 @@ export function Panel({ title, side, collapsed, onToggle, children, tape = false
           <Icon aria-hidden className="size-4" />
         </button>
       </div>
-      <div id={bodyId} hidden={collapsed} className="min-h-0 flex-1 overflow-auto p-2">
+      <div id={bodyId} hidden={collapsed} className="min-h-0 flex-1 overflow-auto px-3 pb-3">
         {children}
       </div>
     </section>
@@ -101,7 +96,7 @@ export function ResizeHandle({
       tabIndex={0}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
-      className="w-1.5 cursor-col-resize rounded-sm hover:bg-line/40 focus-visible:bg-accent"
+      className="relative w-px shrink-0 cursor-col-resize bg-line outline-offset-0 before:absolute before:inset-y-0 before:-right-1 before:-left-1 before:content-[''] hover:bg-field focus-visible:bg-accent"
     />
   );
 }

@@ -10,10 +10,12 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-24).** `chore/license-and-ci`: `.github/workflows/ci.yml` runs ruff, pytest
-(Python 3.12, lock, `pgvector/pgvector:pg16`, `mantle_test`), the frontend checks (Node 22) and
-`gen:api:check` on PRs and pushes to `main`; no secrets. GitHub run green: 880 passed, 3 skipped
-(Windows-only, click-sample). Tests must not build Windows paths by hand. `license = "MIT"` set.
+**Status (2026-11-24).** `feat/app-redesign` (not pushed): the web app moves from grunge-lite
+to the calm system in `docs/design-app.md` (ink on white, warm greys, hairlines, serif titles,
+light default, dark kept). Tokens only in `frontend/src/index.css`; kit in `components/ui`
+(new `Table`, `KeyValueTable`, `CodeBlock`, `PageHeader`). Load errors get Retry; CSP `img-src`
+is `'self'`. No backend, API or behaviour change; 142 frontend tests; JS 613.6 kB (was 606.5).
+Checked in headless Chrome at 1280 and 800px only (it clamps windows to ~500px). No Toast.
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -24,16 +26,17 @@ Working memory for any AI tool and for the developer. Read it before every task.
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`. Branches: 2 local (`main`, `chore/license-and-ci`), 42 remote.
+`GET /messages/{id}/context`. Branches: 2 local (`main`, `feat/app-redesign`), 43 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 
 Tests 2026-11-24 (database down): backend 518 passed, 365 `db` tests skipped (883 collected);
-frontend 127 passed, `gen:api:check` up to date. Last run with the database: 883 passed,
+frontend 142 passed (2026-11-24), `gen:api:check` up to date. Last run with the database: 883 passed,
 profile races 5/5 (2026-11-21). pytest needs `TEST_DATABASE_URL`. Migration head `0011`
 (`alembic upgrade head`). To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev`. Keys: free Gemini works; OpenAI
-valid but no credit; no Anthropic or Voyage key. First demo target: 2026-12-17. Last updated 2026-11-24 (license check and CI).
+valid but no credit; no Anthropic or Voyage key. First demo target: 2026-12-17.
+Last updated 2026-11-24 (app redesign).
 
 ## Done
 
@@ -45,6 +48,7 @@ valid but no credit; no Anthropic or Voyage key. First demo target: 2026-12-17. 
   of drafts, 5 review fixes, rules 85-90); the workflow UI; audit fixes (`0009`, `0010`; races in
   `tests/test_run_races.py`, query counts in `tests/query_count.py`); safe sources and scan caps;
   the project profile facts (`0011`, Profile tab, `<project_profile>` block).
+- 2026-11-24: MIT license fields; CI (`.github/workflows/ci.yml`, green: 880 passed, 3 skipped).
 
 ## In progress
 
@@ -78,7 +82,8 @@ responses, `POST /memory/{id}/approve|reject`.
 | 2026-11-18 | `tree-sitter-language-pack` pinned `>=0.13,<1`: **do not upgrade to 1.x**, it downloads grammars at runtime | Offline tests, no runtime native downloads | 0007 |
 | 2026-11-18 | Hybrid search (vector + `simple` full text, RRF k=60) instead of plain vector top-k; no reranker | User's choice; identifiers need exact matches | `architecture.md` J3 |
 | 2026-11-18 | A file that looks like it holds a secret is skipped whole (not just the segment); `id_*` skipped literally (rule 48) | Code goes to a third party | `security.md` |
-| 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4); app design "grunge-lite" | User's choice | `design-app.md` |
+| 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4) | User's choice | `design-app.md` |
+| 2026-11-24 | App design replaced: calm ink-on-white system, light default, no webfonts, one blue accent; grunge only on the future landing page | User's choice | `design-app.md` |
 | 2026-11-18 | TypeScript 5.9 (toolchain support); API types generated from OpenAPI and committed, `gen:api:check` guards them, operationId = route function name | Builds without a backend | `api-outline.md` |
 | 2026-11-19 | Used-up quota = per-day quota id or requested wait > 10 min; anything else stays `rate_limited`; `error_detail` keeps only sanitized structured fields | No guessing; provider text can echo prompts | rule 51 |
 | 2026-11-19 | No LangGraph: Planner -> Reviewer -> user approval as a plain state machine in PostgreSQL; no revision loop; reopen replaces request-changes; gap finder is an analysis call, not a third agent; purpose `agent_run` | User's choice; two fixed steps | 0004 |
@@ -88,9 +93,8 @@ responses, `POST /memory/{id}/approve|reject`.
 
 ## Known issues and gotchas
 
-- **PostgreSQL 17 Windows service listens on 5432**; keep Docker on 5433. The first DB connection
-  after a restart can take over 2 s. The container can stop by itself (`Exited (255)`, then
-  `WinError 1225`): `docker compose ps`, `docker compose up -d`. A Fernet key is 44 chars, ends `=`.
+- **PostgreSQL 17 on Windows uses 5432**; Docker stays on 5433. First DB connect can take 2 s+; the
+  container can exit (`WinError 1225`): `docker compose up -d`. A Fernet key is 44 chars, ends `=`.
 - **PowerShell commands don't work in Git Bash** (`source .venv/Scripts/activate`); the suite takes 2 min.
 - **`requirements.lock` was made on Windows with Python 3.14**; regenerate with `python -m pip freeze --exclude-editable > requirements.lock`.
 - **MIT LICENSE added 2026-11-22** (repo not public yet). `gh` 2.105.0 is installed and logged in (`gh auth status`), but the
@@ -114,12 +118,12 @@ responses, `POST /memory/{id}/approve|reject`.
 - **Several uvicorns can listen on 8000; the oldest answers** (`netstat -ano | findstr :8000`).
   An unhandled 500 has no CORS headers, so the browser shows "Can't reach the API".
 - **Leaving a nested `api_client` clears ALL dependency overrides**: the outer client then uses
-  the app's own session (now the test DB, since the guard). Switch `get_current_user_id` instead.
-  Concurrency tests commit to `mantle_test`
-  and clean up. `defang` turns `</source>` into `&lt;/source>` (the `>` stays).
+  the app's own session (the test DB). Switch `get_current_user_id` instead. Concurrency tests
+  commit to `mantle_test` and clean up. `defang` turns `</source>` into `&lt;/source>`.
 - **MSW 3 renamed `onUnhandledRequest` to `onUnhandledFrame`**. Backend tests use `http://localhost`.
 - **`pytest -s` hangs in this shell**: write debug output to a file instead.
 - **PostgreSQL error text can quote the bad value** even with `hide_parameters`: log types only.
+- **Tailwind text scale is overridden**: `text-sm` 13px, `text-base` 14px. Tests: no Windows paths by hand; don't split matched sentences into spans.
 - **Testing Library role queries are slow on a long plan**: wait for a text first, then
   `getByRole`. Hidden "sr-only" prefixes lose their space in jsdom names: use `aria-label`.
 - **What FakeProvider tests can't prove:** real summary, plan and review quality, real token
@@ -138,13 +142,8 @@ responses, `POST /memory/{id}/approve|reject`.
 ## Archive
 
 - Detail for Phases 1–2 is in `git log` and the pull request descriptions.
-- Older decisions, condensed (2026-11-17/18): `/health` DB check 2 s; no start without a valid
-  `MASTER_ENCRYPTION_KEY`; `LiteLLMBackend` vs `FakeProvider` via `get_gateway`; catalog from
-  LiteLLM 1.110.0; JSON-only writes; switch = `POST .../switch-model` (note in
-  `context_handoffs.note`, partial reply `cancelled`; summaries off -> the NEW model summarises);
-  supersede can't loop; duplicate links ignored; success metric >= 4 of 5 after a switch; MIT
-  later, 6 phases, 3 evenings per week.
-- Indexing (2026-11-18; `data-model.md`, `security.md`, `api-outline.md`): skipped files are
-  `documents` rows (ignored folders only in `skip_report`); vectors reused by sha256(path + symbol
-  + text) and model, a file's hash set once all its segments are stored; `INDEX_COST_LIMIT_USD`
-  (1.00) is an app setting until auth; the handoff preview reuses the newest reply's code.
+- Older decisions (2026-11-17/18): `/health` DB check 2 s; no start without a valid master key;
+  `FakeProvider` via `get_gateway`; switch = `POST .../switch-model` (partial reply `cancelled`;
+  summaries off -> the NEW model summarises); success metric >= 4 of 5; 6 phases.
+- Indexing (2026-11-18): skipped files are `documents` rows; vectors reused by sha256(path +
+  symbol + text) and model; `INDEX_COST_LIMIT_USD` is an app setting until auth.

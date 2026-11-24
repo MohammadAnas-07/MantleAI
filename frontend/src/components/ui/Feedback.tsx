@@ -3,14 +3,14 @@ import type { ReactNode } from "react";
 
 type Kind = "info" | "warning" | "danger" | "success";
 
-const BANNER: Record<Kind, { className: string; Icon: LucideIcon; word: string }> = {
-  info: { className: "bg-info text-on-info", Icon: Info, word: "Note" },
-  warning: { className: "bg-warning text-on-warning", Icon: TriangleAlert, word: "Warning" },
-  danger: { className: "bg-danger-bg text-on-danger", Icon: CircleAlert, word: "Error" },
-  success: { className: "border-2 border-success text-text", Icon: CircleCheck, word: "Done" },
+const BANNER: Record<Kind, { box: string; strong: string; Icon: LucideIcon; word: string }> = {
+  info: { box: "bg-accent-soft", strong: "text-accent", Icon: Info, word: "Note" },
+  warning: { box: "bg-warning-soft", strong: "text-warning", Icon: TriangleAlert, word: "Warning" },
+  danger: { box: "bg-danger-soft", strong: "text-danger", Icon: CircleAlert, word: "Error" },
+  success: { box: "bg-success-soft", strong: "text-success", Icon: CircleCheck, word: "Done" },
 };
 
-/** A full-width notice. The kind is said in words too, never by colour alone. */
+/** A notice across its column. The kind is said in words too, never by colour alone. */
 export function Banner({
   kind,
   children,
@@ -20,21 +20,23 @@ export function Banner({
   children: ReactNode;
   action?: ReactNode;
 }) {
-  const { className, Icon, word } = BANNER[kind];
+  const { box, strong, Icon, word } = BANNER[kind];
   return (
     <div
       role={kind === "danger" || kind === "warning" ? "alert" : "status"}
-      className={`flex flex-wrap items-center gap-2 rounded-sm px-3 py-2 text-sm ${className}`}
+      className={`flex flex-wrap items-start gap-x-2 gap-y-1 rounded-lg px-3 py-2 text-base text-text ${box}`}
     >
-      <Icon aria-hidden className="size-4 shrink-0" />
-      <span className="label">{word}:</span>
-      <div className="min-w-0 flex-1">{children}</div>
-      {action}
+      <span className={`flex shrink-0 items-center gap-1.5 font-medium ${strong}`}>
+        <Icon aria-hidden className="size-4 shrink-0" />
+        {word}:
+      </span>
+      <div className="min-w-0 flex-1 break-words">{children}</div>
+      {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
     </div>
   );
 }
 
-/** Dashed box with the noise texture, one icon, one sentence and one action. */
+/** Why the list is empty and, at most, one thing to do about it. */
 export function EmptyState({
   icon: Icon,
   children,
@@ -45,28 +47,22 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="noise relative flex flex-col items-center gap-2 rounded-sm border-2 border-dashed border-line p-6 text-center text-sm text-muted">
-      <span
-        aria-hidden="true"
-        className="label absolute -top-2 right-4 rotate-3 bg-warning px-2 text-xs text-on-warning select-none"
-      >
-        EMPTY
-      </span>
-      <Icon aria-hidden className="size-6" />
-      <div>{children}</div>
+    <div className="flex flex-col items-center gap-2 rounded-lg bg-sunken px-4 py-6 text-center text-base text-muted">
+      <Icon aria-hidden className="size-5" />
+      <div className="max-w-prose">{children}</div>
       {action}
     </div>
   );
 }
 
-/** Gentle pulse; reduced motion turns the animation off (index.css). */
+/** Grey bars with a gentle pulse; reduced motion turns the pulse off (index.css). */
 export function Skeleton({ lines = 3, label = "Loading" }: { lines?: number; label?: string }) {
   return (
-    <div role="status" aria-label={label} className="space-y-2">
+    <div role="status" aria-label={label} className="space-y-2 py-1">
       {Array.from({ length: lines }, (_, i) => (
         <div
           key={i}
-          className="h-4 animate-pulse rounded-sm bg-line/30"
+          className="h-3.5 animate-pulse rounded-sm bg-hover"
           style={{ width: `${90 - i * 12}%` }}
         />
       ))}
@@ -75,13 +71,14 @@ export function Skeleton({ lines = 3, label = "Loading" }: { lines?: number; lab
 }
 
 const BADGE: Record<Kind | "neutral", string> = {
-  neutral: "border-line text-text",
-  info: "border-accent text-text",
-  warning: "bg-warning text-on-warning border-warning",
-  danger: "border-danger text-danger",
-  success: "border-success text-text",
+  neutral: "border-field text-text-2",
+  info: "border-transparent bg-accent-soft text-accent",
+  warning: "border-transparent bg-warning-soft text-warning",
+  danger: "border-transparent bg-danger-soft text-danger",
+  success: "border-transparent bg-success-soft text-success",
 };
 
+/** A short status word, with an optional icon. Never colour alone. */
 export function Badge({
   kind = "neutral",
   children,
@@ -91,21 +88,9 @@ export function Badge({
 }) {
   return (
     <span
-      className={`label inline-flex items-center gap-1 rounded-sm border px-1.5 text-xs ${BADGE[kind]}`}
+      className={`inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs font-medium whitespace-nowrap ${BADGE[kind]}`}
     >
       {children}
-    </span>
-  );
-}
-
-/** Decoration only: a strip of "duct tape" in a panel header. Hidden from assistive tech. */
-export function Tape({ text = "MANTLE" }: { text?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="label pointer-events-none -rotate-2 bg-warning/80 px-2 text-[10px] tracking-widest text-on-warning select-none"
-    >
-      {text}
     </span>
   );
 }

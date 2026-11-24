@@ -44,7 +44,7 @@ function ItemFrame({
   return (
     <li
       id={anchor}
-      className={`space-y-1 rounded-sm border-2 p-2 text-sm ${invalid ? "border-danger" : "border-dashed border-line"} ${selected ? "" : "opacity-70"}`}
+      className={`space-y-2 rounded-lg border p-3 text-base ${invalid ? "border-danger" : "border-line"} ${selected ? "bg-paper" : "bg-sunken text-text-2"}`}
     >
       <div className="flex flex-wrap items-start gap-2">
         <input
@@ -53,7 +53,7 @@ function ItemFrame({
           checked={selected}
           onChange={onToggle}
           aria-label={`Include ${title}`}
-          className="mt-1 size-4 accent-[var(--accent)]"
+          className="mt-1 size-4 accent-accent"
         />
         <label htmlFor={`${anchor}-include`} className="min-w-0 flex-1 break-words" dir="auto">
           {title}
@@ -87,7 +87,7 @@ function ItemFrame({
       ) : null}
       {children}
       {editing || invalid ? (
-        <div id={`${anchor}-editor`} className="space-y-2 border-t border-dashed border-line pt-2">
+        <div id={`${anchor}-editor`} className="space-y-2 border-t border-line pt-2">
           {editor}
         </div>
       ) : null}
@@ -193,7 +193,7 @@ export function TaskItem({
       ) : null}
       {task.acceptance_criteria.length > 0 ? (
         <div>
-          <span className="label text-xs">Acceptance criteria</span>
+          <span className="eyebrow">Acceptance criteria</span>
           <ul className="list-disc pl-5">
             {task.acceptance_criteria.map((c, i) => (
               <li key={i} className="break-words" dir="auto">
@@ -205,7 +205,7 @@ export function TaskItem({
       ) : null}
       {task.depends_on.length > 0 ? (
         <p>
-          <span className="label text-xs">Depends on: </span>
+          <span className="eyebrow">Depends on: </span>
           {task.depends_on.map((d, i) => (
             <span key={d}>
               {i > 0 ? ", " : null}
@@ -218,7 +218,7 @@ export function TaskItem({
       ) : null}
       {task.possible_duplicate_of ? (
         <p>
-          <span className="label text-xs">Matches an existing task: </span>
+          <span className="eyebrow">Matches an existing task: </span>
           <MemoryLink projectId={projectId} id={task.possible_duplicate_of} index={memory} />
         </p>
       ) : null}
@@ -297,7 +297,7 @@ export function DecisionItem({
       {fields.map(([field, label]) =>
         value[field] ? (
           <p key={field} className="whitespace-pre-wrap break-words" dir="auto">
-            <span className="label text-xs">{label}: </span>
+            <span className="eyebrow">{label}: </span>
             {value[field]}
           </p>
         ) : null,

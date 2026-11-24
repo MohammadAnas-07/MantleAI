@@ -15,3 +15,5 @@ export function useMediaQuery(query: string): boolean {
 }
 
 export const useIsNarrow = () => useMediaQuery("(max-width: 767px)");
+/** Under 1024px the shell starts with the AI panel collapsed so the main column keeps room. */
+export const useIsMedium = () => useMediaQuery("(max-width: 1023px)");

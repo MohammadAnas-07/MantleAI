@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { QueryError } from "../../components/QueryError";
 import { Checkbox, SelectInput } from "../../components/ui/Field";
 import { Badge, Banner, Skeleton } from "../../components/ui/Feedback";
 import { keys, useModelSettings } from "../../hooks/queries";
@@ -8,6 +9,7 @@ import { api } from "../../lib/api/endpoints";
 import { errorMessage } from "../../lib/api/errors";
 import { formatCost, formatTokens } from "../../lib/format";
 import type { ModelSettingsPatch } from "../../lib/api/types";
+import { Table } from "../../components/ui/Table";
 
 export function ModelsSection() {
   const client = useQueryClient();
@@ -29,12 +31,19 @@ export function ModelsSection() {
   });
 
   return (
-    <section aria-labelledby="models-title" className="space-y-3">
-      <h2 id="models-title" className="text-base">
+    <section aria-labelledby="models-title" className="space-y-4">
+      <h2 id="models-title" className="text-lg">
         Models
       </h2>
+      {settings.isError ? (
+        <QueryError
+          error={settings.error}
+          onRetry={() => void settings.refetch()}
+          retrying={settings.isFetching}
+        />
+      ) : null}
       {settings.data ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-start gap-4 sm:grid-cols-2">
           <SelectInput
             label="Utility model (writes summaries)"
             value={settings.data.utility_model_id ?? ""}
@@ -75,51 +84,53 @@ export function ModelsSection() {
             help="Off: no model calls in the background; the summary is written when you switch models."
           />
         </div>
-      ) : (
+      ) : settings.isError ? null : (
         <Skeleton label="Loading model settings" />
       )}
       {save.isError ? <Banner kind="danger">{errorMessage(save.error)}</Banner> : null}
 
       {info.isLoading ? <Skeleton label="Loading models" /> : null}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">Model catalog</caption>
-          <thead>
-            <tr className="label text-xs">
-              <th scope="col">Model</th>
-              <th scope="col">Kind</th>
-              <th scope="col">Context</th>
-              <th scope="col">$ / M tokens in, out</th>
-              <th scope="col">Key</th>
-              <th scope="col">Enabled</th>
+      <Table caption="Model catalog">
+        <thead>
+          <tr>
+            <th scope="col">Model</th>
+            <th scope="col">Kind</th>
+            <th scope="col" className="num">
+              Context
+            </th>
+            <th scope="col" className="num">
+              $ / M tokens in, out
+            </th>
+            <th scope="col">Key</th>
+            <th scope="col">Enabled</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...info.byId.values()].map((m) => (
+            <tr key={m.id}>
+              <td>{m.display_name}</td>
+              <td>{m.kind}</td>
+              <td className="num">{formatTokens(m.context_window)}</td>
+              <td className="num">
+                {formatCost(m.input_cost_per_mtok)}, {formatCost(m.output_cost_per_mtok)}
+              </td>
+              <td>{info.hasKey(m) ? <Badge kind="success">yes</Badge> : <Badge>no</Badge>}</td>
+              <td>
+                <input
+                  type="checkbox"
+                  aria-label={`Enable ${m.display_name}`}
+                  checked={m.enabled}
+                  disabled={toggle.isPending}
+                  onChange={(e) => {
+                    toggle.mutate({ id: m.id, enabled: e.target.checked });
+                  }}
+                  className="size-4 accent-accent"
+                />
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {[...info.byId.values()].map((m) => (
-              <tr key={m.id}>
-                <td>{m.display_name}</td>
-                <td>{m.kind}</td>
-                <td>{formatTokens(m.context_window)}</td>
-                <td>
-                  {formatCost(m.input_cost_per_mtok)}, {formatCost(m.output_cost_per_mtok)}
-                </td>
-                <td>{info.hasKey(m) ? <Badge kind="success">yes</Badge> : <Badge>no</Badge>}</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    aria-label={`Enable ${m.display_name}`}
-                    checked={m.enabled}
-                    disabled={toggle.isPending}
-                    onChange={(e) => {
-                      toggle.mutate({ id: m.id, enabled: e.target.checked });
-                    }}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </Table>
       {toggle.isError ? <Banner kind="danger">{errorMessage(toggle.error)}</Banner> : null}
     </section>
   );
