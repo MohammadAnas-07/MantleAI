@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { QueryError } from "../../components/QueryError";
 import { Checkbox, SelectInput } from "../../components/ui/Field";
 import { Badge, Banner, Skeleton } from "../../components/ui/Feedback";
 import { keys, useModelSettings } from "../../hooks/queries";
@@ -30,12 +31,19 @@ export function ModelsSection() {
   });
 
   return (
-    <section aria-labelledby="models-title" className="space-y-3">
-      <h2 id="models-title" className="text-base">
+    <section aria-labelledby="models-title" className="space-y-4">
+      <h2 id="models-title" className="text-lg">
         Models
       </h2>
+      {settings.isError ? (
+        <QueryError
+          error={settings.error}
+          onRetry={() => void settings.refetch()}
+          retrying={settings.isFetching}
+        />
+      ) : null}
       {settings.data ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid items-start gap-4 sm:grid-cols-2">
           <SelectInput
             label="Utility model (writes summaries)"
             value={settings.data.utility_model_id ?? ""}
@@ -76,7 +84,7 @@ export function ModelsSection() {
             help="Off: no model calls in the background; the summary is written when you switch models."
           />
         </div>
-      ) : (
+      ) : settings.isError ? null : (
         <Skeleton label="Loading model settings" />
       )}
       {save.isError ? <Banner kind="danger">{errorMessage(save.error)}</Banner> : null}

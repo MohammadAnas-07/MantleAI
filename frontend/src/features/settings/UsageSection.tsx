@@ -1,7 +1,7 @@
-import { Badge, Banner, Skeleton } from "../../components/ui/Feedback";
+import { QueryError } from "../../components/QueryError";
+import { Badge, Skeleton } from "../../components/ui/Feedback";
 import { useUsage } from "../../hooks/queries";
 import { useModelInfo } from "../../hooks/useModelInfo";
-import { errorMessage } from "../../lib/api/errors";
 import { formatCost, formatTokens, purposeLabel, sumCosts } from "../../lib/format";
 import type { UsageLine } from "../../lib/api/types";
 import { Table } from "../../components/ui/Table";
@@ -47,7 +47,15 @@ export function UsageSection() {
   const usage = useUsage();
   const models = useModelInfo();
   if (usage.isLoading) return <Skeleton label="Loading usage" />;
-  if (usage.isError) return <Banner kind="danger">{errorMessage(usage.error)}</Banner>;
+  if (usage.isError) {
+    return (
+      <QueryError
+        error={usage.error}
+        onRetry={() => void usage.refetch()}
+        retrying={usage.isFetching}
+      />
+    );
+  }
   const lines = usage.data?.lines ?? [];
   const byModel = group(
     lines,
@@ -61,18 +69,18 @@ export function UsageSection() {
   );
 
   return (
-    <section aria-labelledby="usage-title" className="space-y-3">
-      <h2 id="usage-title" className="text-base">
+    <section aria-labelledby="usage-title" className="space-y-4">
+      <h2 id="usage-title" className="text-lg">
         Usage
       </h2>
-      <p className="text-sm">
+      <p className="text-base tabular-nums">
         {usage.data?.total_calls ?? 0} calls,{" "}
         {formatTokens(
           (usage.data?.total_input_tokens ?? 0) + (usage.data?.total_output_tokens ?? 0),
         )}{" "}
         tokens, {formatCost(usage.data?.total_cost_usd)} in total
       </p>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         <UsageTable title="By model" rows={byModel} />
         <UsageTable title="By purpose" rows={byPurpose} />
       </div>

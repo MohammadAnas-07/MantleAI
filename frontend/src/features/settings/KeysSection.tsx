@@ -5,6 +5,7 @@ import { useState, type SubmitEvent } from "react";
 import { Button } from "../../components/ui/Button";
 import { ConfirmDialog } from "../../components/ui/Dialog";
 import { FormError, SelectInput, TextInput } from "../../components/ui/Field";
+import { QueryError } from "../../components/QueryError";
 import { Badge, EmptyState, Skeleton } from "../../components/ui/Feedback";
 import { keys, useCredentials, useProviders } from "../../hooks/queries";
 import { api } from "../../lib/api/endpoints";
@@ -69,25 +70,32 @@ export function KeysSection() {
   };
 
   return (
-    <section aria-labelledby="keys-title" className="space-y-3">
-      <h2 id="keys-title" className="text-base">
+    <section aria-labelledby="keys-title" className="space-y-4">
+      <h2 id="keys-title" className="text-lg">
         Provider keys
       </h2>
       {credentials.isLoading ? <Skeleton label="Loading keys" /> : null}
+      {credentials.isError ? (
+        <QueryError
+          error={credentials.error}
+          onRetry={() => void credentials.refetch()}
+          retrying={credentials.isFetching}
+        />
+      ) : null}
       {credentials.data?.length === 0 ? (
-        <EmptyState icon={KeyRound}>No keys saved yet.</EmptyState>
+        <EmptyState icon={KeyRound}>
+          No keys saved yet. Add one below to chat or index. A free Google AI Studio key is enough
+          for both.
+        </EmptyState>
       ) : null}
       {credentials.data?.some((c) => !c.readable) ? (
-        <p className="text-sm text-danger">
+        <p role="alert" className="text-base text-danger">
           {KEYS_UNREADABLE} Remove the old key once a new one works.
         </p>
       ) : null}
-      <ul className="space-y-1 text-sm">
+      <ul className="divide-y divide-line rounded-lg border border-line text-base empty:hidden">
         {credentials.data?.map((c) => (
-          <li
-            key={c.id}
-            className="flex flex-wrap items-center gap-2 rounded-lg border border-line p-2"
-          >
+          <li key={c.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
             <span className="font-medium">{c.provider}</span>
             {c.label ? <span>{c.label}</span> : null}
             <span className="code" aria-label={`Key ending in ${c.key_hint}`}>
@@ -96,7 +104,7 @@ export function KeysSection() {
             {!c.readable ? <Badge kind="danger">can&apos;t be read</Badge> : null}
             {c.last_test_ok === true ? <Badge kind="success">works</Badge> : null}
             {c.last_test_ok === false ? <Badge kind="danger">failed</Badge> : null}
-            <span className="text-xs text-muted">tested {formatDateTime(c.last_tested_at)}</span>
+            <span className="text-sm text-muted">tested {formatDateTime(c.last_tested_at)}</span>
             <div className="ml-auto flex gap-1">
               <Button
                 size="sm"
@@ -121,13 +129,19 @@ export function KeysSection() {
         ))}
       </ul>
       {test.data && !test.data.ok ? (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-base text-danger">
           The test failed:{" "}
           {llmErrorText(test.data.error_code, `error ${test.data.error_code ?? "unknown"}.`)}
         </p>
       ) : null}
 
-      <form onSubmit={submit} noValidate className="grid gap-2 sm:grid-cols-3">
+      <form
+        onSubmit={submit}
+        noValidate
+        aria-label="Add a provider key"
+        className="grid items-start gap-3 rounded-lg bg-sunken p-4 sm:grid-cols-3"
+      >
+        <h3 className="text-base sm:col-span-3">Add a key</h3>
         <SelectInput
           label="Provider"
           value={chosen}
@@ -163,7 +177,7 @@ export function KeysSection() {
           error={keyError}
           help="Stored encrypted on your machine. Cleared from this form after you submit."
         />
-        <div className="sm:col-span-3">
+        <div className="space-y-2 sm:col-span-3">
           <FormError message={add.isError ? errorMessage(add.error) : null} />
           <Button type="submit" variant="primary" busy={add.isPending} disabled={!chosen}>
             Save key
