@@ -10,12 +10,12 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-24).** `feat/landing-page` (not pushed): static page in `landing/` (own Vite,
-React, TS, Tailwind package; `docs/design-landing.md` = app tokens + editorial brief). Nav,
-hero with SVG flow, problem, how it works, features, privacy, setup with copy buttons, status
-and limits, numbers (2026-11-22, with conditions), FAQ, ink footer. No API, analytics, cookies,
-fonts or remote files; strict CSP; build fails on a link off its allow-list. 16 tests, CI job
-`landing`, JS 245.5 kB. Not hosted; GitHub run unverified until the push.
+**Status (2026-11-24).** `chore/landing-pages-deploy` (not pushed): `.github/workflows/pages.yml`
+builds `landing/` (output scan included) and deploys it to GitHub Pages on pushes to `main` that
+touch `landing/`, or by hand. Needs Settings, Pages, Source "GitHub Actions" once. URL
+<https://mohammadanas-07.github.io/MantleAI/> is in both READMEs, unconfirmed until the first
+deploy. Landing counts from fresh runs: backend 883 passed (test DB on), frontend 142.
+Landing page itself is merged (`landing/`, `docs/design-landing.md`, CI job `landing`).
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -26,11 +26,11 @@ fonts or remote files; strict CSP; build fails on a link off its allow-list. 16 
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`. Branches: 2 local (`main`, `feat/landing-page`), 45 remote.
+`GET /messages/{id}/context`. Branches: 2 local (`main`, `chore/landing-pages-deploy`), 45 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 
-Tests 2026-11-24 (database down): backend 518 passed, 365 `db` tests skipped (883 collected);
+Tests 2026-11-24 (database up): backend 883 passed, none skipped;
 frontend 142 passed (2026-11-24), `gen:api:check` up to date. Last run with the database: 883 passed,
 profile races 5/5 (2026-11-21). pytest needs `TEST_DATABASE_URL`. Migration head `0011`
 (`alembic upgrade head`). To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
