@@ -123,7 +123,7 @@ export function Nav() {
               </li>
             ))}
             <li>
-              <a href={REPO} className="flex h-12 items-center text-body text-ink">
+              <a href={REPO} className="flex h-12 items-center text-body text-ink no-underline">
                 GitHub
               </a>
             </li>

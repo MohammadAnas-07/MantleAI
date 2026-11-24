@@ -53,7 +53,7 @@ export const STEPS = [
 export const FEATURES = [
   {
     title: "Projects, keys and streaming chat",
-    detail: "Provider keys are encrypted, and a test call checks each one before you rely on it.",
+    detail: "Provider keys are stored encrypted, and a test call checks each key.",
   },
   {
     title: "Model switching mid-conversation",
@@ -105,7 +105,7 @@ export const PRIVACY = {
     {
       what: "One tiny test call",
       to: "That key's provider",
-      when: "When you press Test key",
+      when: "When you test a key",
     },
   ],
   local: [
