@@ -83,7 +83,7 @@ responses, `POST /memory/{id}/approve|reject`.
 | 2026-11-18 | A file that looks like it holds a secret is skipped whole (not just the segment); `id_*` skipped literally (rule 48) | Code goes to a third party | `security.md` |
 | 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4) | User's choice | `design-app.md` |
 | 2026-11-24 | App design replaced: calm ink-on-white system, light default, no webfonts, one blue accent | User's choice | `design-app.md` |
-| 2026-11-24 | Landing page uses the same tokens with an editorial brief; the grunge direction is dropped (architecture.md C1/C3 still mention it) | User's choice | `design-landing.md` |
+| 2026-11-24 | Landing page uses the same tokens with an editorial brief; the grunge direction is dropped, and architecture.md C1 and C3 are resolved | User's choice | `design-landing.md` |
 | 2026-11-18 | TypeScript 5.9 (toolchain support); API types generated from OpenAPI and committed, `gen:api:check` guards them, operationId = route function name | Builds without a backend | `api-outline.md` |
 | 2026-11-19 | Used-up quota = per-day quota id or requested wait > 10 min; anything else stays `rate_limited`; `error_detail` keeps only sanitized structured fields | No guessing; provider text can echo prompts | rule 51 |
 | 2026-11-19 | No LangGraph: Planner -> Reviewer -> user approval as a plain state machine in PostgreSQL; no revision loop; reopen replaces request-changes; gap finder is an analysis call, not a third agent; purpose `agent_run` | User's choice; two fixed steps | 0004 |
