@@ -185,7 +185,7 @@ async def test_index_flow_through_the_api(session: AsyncSession, tmp_path: Path)
     world = await make_rag_world(session, root, name="Api")
     async with api_client(session, world.gateway, world.user_id) as client:
         pid = world.project_id
-        raw = str(root).replace("/", "\\")
+        raw = str(root)  # native form: backslashes on Windows, slashes on Linux CI
         r = await client.put(f"/api/v1/projects/{pid}/source", json={"root_path": raw})
         assert r.status_code == 200, r.text
         assert r.json()["indexed"] is False

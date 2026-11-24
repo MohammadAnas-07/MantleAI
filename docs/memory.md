@@ -10,8 +10,10 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-22).** `docs/license-notes`: `idea.md`, `prd.md` and `phases.md` now say the
-MIT `LICENSE` file exists (added in `chore/add-license`). Everything before it is merged.
+**Status (2026-11-24).** `chore/license-and-ci`: `.github/workflows/ci.yml` runs ruff, pytest
+(Python 3.12, lock, `pgvector/pgvector:pg16`, `mantle_test`), the frontend checks (Node 22) and
+`gen:api:check` on PRs and pushes to `main`; no secrets. GitHub run green: 880 passed, 3 skipped
+(Windows-only, click-sample). Tests must not build Windows paths by hand. `license = "MIT"` set.
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -22,16 +24,16 @@ MIT `LICENSE` file exists (added in `chore/add-license`). Everything before it i
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`; no CI. Branches: 2 local (`main`, `docs/license-notes`), 39 remote.
+`GET /messages/{id}/context`. Branches: 2 local (`main`, `chore/license-and-ci`), 42 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 
-Tests 2026-11-22 (database down): backend 518 passed, 365 `db` tests skipped (883 collected);
-frontend 127 passed. Last run with the database: 883 passed, profile races 5/5 (2026-11-21).
-pytest needs `TEST_DATABASE_URL`. Migration head `0011` (`alembic upgrade head`). To work:
-`docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`, `uvicorn app.main:app --reload`;
-`frontend`: `npm run dev`. Keys: free Gemini works; OpenAI valid but no credit; no Anthropic or
-Voyage key. First demo target: 2026-12-17. Last updated 2026-11-22 (final docs status pass).
+Tests 2026-11-24 (database down): backend 518 passed, 365 `db` tests skipped (883 collected);
+frontend 127 passed, `gen:api:check` up to date. Last run with the database: 883 passed,
+profile races 5/5 (2026-11-21). pytest needs `TEST_DATABASE_URL`. Migration head `0011`
+(`alembic upgrade head`). To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
+`uvicorn app.main:app --reload`; `frontend`: `npm run dev`. Keys: free Gemini works; OpenAI
+valid but no credit; no Anthropic or Voyage key. First demo target: 2026-12-17. Last updated 2026-11-24 (license check and CI).
 
 ## Done
 

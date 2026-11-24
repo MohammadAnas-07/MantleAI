@@ -93,7 +93,6 @@ of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash
 
 ## Limits and known issues
 
-- No CI: there is no `.github` workflow, so tests and linters run only by hand.
 - No real-use evaluation of v0.1 yet: the 2-week trial in [docs/prd.md](docs/prd.md) hasn't
   started. The larger retrieval evaluation (25 questions on a real repository) stopped at the
   Gemini daily limit and has no result.
@@ -120,6 +119,8 @@ of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash
 From `backend`: `pytest`, `ruff check .` and `ruff format --check .`. From `frontend`:
 `npm run typecheck`, `npm run lint`, `npm run test` and `npm run build`. Tests need no API keys
 and no network. pytest needs a `TEST_DATABASE_URL` database ending in `_test` (see setup).
+CI (`.github/workflows/ci.yml`) runs these checks, `npm run format:check` and
+`npm run gen:api:check` on every pull request and on every push to `main`.
 
 Read [CLAUDE.md](CLAUDE.md) and [docs/rules.md](docs/rules.md) first. One roadmap item per
 branch, named `type/short-topic` (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`). Commits
