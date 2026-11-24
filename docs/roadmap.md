@@ -53,4 +53,4 @@ Work happens in this order, one branch per item. Branch names follow the Git con
 | | `feat/sandboxed-tool-execution` | Run approved commands in a locked-down Docker sandbox. |
 | | `feat/authentication` | User accounts and sessions, so Mantle can run beyond one local user. |
 | | `chore/ci-and-deployment` | GitHub Actions for lint and tests, a production build and deployment setup. |
-| | `feat/landing-page` | Marketing landing page using `docs/design-landing.md` (after conflict C1 is resolved). |
+| Review | `feat/landing-page` | Static landing page in `landing/` with the editorial design in `docs/design-landing.md` (replaces the grunge direction). Built and checked in CI, not hosted yet. |

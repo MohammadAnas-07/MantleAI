@@ -5,23 +5,17 @@ Sources: `docs/vision.md` (product) and the v0.1 scope in `docs/mvp-scope.md`.
 
 ## Conflicts
 
-Between `vision.md` and `design-landing.md`.
+Between `vision.md` and the first `design-landing.md` (a grunge template). That file was
+replaced on 2026-11-24 by an editorial design built on the app's tokens, which ends all three.
 
 | # | vision.md says | design-landing.md says | Status |
 | --- | --- | --- | --- |
-| C1 | Mantle should feel like "an experienced software engineering team": structured, reliable, closer to real engineering practice. | Style is "Raw, Gritty, Anti-Design", "chaotic", "It wasn't designed. It was assembled." | Deferred to `feat/landing-page`. |
+| C1 | Mantle should feel like "an experienced software engineering team": structured, reliable, closer to real engineering practice. | The old file asked for a raw, chaotic, anti-design style. | Resolved 2026-11-24: the landing page uses the calm, structured design in `design-landing.md`; the grunge style is dropped. |
 | C2 | Core problem #1 is named "Seamless LLM Switching". | Do's and Don'ts ban "Seamless" as an AI copywriting cliché. | Resolved: landing copy uses plain wording such as "Switch models without losing your context". |
-| C3 | Mantle teaches ("Teach developers why"), so it has to explain clearly. | "Do chaotic typography", Ray Gun "treated readability as optional", Courier New for all text. | Resolved: when the landing page is built it must have readable contrast, no flicker and no rotated text. The grunge look stays in textures and decoration, not in body text. |
+| C3 | Mantle teaches ("Teach developers why"), so it has to explain clearly. | The old file asked for chaotic typography and Courier New for all text. | Resolved 2026-11-24: system fonts, AA contrast, no textures, no flicker and no rotated text. |
 
-Inside `design-landing.md` there are also inconsistencies to fix before the landing page is built
-(still open, see Open questions):
-
-- Primary button: the front matter says fill `primary` (#2E2E2E), but Components says "Accent color fill".
-- Motion: it says "Subtle", "Smooth and predictable", yet also asks for "chaotic typography" and "misaligned grids".
-- Shapes: it says "See rounded tokens in front matter", but there are none.
-- Two different colours are both assigned "Secondary text, borders, muted elements" (Muted Red and Concrete Grey).
-- "Light/Dark: ✓ Full / ✗ No" is unclear: does the page need a dark mode or not?
-- The template name and description ("Grunge Rock dos Anos 90", "AI-ready template") are generic, not Mantle branding.
+The inconsistencies inside the old file (button colour, motion, missing radius tokens, a
+duplicate colour role, dark mode, the template name) went with it.
 
 ## Decisions
 
@@ -29,7 +23,7 @@ Recorded 2026-11-17.
 
 | # | Topic | Decision |
 | --- | --- | --- |
-| D1 | Landing page conflicts | C1 deferred to `feat/landing-page`. C2 and C3 resolved as shown in Conflicts. |
+| D1 | Landing page conflicts | All three resolved (C1 and C3 on 2026-11-24, when `design-landing.md` was replaced). |
 | D2 | Embeddings | Any embedding model the LLM gateway supports may be used (amended 2026-11-18; first default: `gemini/gemini-embedding-001` at 1536 dimensions, with document and query task types). Called through the LLM gateway. No local embedding model in v0.1. The user needs an embeddings-capable key for that model's provider; an Anthropic-only key can chat but cannot index. Every chunk stores its embedding model name and dimension. Changing the embedding model means re-indexing the project, because the pgvector column has a fixed dimension. |
 | D3 | Handoff summary | A configurable utility model setting, which defaults to the conversation's active model. A rolling summary is built in the background as the conversation grows, so switching models never needs a call to the old model. |
 | D4 | Workflow stages (v0.1) | Requirements → Architecture → Technical decisions → Task breakdown → Implementation plan. The Reviewer checks each stage, and the user approves it. Amended 2026-11-21 to match the code: the Reviewer runs only when the user starts a plan run (after the Planner) or a review run; stage approval never waits for it; there is no revision loop (ADR 0004). |
@@ -236,7 +230,4 @@ queries, not from vector search.
 
 ## Open questions
 
-1. C1 (tone): structured vs grunge on the landing page. Deferred to `feat/landing-page`.
-2. Inconsistencies inside `design-landing.md` (button colour, motion vs chaos, missing rounded
-   tokens, duplicate colour role, dark mode, template name): fix them in the design file before
-   `feat/landing-page`.
+None at the moment.

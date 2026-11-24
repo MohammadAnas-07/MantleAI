@@ -10,12 +10,12 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-24).** `feat/app-redesign` (not pushed): the web app moves from grunge-lite
-to the calm system in `docs/design-app.md` (ink on white, warm greys, hairlines, serif titles,
-light default, dark kept). Tokens only in `frontend/src/index.css`; kit in `components/ui`
-(new `Table`, `KeyValueTable`, `CodeBlock`, `PageHeader`). Load errors get Retry; CSP `img-src`
-is `'self'`. No backend, API or behaviour change; 142 frontend tests; JS 613.6 kB (was 606.5).
-Checked in headless Chrome at 1280 and 800px only (it clamps windows to ~500px). No Toast.
+**Status (2026-11-24).** `feat/landing-page` (not pushed): static page in `landing/` (own Vite,
+React, TS, Tailwind package; `docs/design-landing.md` = app tokens + editorial brief). Nav,
+hero with SVG flow, problem, how it works, features, privacy, setup with copy buttons, status
+and limits, numbers (2026-11-22, with conditions), FAQ, ink footer. No API, analytics, cookies,
+fonts or remote files; strict CSP; build fails on a link off its allow-list. 16 tests, CI job
+`landing`, JS 245.5 kB. Not hosted; GitHub run unverified until the push.
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -26,7 +26,7 @@ Checked in headless Chrome at 1280 and 800px only (it clamps windows to ~500px).
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`. Branches: 2 local (`main`, `feat/app-redesign`), 43 remote.
+`GET /messages/{id}/context`. Branches: 2 local (`main`, `feat/landing-page`), 45 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 
@@ -35,8 +35,7 @@ frontend 142 passed (2026-11-24), `gen:api:check` up to date. Last run with the 
 profile races 5/5 (2026-11-21). pytest needs `TEST_DATABASE_URL`. Migration head `0011`
 (`alembic upgrade head`). To work: `docker compose up -d`; `backend`: `.venv\Scripts\Activate.ps1`,
 `uvicorn app.main:app --reload`; `frontend`: `npm run dev`. Keys: free Gemini works; OpenAI
-valid but no credit; no Anthropic or Voyage key. First demo target: 2026-12-17.
-Last updated 2026-11-24 (app redesign; flaky workflow test fixed).
+valid but no credit; no Anthropic or Voyage key. Demo target 2026-12-17. Updated 2026-11-24.
 
 ## Done
 
@@ -48,7 +47,7 @@ Last updated 2026-11-24 (app redesign; flaky workflow test fixed).
   of drafts, 5 review fixes, rules 85-90); the workflow UI; audit fixes (`0009`, `0010`; races in
   `tests/test_run_races.py`, query counts in `tests/query_count.py`); safe sources and scan caps;
   the project profile facts (`0011`, Profile tab, `<project_profile>` block).
-- 2026-11-24: MIT license fields; CI (`.github/workflows/ci.yml`, green: 880 passed, 3 skipped).
+- 2026-11-24: license fields, CI (880 passed, 3 skipped), app redesign, flaky test fix.
 
 ## In progress
 
@@ -83,7 +82,8 @@ responses, `POST /memory/{id}/approve|reject`.
 | 2026-11-18 | Hybrid search (vector + `simple` full text, RRF k=60) instead of plain vector top-k; no reranker | User's choice; identifiers need exact matches | `architecture.md` J3 |
 | 2026-11-18 | A file that looks like it holds a secret is skipped whole (not just the segment); `id_*` skipped literally (rule 48) | Code goes to a third party | `security.md` |
 | 2026-11-18 | UI first without workflow and teaching screens (they follow Phase 4) | User's choice | `design-app.md` |
-| 2026-11-24 | App design replaced: calm ink-on-white system, light default, no webfonts, one blue accent; grunge only on the future landing page | User's choice | `design-app.md` |
+| 2026-11-24 | App design replaced: calm ink-on-white system, light default, no webfonts, one blue accent | User's choice | `design-app.md` |
+| 2026-11-24 | Landing page uses the same tokens with an editorial brief; the grunge direction is dropped, and architecture.md C1 and C3 are resolved | User's choice | `design-landing.md` |
 | 2026-11-18 | TypeScript 5.9 (toolchain support); API types generated from OpenAPI and committed, `gen:api:check` guards them, operationId = route function name | Builds without a backend | `api-outline.md` |
 | 2026-11-19 | Used-up quota = per-day quota id or requested wait > 10 min; anything else stays `rate_limited`; `error_detail` keeps only sanitized structured fields | No guessing; provider text can echo prompts | rule 51 |
 | 2026-11-19 | No LangGraph: Planner -> Reviewer -> user approval as a plain state machine in PostgreSQL; no revision loop; reopen replaces request-changes; gap finder is an analysis call, not a third agent; purpose `agent_run` | User's choice; two fixed steps | 0004 |

@@ -181,7 +181,8 @@ Exit criteria:
 - [ ] Login works, and no query returns another user's data.
 - [ ] CI runs lint and tests on every pull request.
 - [ ] The repo is public, with an MIT LICENSE file (the LICENSE file was added 2026-11-22).
-- [ ] The landing page is live, with conflict C1 resolved.
+- [ ] The landing page is live, with conflict C1 resolved. (2026-11-24: built in `landing/` with
+  the editorial design in `docs/design-landing.md`; not hosted yet.)
 
 Postponed: hosted version (decide after the first demo), GitHub integration, a terminal
 panel, Redis and queues.

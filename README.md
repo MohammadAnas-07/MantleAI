@@ -56,6 +56,9 @@ In a second terminal, run `cd frontend`, `npm install` and `npm run dev`, then o
 enough for chat and for indexing. The web app follows [docs/design-app.md](docs/design-app.md)
 (light theme by default, dark theme in the top bar).
 
+Landing page: a static page in `landing/`, separate from the app. How to run, build and host it
+is in [landing/README.md](landing/README.md).
+
 ## Indexing a project
 
 > Warning: indexing sends your code to your embedding provider. Every indexed file is split into
