@@ -17,7 +17,7 @@ describe("Content-Security-Policy", () => {
 
   it("blocks remote images, scripts, frames and plugins", () => {
     expect(policy.get("default-src")).toEqual(["'self'"]);
-    expect(policy.get("img-src")).toEqual(["'self'", "data:"]);
+    expect(policy.get("img-src")).toEqual(["'self'"]);
     expect(policy.get("script-src")).toEqual(["'self'"]);
     expect(policy.get("frame-src")).toEqual(["'none'"]);
     expect(policy.get("object-src")).toEqual(["'none'"]);
