@@ -169,6 +169,10 @@ pytest prints `test database: ...` in its header, so you can see which one it us
 PostgreSQL is down, database tests are skipped and the rest still pass. `ruff format .`
 reformats the code.
 
+CI runs the same backend checks on every pull request, against its own PostgreSQL
+(`pgvector/pgvector:pg16`, database `mantle_test`) and a throwaway master key; see
+`.github/workflows/ci.yml`.
+
 ## The web app
 
 The workspace UI is in `frontend`. It needs Node.js 22 or newer and the API running (step 8). In
@@ -203,6 +207,8 @@ inline scripts. Chat replies never load images, and only `http`, `https` and `ma
 `npm run gen:api` regenerates `src/lib/api/schema.ts` from the backend's OpenAPI schema. It runs
 `backend\scripts\export_openapi.py` with `backend\.venv`, so no server is needed. Run it after
 changing an endpoint and commit the result.
+
+CI runs the frontend checks above, including `gen:api:check`, on every pull request.
 
 ### The workflow page
 
