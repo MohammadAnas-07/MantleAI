@@ -1,7 +1,15 @@
+import { Nav } from "./components/Nav";
+import { Hero, Problem } from "./sections/Hero";
+
 export function App() {
   return (
-    <main id="main" className="mx-auto max-w-page px-4 py-16">
-      <h1 className="font-serif text-hero">Mantle</h1>
-    </main>
+    <>
+      <div id="top" />
+      <Nav />
+      <main id="main" tabIndex={-1} className="focus:outline-none">
+        <Hero />
+        <Problem />
+      </main>
+    </>
   );
 }
