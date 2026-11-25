@@ -10,9 +10,9 @@ explaining the project again. Mantle keeps the project's requirements, decisions
 a rolling conversation summary and the indexed code in a local database, so the next model picks
 up where the last one stopped. It is for one developer on their own machine ([idea](docs/idea.md)).
 
-## Status
+## What it does
 
-Version 0.1 is not finished. One developer builds it. Works today, in the API and the web app:
+Works today, in the API and the web app:
 
 - Projects, encrypted provider keys with a test call, and streaming chat.
 - Model switching mid-conversation, with a preview. The old model is never called.
@@ -22,9 +22,7 @@ Version 0.1 is not finished. One developer builds it. Works today, in the API an
 - The workflow page: five stages with human approval, a gap finder, and Planner and Reviewer
   runs whose drafts are saved only when you approve them.
 
-Planned, not built: teaching notes and the concepts list, a model-written project summary
-(`feat/profile-summary`, deferred), sandboxed command execution, login and accounts,
-`GET /messages/{id}/context` and `GET /audit-events`. Order: [roadmap](docs/roadmap.md).
+What comes next is in the [roadmap](docs/roadmap.md).
 
 ## Screenshots
 
@@ -108,34 +106,15 @@ Mantle never writes to your project folder and runs no shell commands. The API h
 answers only your own computer (unless `ALLOW_REMOTE_CLIENTS` is on); the database listens only
 on `127.0.0.1`. Don't expose either on a network. Details: [docs/security.md](docs/security.md).
 
-## Evaluation
+## Before you run it
 
-No solid numbers yet. On 2026-11-18 the switch demo (`backend\scripts\switch_demo.py`) scored 5
-of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash Lite, in two runs
-(all history verbatim; decisions only via the rolling summary). One provider, no saved results.
+- There is no login. Run Mantle only on your own machine and don't expose it on a network.
+- Indexing sends your code to your embedding provider (see [Indexing a project](#indexing-a-project)).
+- Chat and model switching have been run for real only on Gemini models.
+- Index and agent runs live in the server process; a restart stops them.
+- All data sits in one Docker volume with no automatic backup ([backup and restore](docs/setup.md#backup-and-restore)).
 
-## Limits and known issues
-
-- No real-use evaluation of v0.1 yet: the 2-week trial in [docs/prd.md](docs/prd.md) hasn't
-  started. The larger retrieval evaluation (25 questions on a real repository) stopped at the
-  Gemini daily limit and has no result.
-- An agent run on Gemini 3.8 Flash timed out at 120 seconds (`LLM_TIMEOUT_SECONDS`) on this setup;
-  a chat timeout is not confirmed. A lite model (Gemini 3.5 Flash Lite) is used. On it the
-  Planner and Reviewer returned valid output, but that is one sample: agent output quality is not
-  proven. Chat and switching have been run for real only on Gemini models.
-- Some lists stop at a fixed size with no message that more exist: a project's conversation list
-  at 500 rows (with no total), a conversation at its first 500 messages, the activity log at its
-  newest 200 calls, and the agent run and gap finder lists at their newest 50 runs. The app reads
-  at most 100 memory items per kind; the memory panel says "Showing X of Y", but a reference to
-  a later item shows its id instead of its title. The built app is one 600 kB script (audit
-  A-020; the `fix/list-limits-and-bundle` work is not done).
-- Index and agent runs live in the server process; a restart (also `--reload`) stops them.
-- No login, and repositories don't yet check that a parent row belongs to the user (to fix
-  before auth). Don't run Mantle anywhere but your own machine.
-- The teaching layer (teaching notes and the concepts list) and the model-written profile summary
-  are not built.
-- One Docker volume holds all data, with no automatic backup
-  ([backup and restore](docs/setup.md#backup-and-restore)). MIT licensed ([LICENSE](LICENSE)).
+More known issues: [docs/known-issues.md](docs/known-issues.md). MIT licensed ([LICENSE](LICENSE)).
 
 ## Tests and contributing
 
