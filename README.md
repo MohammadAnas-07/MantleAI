@@ -3,6 +3,8 @@
 Mantle is a local, open-source workspace for building software with several LLMs. It is not an
 LLM: it calls the providers you choose, with your own API keys.
 
+[Live site](https://mohammadanas-07.github.io/MantleAI/) · [![CI](https://github.com/MohammadAnas-07/MantleAI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MohammadAnas-07/MantleAI/actions/workflows/ci.yml) · [MIT licence](LICENSE)
+
 When a model hits its limit mid-task, you copy the chat into another one and spend a good while
 explaining the project again. Mantle keeps the project's requirements, decisions, tasks,
 a rolling conversation summary and the indexed code in a local database, so the next model picks
