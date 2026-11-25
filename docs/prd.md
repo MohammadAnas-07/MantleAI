@@ -14,8 +14,8 @@ Accepted 2026-11-17:
 
 > Over 2 weeks of using Mantle on a real project, at least 10 successful model switches. A switch
 > counts as successful only if work continues within 1 minute with no manual re-explaining, and
-> the new model answers at least 4 of 5 decision questions correctly. Today's baseline is about
-> 10 minutes per switch.
+> the new model answers at least 4 of 5 decision questions correctly. Today's baseline is a long
+> manual re-explanation at every switch.
 
 Decision-question check, after every switch: ask the new model 5 questions whose answers depend
 on decisions made earlier in the same conversation (for example "Which database did we choose,

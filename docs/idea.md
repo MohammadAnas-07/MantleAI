@@ -3,8 +3,8 @@
 ## The problem
 
 When an LLM hits its limit in the middle of work, the developer has to start over somewhere else.
-Today: *"When Claude's limit runs out, I copy the chat, paste it into ChatGPT, and spend about
-10 minutes explaining the context again."* The copy loses the project's decisions, tasks,
+Today: *"When Claude's limit runs out, I copy the chat, paste it into ChatGPT, and spend a
+good while explaining the context again."* The copy loses the project's decisions, tasks,
 architecture and the reasons behind the code.
 
 ## Who has it
@@ -27,7 +27,7 @@ developer learns instead of just copying output.
   models, and some have rules files or memory, but that memory is tied to their own editor and
   workflow. None of them puts a structured, human-approved project memory at the centre.
 - Chat apps (ChatGPT, Claude) keep history per provider. Nothing carries over when you switch.
-- Copy and paste works, but costs about 10 minutes per switch and drops older decisions.
+- Copy and paste works, but each switch means a long re-explanation and drops older decisions.
 
 ## The differentiator
 
