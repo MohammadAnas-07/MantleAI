@@ -10,9 +10,9 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-25).** `docs/readme-screenshots` (not pushed): 6 real screenshots in
-`landing/public/screenshots/` (demo project on the public sample fixture, deleted afterwards; 5
-Gemini calls), README gets a live link, CI badge, Screenshots section and merged list limits.
+**Status (2026-11-25).** `docs/readme-polish` (not pushed): README has "What it does" and a
+five-line "Before you run it"; the rest moved to `docs/known-issues.md`; the landing page uses
+the same notes and drops "Version 0.1". Real screenshots are in `landing/public/screenshots/`.
 Landing page live at <https://mohammadanas-07.github.io/MantleAI/> (`pages.yml`).
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
@@ -24,7 +24,7 @@ Landing page live at <https://mohammadanas-07.github.io/MantleAI/> (`pages.yml`)
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`. Branches: 2 local (`main`, `docs/readme-screenshots`), 1 remote (merged ones deleted).
+`GET /messages/{id}/context`. Branches: 2 local (`main`, `docs/readme-polish`), 1 remote (merged ones deleted).
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 
