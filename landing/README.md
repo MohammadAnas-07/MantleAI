@@ -41,15 +41,16 @@ the page doesn't jump, and shows them under the feature list. Alt text comes fro
 `public/screenshots/alt.json`, for example `{ "chat.png": "A conversation with cited code" }`,
 or from the file name. With no files, the page shows no figure at all.
 
-## Host it on GitHub Pages
+## Hosting on GitHub Pages
 
-The build uses relative paths (`base: "./"` in `vite.config.ts`), so `dist/` works at the site
-root and under a sub-path such as `https://<user>.github.io/MantleAI/`. To publish by hand:
+Live at <https://mohammadanas-07.github.io/MantleAI/>.
 
-1. `npm run build`.
-2. Publish the contents of `dist/` to the branch or folder that GitHub Pages serves (repository
-   Settings, then Pages).
-3. Open the page and check that the CSS loads and the Copy buttons work. The clipboard needs
-   HTTPS, which GitHub Pages provides.
+`.github/workflows/pages.yml` builds this folder with `npm run build` (output scan included) and
+deploys `dist/` to GitHub Pages. It runs on every push to `main` that changes `landing/` or the
+workflow, and by hand from the Actions tab ("Landing page", then "Run workflow").
 
-There is no deploy workflow yet; CI only builds and checks the page.
+One-time setup in the repository: Settings, then Pages, then Source: "GitHub Actions".
+
+The build uses relative paths (`base: "./"` in `vite.config.ts`), so `dist/` works under the
+`/MantleAI/` sub-path as well as at a site root. After a deploy, open the page and check that
+the CSS loads and the Copy buttons work (the clipboard needs HTTPS, which Pages provides).

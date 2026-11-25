@@ -165,16 +165,16 @@ export const STATUS = {
   ],
 };
 
-// mantle-numbers.md, section B "Safe to claim", measured 2026-11-22. Each number keeps its
-// condition next to it.
+// mantle-numbers.md, section B "Safe to claim", measured 2026-11-22; test counts from fresh
+// runs on 2026-11-24. Each number keeps its condition next to it.
 export const NUMBERS = {
-  date: "Measured on 2026-11-22.",
+  date: "Test counts are from 2026-11-24; the other numbers were measured on 2026-11-22.",
   items: [
     {
-      value: "883 + 127",
+      value: "883 + 142",
       label: "Backend and frontend tests",
       condition:
-        "None need API keys. Backend statement coverage is 97.5% (statements, not branches).",
+        "All passed on 2026-11-24, the backend against the test database. None need API keys. Backend statement coverage was 97.5% on 2026-11-22 (statements, not branches).",
     },
     {
       value: "14",
@@ -202,7 +202,7 @@ export const NUMBERS = {
   ],
 };
 
-// README.md, docs/mvp-scope.md, docs/security.md, CLAUDE.md.
+// README.md, docs/mvp-scope.md, docs/architecture.md (LiteLLM), docs/security.md, CLAUDE.md.
 export const FAQ = [
   {
     q: "Is Mantle an LLM?",
@@ -210,7 +210,7 @@ export const FAQ = [
   },
   {
     q: "Which providers does it support?",
-    a: "You can add keys for OpenAI, Anthropic, Google and Voyage. Chat and model switching have been run for real only on Gemini models so far. A free Google AI Studio key is enough for chat and for indexing.",
+    a: "OpenAI, Anthropic, Google and Voyage are supported through LiteLLM, with your own keys. Real runs so far were only on Gemini models, the others have not been used for real yet. A free Google AI Studio key is enough for chat and for indexing.",
   },
   {
     q: "Where does my code go?",
