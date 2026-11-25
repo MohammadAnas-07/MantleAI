@@ -107,31 +107,38 @@ export function Setup() {
   );
 }
 
-const COLUMNS = [
-  { title: "Works today", items: STATUS.works },
-  { title: "Planned, not built", items: STATUS.planned },
-  { title: "Known limits", items: STATUS.limits },
-];
-
 export function Status() {
   return (
-    <Band id="status" eyebrow="Status and limits" title="Version 0.1 is not finished">
-      <div className="grid gap-10 md:grid-cols-3">
-        {COLUMNS.map((c) => (
-          <div key={c.title}>
-            <h3 className="text-title">{c.title}</h3>
-            <ul className="mt-3 text-ink-2">
-              {c.items.map((item) => (
-                <li key={item} className="border-t border-rule py-2">
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+    <Band
+      id="what-works"
+      eyebrow="What works today"
+      title="What works today, and what to know first"
+    >
+      <div className="grid gap-10 md:grid-cols-2">
+        <div>
+          <h3 className="text-title">Works today</h3>
+          <ul className="mt-3 text-ink-2">
+            {STATUS.works.map((item) => (
+              <li key={item} className="border-t border-rule py-2">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="text-title">Before you run it</h3>
+          <ul className="mt-3 text-ink-2">
+            {STATUS.beforeYouRun.map((item) => (
+              <li key={item} className="border-t border-rule py-2">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
-      <p className="mt-8">
+      <p className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
         <a href={blob("docs/roadmap.md")}>The roadmap on GitHub</a>
+        <a href={blob("docs/known-issues.md")}>More known issues on GitHub</a>
       </p>
     </Band>
   );
