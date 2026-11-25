@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import { BACKEND_COMMANDS, FRONTEND_COMMANDS, NAV, REPO } from "../content";
 import { contentSecurityPolicy, injectCsp } from "../csp";
+import { SCREENSHOTS } from "../screenshots";
 
 describe("page structure", () => {
   it("renders every section the nav names, with a heading each", () => {
@@ -187,8 +188,15 @@ describe("content security policy", () => {
 });
 
 describe("screenshots", () => {
-  it("draws no figure when public/screenshots has no images", () => {
+  // The empty-folder case (no figure at all) is covered in screenshots-plugin.test.ts.
+  it("shows every screenshot found, with alt text and a fixed size", () => {
     const { container } = render(<App />);
-    expect(container.querySelectorAll("img")).toHaveLength(0);
+    const imgs = [...container.querySelectorAll("img")];
+    expect(imgs).toHaveLength(SCREENSHOTS.length);
+    for (const img of imgs) {
+      expect(img.getAttribute("alt")?.trim()).toBeTruthy();
+      expect(Number(img.getAttribute("width"))).toBeGreaterThan(0);
+      expect(Number(img.getAttribute("height"))).toBeGreaterThan(0);
+    }
   });
 });

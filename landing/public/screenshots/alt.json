@@ -1,0 +1,8 @@
+{
+  "agent-run-approval.png": "A Planner and Reviewer run waiting for approval: four proposed tasks with acceptance criteria, each selectable and editable, with Approve selected and Reject run buttons.",
+  "chat-cited-code.png": "A chat reply from Gemini 3.5 Flash Lite that answers with the file and lines it used, backend/app/main.py:6-7, next to the project's decisions in the side panel.",
+  "model-switch-preview.png": "The switch preview before moving the conversation to Gemini 3.8 Flash: 1.6k of 939.6k tokens would be sent, nothing is left out, and the current model is not called.",
+  "project-profile.png": "The Profile tab: languages, markers, the entry point and folders, each read from the project files without a model.",
+  "settings-keys.png": "The settings page with three provider keys, each shown only by its last four characters.",
+  "workflow-gate.png": "The workflow page on the Requirements stage: the checklist is not ticked, so the gate is not met and lists the three missing items."
+}

@@ -3,6 +3,8 @@
 Mantle is a local, open-source workspace for building software with several LLMs. It is not an
 LLM: it calls the providers you choose, with your own API keys.
 
+[Live site](https://mohammadanas-07.github.io/MantleAI/) · [![CI](https://github.com/MohammadAnas-07/MantleAI/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MohammadAnas-07/MantleAI/actions/workflows/ci.yml) · [MIT licence](LICENSE)
+
 When a model hits its limit mid-task, you copy the chat into another one and spend a good while
 explaining the project again. Mantle keeps the project's requirements, decisions, tasks,
 a rolling conversation summary and the indexed code in a local database, so the next model picks
@@ -21,8 +23,25 @@ Version 0.1 is not finished. One developer builds it. Works today, in the API an
   runs whose drafts are saved only when you approve them.
 
 Planned, not built: teaching notes and the concepts list, a model-written project summary
-(`feat/profile-summary`, deferred), sandboxed command execution, login and accounts, the landing
-page, `GET /messages/{id}/context` and `GET /audit-events`. Order: [roadmap](docs/roadmap.md).
+(`feat/profile-summary`, deferred), sandboxed command execution, login and accounts,
+`GET /messages/{id}/context` and `GET /audit-events`. Order: [roadmap](docs/roadmap.md).
+
+## Screenshots
+
+Taken from the running app on a demo project built from the public sample in
+`backend/tests/fixtures`, with Gemini 3.5 Flash Lite.
+
+![A chat reply that answers with the file and lines it used, backend/app/main.py:6-7, next to the project's decisions in the side panel](landing/public/screenshots/chat-cited-code.png)
+
+A chat reply that cites the code it used as `path:lines`.
+
+![The workflow page on the Requirements stage, where the gate is not met and lists the three missing items](landing/public/screenshots/workflow-gate.png)
+
+The workflow page: a stage can't be approved until its gate is met, unless you give a reason.
+
+![The Profile tab with languages, markers, the entry point and folders, each read from the project files](landing/public/screenshots/project-profile.png)
+
+The project profile, read from the files without a model.
 
 ## How it works
 
@@ -104,12 +123,12 @@ of 5 decision questions after a switch from Gemini 3.8 Flash to Gemini 3.5 Flash
   a chat timeout is not confirmed. A lite model (Gemini 3.5 Flash Lite) is used. On it the
   Planner and Reviewer returned valid output, but that is one sample: agent output quality is not
   proven. Chat and switching have been run for real only on Gemini models.
-- The conversation list of a project stops at 500 rows, with no total and no message.
-- Some lists stop at a fixed size with no message that more exist: a conversation shows its first
-  500 messages, the activity log its newest 200 calls, and the agent run and gap finder lists
-  their newest 50 runs. The app reads at most 100 memory items per kind; the memory panel says
-  "Showing X of Y", but a reference to a later item shows its id instead of its title. The built
-  app is one 600 kB script (audit A-020; the `fix/list-limits-and-bundle` work is not done).
+- Some lists stop at a fixed size with no message that more exist: a project's conversation list
+  at 500 rows (with no total), a conversation at its first 500 messages, the activity log at its
+  newest 200 calls, and the agent run and gap finder lists at their newest 50 runs. The app reads
+  at most 100 memory items per kind; the memory panel says "Showing X of Y", but a reference to
+  a later item shows its id instead of its title. The built app is one 600 kB script (audit
+  A-020; the `fix/list-limits-and-bundle` work is not done).
 - Index and agent runs live in the server process; a restart (also `--reload`) stops them.
 - No login, and repositories don't yet check that a parent row belongs to the user (to fix
   before auth). Don't run Mantle anywhere but your own machine.
