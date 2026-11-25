@@ -66,21 +66,28 @@ describe("page structure", () => {
     const text = container.textContent;
     expect(text).toMatch(/real runs used only Gemini/);
     expect(text).toMatch(/Real runs: Gemini only/);
-    expect(text).toMatch(/Open source · MIT licence · Version 0\.1 · Runs on your machine/);
-    // The hero no longer says "not finished"; the status section still does, with every limit.
-    const status = document.getElementById("status") as HTMLElement;
-    expect(within(status).getByRole("heading", { level: 2 })).toHaveTextContent(
-      "Version 0.1 is not finished",
-    );
+    expect(text).toMatch(/Open source · MIT licence · Runs on your machine/);
     expect(text).not.toMatch(/any provider/i);
     expect(text).not.toMatch(/production[- ]ready/i);
   });
 
-  it("keeps the limits on the page", () => {
+  it("keeps the safety notes on the page, with a link to the other known issues", () => {
     render(<App />);
-    const status = document.getElementById("status") as HTMLElement;
-    expect(within(status).getByRole("heading", { name: "Known limits" })).toBeInTheDocument();
-    expect(within(status).getByText(/No real-use evaluation of v0.1 yet/)).toBeInTheDocument();
+    const section = document.getElementById("what-works") as HTMLElement;
+    const list = within(section).getByRole("heading", { name: "Before you run it" })
+      .nextElementSibling as HTMLElement;
+    const items = within(list)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
+    expect(items).toHaveLength(5);
+    expect(items.join(" ")).toMatch(/no login/i);
+    expect(items.join(" ")).toMatch(/sends your code to your embedding provider/);
+    expect(items.join(" ")).toMatch(/only on Gemini/);
+    expect(items.join(" ")).toMatch(/restart stops them/);
+    expect(items.join(" ")).toMatch(/no automatic backup/);
+    expect(
+      within(section).getByRole("link", { name: "More known issues on GitHub" }),
+    ).toBeInTheDocument();
   });
 });
 

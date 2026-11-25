@@ -9,12 +9,12 @@ export const NAV = [
   { id: "features", label: "Features" },
   { id: "privacy", label: "Privacy" },
   { id: "setup", label: "Setup" },
-  { id: "status", label: "Status" },
+  { id: "what-works", label: "What works" },
 ] as const;
 
-// README.md, intro and "Status" (version 0.1; MIT licence; runs on your own machine).
+// README.md, intro (MIT licence; runs on your own machine).
 export const HERO = {
-  eyebrow: "Open source · MIT licence · Version 0.1 · Runs on your machine",
+  eyebrow: "Open source · MIT licence · Runs on your machine",
   title: "Switch models without explaining your project again",
   lead: "Mantle keeps project memory, decisions and code search in your own PostgreSQL database, so the next model picks up where the last one stopped.",
   note: "It uses your own API keys for the models you pick.",
@@ -145,24 +145,15 @@ export const FRONTEND_COMMANDS = `cd frontend
 npm install
 npm run dev`;
 
-// README.md, "Status", "Limits and known issues".
+// README.md, "What it does" and "Before you run it"; docs/known-issues.md has the rest.
 export const STATUS = {
   works: FEATURES.map((f) => f.title),
-  planned: [
-    "Teaching notes and the concepts list",
-    "A model-written project summary",
-    "Sandboxed command execution",
-    "Login and accounts",
-    "A per-message context view and an audit log endpoint",
-  ],
-  limits: [
-    "No real-use evaluation of v0.1 yet. The 2-week trial hasn't started, and the larger retrieval evaluation stopped at the Gemini daily limit with no result.",
-    "Chat and switching have been run for real only on Gemini models. Planner and Reviewer output is one sample, so its quality is not proven.",
-    "An agent run on Gemini 3.8 Flash timed out at 120 seconds on the developer's machine.",
-    "Index and agent runs live in the server process. A restart stops them.",
-    "No login, and the code doesn't yet check that a parent row belongs to the user. Run Mantle only on your own machine.",
-    "Some lists stop at a fixed size, for example 500 conversations per project and the newest 200 calls in the activity log.",
-    "One Docker volume holds all data, with no automatic backup.",
+  beforeYouRun: [
+    "There is no login. Run Mantle only on your own machine and don't expose it on a network.",
+    "Indexing sends your code to your embedding provider.",
+    "Chat and model switching have been run for real only on Gemini models.",
+    "Index and agent runs live in the server process; a restart stops them.",
+    "All data sits in one Docker volume with no automatic backup.",
   ],
 };
 
@@ -223,7 +214,7 @@ export const FAQ = [
   },
   {
     q: "Why is there no login?",
-    a: "Version 0.1 is for one developer on their own computer. The API answers only that computer and the database listens only on 127.0.0.1. Login and accounts are planned.",
+    a: "Mantle is for one developer on their own computer. The API answers only that computer and the database listens only on 127.0.0.1. Login and accounts are planned.",
   },
   {
     q: "How can I contribute?",
@@ -259,6 +250,6 @@ export const FOOTER = {
       ],
     },
   ],
-  builder: "One developer builds Mantle. Version 0.1 is not finished.",
+  builder: "One developer builds Mantle.",
   licence: "Released under the MIT licence.",
 };
