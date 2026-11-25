@@ -26,6 +26,23 @@ Planned, not built: teaching notes and the concepts list, a model-written projec
 (`feat/profile-summary`, deferred), sandboxed command execution, login and accounts, the landing
 page, `GET /messages/{id}/context` and `GET /audit-events`. Order: [roadmap](docs/roadmap.md).
 
+## Screenshots
+
+Taken from the running app on a demo project built from the public sample in
+`backend/tests/fixtures`, with Gemini 3.5 Flash Lite.
+
+![A chat reply that answers with the file and lines it used, backend/app/main.py:6-7, next to the project's decisions in the side panel](landing/public/screenshots/chat-cited-code.png)
+
+A chat reply that cites the code it used as `path:lines`.
+
+![The workflow page on the Requirements stage, where the gate is not met and lists the three missing items](landing/public/screenshots/workflow-gate.png)
+
+The workflow page: a stage can't be approved until its gate is met, unless you give a reason.
+
+![The Profile tab with languages, markers, the entry point and folders, each read from the project files](landing/public/screenshots/project-profile.png)
+
+The project profile, read from the files without a model.
+
 ## How it works
 
 One FastAPI process, split into modules, with PostgreSQL 16 and pgvector in Docker, and a React
