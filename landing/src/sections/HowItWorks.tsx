@@ -4,7 +4,7 @@ import { SCREENSHOTS } from "../screenshots";
 
 export function HowItWorks() {
   return (
-    <Band id="how-it-works" eyebrow="How it works" title="Four steps, one database on your machine">
+    <Band id="how-it-works" eyebrow="How it works" title="What Mantle does with a project">
       {/* The steps are an ordered list; the numbered line above them is the diagram. */}
       <ol className="grid gap-0 md:grid-cols-4 md:gap-6">
         {STEPS.map((step, i) => (
@@ -31,7 +31,7 @@ export function Features() {
       id="features"
       tone="linen"
       eyebrow="What it does today"
-      title="Working now, in the API and the web app"
+      title="Works today, in the API and the web app"
     >
       <ul className="grid gap-x-12 md:grid-cols-2">
         {FEATURES.map((f) => (

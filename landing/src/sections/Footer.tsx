@@ -3,7 +3,7 @@ import { FAQ, FOOTER } from "../content";
 
 export function Faq() {
   return (
-    <Band id="faq" eyebrow="Questions" title="Questions people ask first">
+    <Band id="faq" eyebrow="Questions" title="Before you try it">
       <div className="max-w-[68ch]">
         {FAQ.map((item) => (
           <details key={item.q} className="group border-t border-rule">

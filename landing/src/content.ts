@@ -29,7 +29,8 @@ export const PROBLEM = {
   ],
 };
 
-// README.md, "How it works" and "Status"; docs/architecture.md.
+// README.md, "How it works" and "Status"; docs/architecture.md (D3: a switch never needs a call
+// to the old model).
 export const STEPS = [
   {
     title: "Point Mantle at a project",
@@ -45,7 +46,7 @@ export const STEPS = [
   },
   {
     title: "Switch models mid-conversation",
-    text: "A preview shows what the new model will get. The old model is never called during the switch, so it still works when that model has failed.",
+    text: "A preview shows what the new model will get. The old model is never called during the switch, so a switch never depends on it.",
   },
 ];
 
@@ -57,11 +58,11 @@ export const FEATURES = [
   },
   {
     title: "Model switching mid-conversation",
-    detail: "You see a preview first. The model you switch away from is never called.",
+    detail: "Pick another model in the conversation and check the preview before you confirm.",
   },
   {
     title: "Project memory",
-    detail: "Requirements, decisions and tasks are pinned into every prompt, for every model.",
+    detail: "Requirements, decisions and tasks, stored per project and shared by every model.",
   },
   {
     title: "Indexing and cited answers",
@@ -210,7 +211,7 @@ export const FAQ = [
   },
   {
     q: "Which providers does it support?",
-    a: "OpenAI, Anthropic, Google and Voyage are supported through LiteLLM, with your own keys. Real runs so far were only on Gemini models, the others have not been used for real yet. A free Google AI Studio key is enough for chat and for indexing.",
+    a: "OpenAI, Anthropic, Google and Voyage, through LiteLLM and with your own keys. So far, real runs used only Gemini models. A free Google AI Studio key is enough for chat and for indexing.",
   },
   {
     q: "Where does my code go?",
@@ -218,7 +219,7 @@ export const FAQ = [
   },
   {
     q: "Does it need the internet?",
-    a: "Only to reach the providers you use, when you send a message, index a project or test a key, plus the background summary if it is on. The database and the app run on your machine.",
+    a: "Only to reach your providers. That happens when you send a message, index a project, test a key, or when the background summary runs. The database and the app run on your machine.",
   },
   {
     q: "Why is there no login?",
