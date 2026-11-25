@@ -10,8 +10,9 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-25).** `docs/landing-copy` (not pushed): landing copy tightened, no fact
-changed (checked by diffing numbers, commands, URLs and paths). Landing page live at
+**Status (2026-11-25).** `docs/landing-copy-fixes` (not pushed): the unmeasured "about 10
+minutes" is gone from the landing page, README, idea.md and prd.md; hero eyebrow is
+"Open source · MIT licence · Version 0.1 · Runs on your machine" (limits stay in Status). Landing page live at
 <https://mohammadanas-07.github.io/MantleAI/>, deployed by `.github/workflows/pages.yml` on pushes
 to `main` that touch `landing/`. Fresh counts 2026-11-24: backend 883 (test DB on), frontend 142.
 
@@ -24,7 +25,7 @@ to `main` that touch `landing/`. Fresh counts 2026-11-24: backend 883 (test DB o
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`. Branches: 2 local (`main`, `docs/landing-copy`), 47 remote.
+`GET /messages/{id}/context`. Branches: 2 local (`main`, `docs/landing-copy-fixes`), 48 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 
