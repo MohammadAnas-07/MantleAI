@@ -24,7 +24,7 @@ export const HERO = {
 export const PROBLEM = {
   title: "A model hits its limit halfway through a task",
   paragraphs: [
-    "So you copy the chat into another model and spend about 10 minutes explaining the project again.",
+    "So you copy the chat into another model and spend a good while explaining the project again.",
     "Mantle stores the requirements, decisions, tasks, a rolling summary of the conversation and the indexed code in a local database. The next model gets them in its first prompt.",
   ],
 };
