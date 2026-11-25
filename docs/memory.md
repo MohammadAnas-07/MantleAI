@@ -10,12 +10,10 @@ Working memory for any AI tool and for the developer. Read it before every task.
 
 ## Current status
 
-**Status (2026-11-24).** `chore/landing-pages-deploy` (not pushed): `.github/workflows/pages.yml`
-builds `landing/` (output scan included) and deploys it to GitHub Pages on pushes to `main` that
-touch `landing/`, or by hand. Needs Settings, Pages, Source "GitHub Actions" once. URL
-<https://mohammadanas-07.github.io/MantleAI/> is in both READMEs, unconfirmed until the first
-deploy. Landing counts from fresh runs: backend 883 passed (test DB on), frontend 142.
-Landing page itself is merged (`landing/`, `docs/design-landing.md`, CI job `landing`).
+**Status (2026-11-25).** `docs/landing-copy` (not pushed): landing copy tightened, no fact
+changed (checked by diffing numbers, commands, URLs and paths). Landing page live at
+<https://mohammadanas-07.github.io/MantleAI/>, deployed by `.github/workflows/pages.yml` on pushes
+to `main` that touch `landing/`. Fresh counts 2026-11-24: backend 883 (test DB on), frontend 142.
 
 **Audit 2026-11-20** (A-001..A-022, report outside the repo).
 - Fixed and merged: A-001..A-011, A-012 (backup notes), A-013, A-014, A-017..A-019, A-021, A-022.
@@ -26,7 +24,7 @@ Landing page itself is merged (`landing/`, `docs/design-landing.md`, CI job `lan
 **Summary.** Built: projects, keys, streaming chat, model switching, project memory, cited
 retrieval, profile facts, gap finder, the workflow page with Planner and Reviewer runs. Not
 built: teaching layer (notes, concepts list), model-written profile summary, `GET /audit-events`,
-`GET /messages/{id}/context`. Branches: 2 local (`main`, `chore/landing-pages-deploy`), 45 remote.
+`GET /messages/{id}/context`. Branches: 2 local (`main`, `docs/landing-copy`), 47 remote.
 `scripts/agent_demo.py` on a lite Gemini model: valid Planner and Reviewer output, one sample
 (quality not proven). Agent run on `gemini-3.8-flash` timed out at 120 s; chat timeout unconfirmed.
 

@@ -99,7 +99,7 @@ export function Setup() {
             </p>
           </div>
           <p>
-            <a href={blob("docs/setup.md")}>Every step explained, with common errors, on GitHub</a>
+            <a href={blob("docs/setup.md")}>The full setup guide, with common errors, on GitHub</a>
           </p>
         </div>
       </div>

@@ -123,7 +123,7 @@ export function FlowDiagram() {
       </text>
 
       <text x="8" y="312" className="fill-muted text-[13px]">
-        Any provider you hold a key for: OpenAI, Anthropic, Google.
+        OpenAI, Anthropic and Google through LiteLLM. Real runs: Gemini only.
       </text>
       <text x="8" y="334" className="fill-muted text-[13px]">
         The old model is not called during a switch.

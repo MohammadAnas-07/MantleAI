@@ -60,6 +60,16 @@ describe("page structure", () => {
     expect(screen.getByRole("main")).toHaveAttribute("id", "main");
   });
 
+  it("claims no more than the README about providers and readiness", () => {
+    const { container } = render(<App />);
+    const text = container.textContent;
+    expect(text).toMatch(/real runs used only Gemini/);
+    expect(text).toMatch(/Real runs: Gemini only/);
+    expect(text).toMatch(/Version 0\.1, not finished/);
+    expect(text).not.toMatch(/any provider/i);
+    expect(text).not.toMatch(/production[- ]ready/i);
+  });
+
   it("keeps the limits on the page", () => {
     render(<App />);
     const status = document.getElementById("status") as HTMLElement;
