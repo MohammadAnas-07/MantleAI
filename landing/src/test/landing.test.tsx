@@ -65,7 +65,12 @@ describe("page structure", () => {
     const text = container.textContent;
     expect(text).toMatch(/real runs used only Gemini/);
     expect(text).toMatch(/Real runs: Gemini only/);
-    expect(text).toMatch(/Version 0\.1, not finished/);
+    expect(text).toMatch(/Open source · MIT licence · Version 0\.1 · Runs on your machine/);
+    // The hero no longer says "not finished"; the status section still does, with every limit.
+    const status = document.getElementById("status") as HTMLElement;
+    expect(within(status).getByRole("heading", { level: 2 })).toHaveTextContent(
+      "Version 0.1 is not finished",
+    );
     expect(text).not.toMatch(/any provider/i);
     expect(text).not.toMatch(/production[- ]ready/i);
   });

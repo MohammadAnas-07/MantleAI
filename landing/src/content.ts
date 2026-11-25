@@ -12,19 +12,19 @@ export const NAV = [
   { id: "status", label: "Status" },
 ] as const;
 
-// README.md, intro and "Status" (version 0.1 is not finished; MIT licence).
+// README.md, intro and "Status" (version 0.1; MIT licence; runs on your own machine).
 export const HERO = {
-  eyebrow: "Version 0.1, not finished",
+  eyebrow: "Open source · MIT licence · Version 0.1 · Runs on your machine",
   title: "Switch models without explaining your project again",
   lead: "Mantle keeps project memory, decisions and code search in your own PostgreSQL database, so the next model picks up where the last one stopped.",
-  note: "MIT licensed. It runs on your machine and uses your own API keys.",
+  note: "It uses your own API keys for the models you pick.",
 };
 
 // README.md, intro.
 export const PROBLEM = {
   title: "A model hits its limit halfway through a task",
   paragraphs: [
-    "So you copy the chat into another model and spend about 10 minutes explaining the project again.",
+    "So you copy the chat into another model and spend a good while explaining the project again.",
     "Mantle stores the requirements, decisions, tasks, a rolling summary of the conversation and the indexed code in a local database. The next model gets them in its first prompt.",
   ],
 };
